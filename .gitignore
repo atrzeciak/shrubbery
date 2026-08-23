@@ -9,3 +9,7 @@ public/app/version.json
 wrangler.toml
 .wrangler-real.toml.bak
 .scrub-names
+# Working notes. They were kept out of the published history by hand; ignoring them means a local
+# copy can sit in the working tree without one `git add -A` putting it in front of the world.
+TODO.md
+docs/
