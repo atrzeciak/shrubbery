@@ -1,0 +1,63 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tidy
+        timeout-minutes: 5
+        # apt-get update occasionally hangs on the hosted runners; the cached lists usually suffice.
+        run: sudo apt-get install -y -q tidy || (sudo apt-get update -q && sudo apt-get install -y -q tidy)
+      - run: scripts/verify.sh
+        env:
+          VERIFY_STRICT: "1"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run
+
+  deploy:
+    needs: [verify, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Write wrangler.toml
+        # The real configuration names the domain, the database and the bucket, so it lives in a
+        # secret rather than in the repository. Paste the whole file into WRANGLER_TOML.
+        run: printf '%s' "$WRANGLER_TOML" > wrangler.toml
+        env:
+          WRANGLER_TOML: ${{ secrets.WRANGLER_TOML }}
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply ${{ secrets.D1_DATABASE }} --remote
+      - name: Stamp version
+        run: printf '{"version":"%s","at":%s}\n' "$(date -u +%Y%m%d.%H%M)" "$(date -u +%s)" > public/app/version.json
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

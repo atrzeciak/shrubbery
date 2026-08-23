@@ -1,0 +1,2 @@
+ALTER TABLE accounts ADD COLUMN notify_events INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN news_seen_at INTEGER;

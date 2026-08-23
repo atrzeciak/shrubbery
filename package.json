@@ -1,0 +1,15 @@
+{
+  "name": "shrubbery",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "verify": "scripts/verify.sh"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "vitest": "4.1",
+    "wrangler": "^4.123.0"
+  }
+}

@@ -1,0 +1,11 @@
+*.code-workspace
+node_modules/
+.wrangler/
+.dev.vars
+scripts/out/
+scripts/__pycache__/
+public/app/version.json
+# Names your domain, database and bucket: keep it out of the repository.
+wrangler.toml
+.wrangler-real.toml.bak
+.scrub-names

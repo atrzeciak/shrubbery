@@ -1,0 +1,48 @@
+# Copy this to wrangler.toml and fill in your own values. wrangler.toml is git-ignored on purpose:
+# it names your domain, your database and your bucket, and none of that belongs in a public
+# repository. The test suite runs against this example file, so it must stay valid.
+name = "family"
+main = "src/worker.js"
+compatibility_date = "2026-07-01"
+workers_dev = false
+
+routes = [{ pattern = "example.org/*", zone_name = "example.org" }]
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = ["/api/*", "/app", "/app/*"]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "family"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "src/db/migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "family-media"
+
+[vars]
+# Everything the code needs to know about which site this is. Nothing else names a domain.
+APP_ORIGIN = "https://example.org"
+MAIL_LOGIN_FROM = "login@mail.example.org"
+MAIL_FAMILY_FROM = "rodzina@mail.example.org"
+# Shown in the restore instructions inside every backup, so whoever rebuilds the site knows what to
+# recreate and where the code lives.
+DB_NAME = "family"
+BUCKET_NAME = "family-media"
+REPO_URL = "github.com/you/your-repo"
+# Your registrar's renewal date for the domain. The site warns 45 days before it, and says plainly
+# that it does not know when this is empty or unreadable. Format YYYY-MM-DD.
+DOMAIN_RENEWS_AT = ""
+
+[triggers]
+crons = ["0 5 * * *"]
+
+[[send_email]]
+name = "EMAIL"

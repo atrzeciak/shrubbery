@@ -1,0 +1,34 @@
+name: watchdog
+
+# Runs on GitHub, deliberately not on Cloudflare: nothing inside Cloudflare can report that Cloudflare
+# stopped. A failed run is notified by GitHub to whoever last changed the cron schedule below — not to
+# the repository owner — and that notification is the whole alerting mechanism.
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    # Which site to watch is configuration, so the repository names none. These are secrets rather than
+    # variables because a public repository has public logs, and only secrets are masked in them.
+    env:
+      SITE: ${{ secrets.SITE_URL }}
+      SITE_NAME: ${{ secrets.SITE_NAME }}
+    steps:
+      - name: The site answers and is still itself
+        run: |
+          body="$(curl -sS --max-time 20 --fail ${SITE}/)"
+          echo "$body" | grep -q "$SITE_NAME" || { echo "landing page does not look like the site"; exit 1; }
+
+      - name: The Worker and the database are alive
+        run: |
+          curl -sS --max-time 20 --fail ${SITE}/api/health | grep -q '"ok":true' \
+            || { echo "health check did not report ok"; exit 1; }
+
+      - name: The site is still checking itself
+        run: |
+          body="$(curl -sS --max-time 20 --fail ${SITE}/api/health)"
+          echo "$body" | grep -q '"checks_stale":false' \
+            || { echo "the daily cron has stopped running: nothing has checked the domain, the card or the backup age for over 3 days"; exit 1; }

@@ -1,0 +1,81 @@
+/* One stylesheet, no dependencies. Edit and upload. */
+
+:root {
+  --bg: #fbfaf7;
+  --fg: #1e1e1e;
+  --muted: #5c5c5c;
+  --accent: #6b1f1f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161514;
+    --fg: #ece9e3;
+    --muted: #a8a49c;
+    --accent: #d99a8a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.5;
+  text-align: center;
+}
+
+main {
+  max-width: 28rem;
+}
+
+h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(2rem, 8vw, 3rem);
+  font-weight: normal;
+  letter-spacing: 0.08em;
+}
+
+p {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid currentcolor;
+}
+
+a:hover,
+a:focus-visible {
+  border-bottom-width: 2px;
+  outline: none;
+}
+
+.enter {
+  display: inline-block;
+  padding: 0.6rem 1.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 2rem;
+  font-size: 1.05rem;
+}
+
+footer {
+  margin-top: 3rem;
+  font-size: 0.9rem;
+}
