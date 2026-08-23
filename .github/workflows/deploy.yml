@@ -32,7 +32,8 @@ jobs:
 
   deploy:
     needs: [verify, test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # A manual run deploys too: recovering this site must never require inventing a commit.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
