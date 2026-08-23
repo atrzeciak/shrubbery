@@ -11,5 +11,9 @@ wrangler.toml
 .scrub-names
 # Working notes. They were kept out of the published history by hand; ignoring them means a local
 # copy can sit in the working tree without one `git add -A` putting it in front of the world.
+# .superpowers/ is the sharpest case: its design notes name the family and the domain throughout,
+# which is precisely what the published tree was scrubbed of.
 TODO.md
 docs/
+.superpowers/
+.claude/
