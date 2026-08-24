@@ -143,7 +143,7 @@ export async function verifyRegistration({ attestationObject, clientDataJSON, ex
   return { credentialId: b64urlEncode(auth.credentialId), publicKey: auth.publicKey, counter: auth.counter, alg };
 }
 
-export async function verifyAssertion({ authenticatorData, clientDataJSON, signature, publicKey, expectedChallenge, expectedOrigin = ORIGIN, rpId = RP_ID, prevCounter }) {
+export async function verifyAssertion({ authenticatorData, clientDataJSON, signature, publicKey, expectedChallenge, expectedOrigin, rpId, prevCounter }) {
   const cd = b64urlDecode(clientDataJSON);
   checkClientData(cd, "webauthn.get", expectedChallenge, expectedOrigin);
   const authData = b64urlDecode(authenticatorData);
