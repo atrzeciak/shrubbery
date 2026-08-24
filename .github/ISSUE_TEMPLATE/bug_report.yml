@@ -1,0 +1,49 @@
+name: Bug report
+description: Something behaves differently from what the documentation says it does.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this would let somebody reach data they should not reach, close this and use
+        [private reporting](https://github.com/atrzeciak/shrubbery/security/advisories/new)
+        instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what happened, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. Sign in as an admin
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Local `make dev`, a deployed Worker, or the test suite.
+      placeholder: deployed Worker
+    validations:
+      required: true
+  - type: input
+    id: tz
+    attributes:
+      label: SITE_TZ, and the date it happened
+      description: >
+        Only if it involves reminders, birthdays, the gathering or the daily check. Almost every
+        scheduled-work bug turns out to be a timezone bug, and the cron runs at 05:00 UTC.
+      placeholder: Europe/Warsaw, 2026-03-01
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: >
+        Worker logs (`make tail`), the health endpoint (`make health`), what the admin banner says.
+        Please redact real names and addresses.

@@ -1,4 +1,8 @@
-# Nasze Korzenie / Our Roots
+# Our Roots / Nasze Korzenie
+
+[![Deploy](https://github.com/atrzeciak/shrubbery/actions/workflows/deploy.yml/badge.svg)](https://github.com/atrzeciak/shrubbery/actions/workflows/deploy.yml)
+[![Watchdog](https://github.com/atrzeciak/shrubbery/actions/workflows/watchdog.yml/badge.svg)](https://github.com/atrzeciak/shrubbery/actions/workflows/watchdog.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A private family archive, built to outlive the person who runs it.
 
@@ -9,6 +13,14 @@ nothing but `sqlite3`. In Polish and English.
 One Cloudflare Worker, D1 and R2. No build step, no framework, no runtime dependencies — the app in
 `public/app/` is plain browser modules, and everything it needs is in this repository.
 
+![The family tree, with an invented family](screenshots/tree.png)
+
+*Five generations of nobody, in the English half of the interface: the screenshot is seeded with
+made-up people, which is the only kind this repository is allowed to show. The surnames are Polish
+because the family is; the language is whatever the reader's account is set to. The two names at
+the bottom are marked undocumented — the tree distinguishes what somebody has a paper for from
+what somebody remembers.*
+
 **The code names no site of its own.** Copy `wrangler.example.toml` to `wrangler.toml`, fill in your
 domain, database and bucket, and it is your family's archive. `wrangler.toml` is git-ignored for
 exactly that reason.
@@ -17,8 +29,8 @@ exactly that reason.
 
 ```sh
 cp wrangler.example.toml wrangler.toml     # then edit it
-npm ci
-make check                                  # verify, then the full test suite
+make install                                # npm ci, exactly as CI does it
+make check                                  # verify, lint, then the full test suite
 make dev                                    # http://localhost:8787
 ```
 
@@ -32,6 +44,8 @@ make dev                                    # http://localhost:8787
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Routes, data model, scheduled work, security, configuration |
 | [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) | Standing one up, secrets, deploying, operations, troubleshooting |
 | [CLAUDE.md](CLAUDE.md) | Build commands, project structure, conventions |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | What contributions are welcome, the checks, the conventions |
+| [SECURITY.md](SECURITY.md) | Reporting a vulnerability, and what is already known and accepted |
 
 ## What makes it unusual
 

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/atrzeciak/shrubbery/security/advisories/new
+    about: Report privately instead. A public issue on this is a public exploit.
+  - name: Standing up your own copy
+    url: https://github.com/atrzeciak/shrubbery/blob/main/DEVELOPER_GUIDE.md
+    about: Setup, secrets, mail, the first account, and the troubleshooting table.
