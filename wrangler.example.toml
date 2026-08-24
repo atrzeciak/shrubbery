@@ -30,8 +30,14 @@ bucket_name = "family-media"
 [vars]
 # Everything the code needs to know about which site this is. Nothing else names a domain.
 APP_ORIGIN = "https://example.org"
-MAIL_LOGIN_FROM = "login@mail.example.org"
-MAIL_FAMILY_FROM = "rodzina@mail.example.org"
+# Optional. Leave them out and mail goes from login@ and rodzina@ at APP_ORIGIN's host; set them to
+# put the senders somewhere else, such as a mail subdomain.
+#MAIL_LOGIN_FROM = "login@mail.example.org"
+#MAIL_FAMILY_FROM = "rodzina@mail.example.org"
+# The family's own zone: the one answer to "what is today" for the cron and for every relative,
+# wherever they open the page. Without it the site falls back to UTC, which is nobody's midnight —
+# set it to wherever the family actually keeps its calendar.
+SITE_TZ = "Europe/Warsaw"
 # Shown in the restore instructions inside every backup, so whoever rebuilds the site knows what to
 # recreate and where the code lives.
 DB_NAME = "family"

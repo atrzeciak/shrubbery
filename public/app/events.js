@@ -3,8 +3,10 @@ export const fullDate = (d) => typeof d === "string" && FULL_DATE_RE.test(d);
 
 export const plural = (n, lang, forms) => forms[new Intl.PluralRules(lang).select(n)] || forms.other;
 
-export function todayInWarsaw(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Warsaw", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+// The calendar date at a given zone. The site has exactly one, because a birthday must turn over on
+// the family's midnight and read the same for every relative, wherever they open the page from.
+export function today(date, tz) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
 const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;

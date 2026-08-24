@@ -47,6 +47,9 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 | Health | `GET /health` — public |
 | Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `backup.js`, `gatherings.js`) |
 
+`GET /api/me` carries `tz` alongside the account: the site's zone, so the browser works out
+"today" exactly as the cron does rather than from whatever zone the reader's laptop is in.
+
 `GET /api/health` is deliberately public and deliberately tiny: `{ok, checks_stale}`. It lets an
 outside watchdog tell "the Worker and its database are alive" from "DNS still resolves", without
 holding a session or learning anything.
@@ -82,7 +85,8 @@ failing cannot take the others with it:
 | `gatheringReminders` | `events/cron.js` | Gathering mail a week before and on the day |
 
 Both mail passes guard against a cron that fires twice by reading the history rows they themselves
-write, keyed by day. A repeated run mails nobody twice.
+write, keyed by day — the site's day, resolved through `SITE_TZ`, not the trigger's UTC one. A
+repeated run mails nobody twice.
 
 ## 6. Data model
 
@@ -122,7 +126,8 @@ the tracked template and is what the tests run against.
 | Var | Meaning |
 | --- | ------- |
 | `APP_ORIGIN` | The site's origin. Everything else derives from it: WebAuthn RP id, links in mail |
-| `MAIL_LOGIN_FROM`, `MAIL_FAMILY_FROM` | Senders for codes and for family mail |
+| `MAIL_LOGIN_FROM`, `MAIL_FAMILY_FROM` | Senders for codes and for family mail. Optional: left out, they default to `login@` and `rodzina@` at `APP_ORIGIN`'s host |
+| `SITE_TZ` | The family's zone, and the site's only answer to "what is today". Falls back to `UTC`, which is nobody's midnight: set it |
 | `DB_NAME`, `BUCKET_NAME`, `REPO_URL` | Named in the restore instructions inside every backup |
 | `DOMAIN_RENEWS_AT` | Registrar renewal date; warns 45 days out, says so plainly when empty |
 

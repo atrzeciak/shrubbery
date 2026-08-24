@@ -5,7 +5,7 @@
 You need a Cloudflare account (the free plan is enough) and a domain on it.
 
 ```sh
-cp wrangler.example.toml wrangler.toml       # then edit: domain, database, bucket, senders
+cp wrangler.example.toml wrangler.toml       # then edit: domain, database, bucket
 npm ci
 npx wrangler d1 create <your-database>       # put the printed id into wrangler.toml
 npx wrangler r2 bucket create <your-bucket>
@@ -18,8 +18,10 @@ npx wrangler deploy
 ### Mail
 
 Set up **Cloudflare Email Routing** with a verified sender and bind it as `EMAIL`. Without it the
-site runs but nobody can sign in, because the login code arrives by mail. Use two senders — one for
-login codes, one for everything a relative reads — and set `MAIL_LOGIN_FROM` and `MAIL_FAMILY_FROM`.
+site runs but nobody can sign in, because the login code arrives by mail. Two senders are used — one
+for login codes, one for everything a relative reads. Naming them with `MAIL_LOGIN_FROM` and
+`MAIL_FAMILY_FROM` is optional; see the configuration table in ARCHITECTURE for what they fall back
+to. Whichever two addresses end up in use must be verified in Email Routing, or nothing sends.
 
 ### The first account
 

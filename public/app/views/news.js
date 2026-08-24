@@ -2,7 +2,7 @@ import { api } from "../api.js";
 import { t } from "../i18n.js";
 import { h, clear, fmtAgo } from "../dom.js";
 import { loadGraph } from "../people.js";
-import { upcoming, todayInWarsaw, plural } from "../events.js";
+import { upcoming, today as dayIn, plural } from "../events.js";
 
 export function sentence(item) {
   const d = item.details || {};
@@ -38,14 +38,15 @@ export async function render(root, ctx) {
   root.append(h("h1", { text: t("news.title") }));
   try {
     const g = await loadGraph();
-    const events = upcoming(g.people, todayInWarsaw(new Date()), 30);
+    const tz = ctx.state.me.tz;
+    const events = upcoming(g.people, dayIn(new Date(), tz), 30);
     // A gathering is the one date here that somebody decided on rather than one worked out from a
     // birth or death, and it is worth seeing from further off than thirty days.
     let meeting = null;
     try {
       const data = await api("/api/gatherings");
       if (data.gathering && !data.gathering.cancelled_at) {
-        const days = Math.round((Date.parse(`${data.gathering.on_date}T00:00:00Z`) - Date.parse(`${todayInWarsaw(new Date())}T00:00:00Z`)) / 86400000);
+        const days = Math.round((Date.parse(`${data.gathering.on_date}T00:00:00Z`) - Date.parse(`${dayIn(new Date(), tz)}T00:00:00Z`)) / 86400000);
         if (days >= 0) meeting = { on_date: data.gathering.on_date, days };
       }
     } catch { /* the gathering is not worth losing the birthdays over */ }

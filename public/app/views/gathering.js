@@ -1,9 +1,9 @@
 import { api } from "../api.js";
 import { t } from "../i18n.js";
 import { h, clear } from "../dom.js";
-import { todayInWarsaw } from "../events.js";
+import { today as dayIn } from "../events.js";
 
-const daysUntil = (onDate) => Math.round((Date.parse(`${onDate}T00:00:00Z`) - Date.parse(`${todayInWarsaw(new Date())}T00:00:00Z`)) / 86400000);
+const daysUntil = (onDate, tz) => Math.round((Date.parse(`${onDate}T00:00:00Z`) - Date.parse(`${dayIn(new Date(), tz)}T00:00:00Z`)) / 86400000);
 
 const longDate = (onDate) =>
   new Date(`${onDate}T12:00:00`).toLocaleDateString(document.documentElement.lang, { day: "numeric", month: "long", year: "numeric" });
@@ -65,7 +65,7 @@ export async function render(root, ctx) {
       if (isAdmin) body.append(form(null, draw, ctx));
       return;
     }
-    const days = daysUntil(g.on_date);
+    const days = daysUntil(g.on_date, ctx.state.me.tz);
     body.append(h("div", { class: "card" },
       h("h2", { text: longDate(g.on_date) }),
       g.cancelled_at ? h("p", { class: "error", text: t("gathering.cancelled") }) : null,

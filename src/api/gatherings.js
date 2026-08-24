@@ -1,10 +1,10 @@
 import * as q from "../db/queries.js";
 import { json, nowSec, randomB64url } from "../util.js";
-import { ApiError, readJson, requireRole, requireSession } from "./common.js";
+import { ApiError, readJson, requireRole, requireSession, siteTz } from "./common.js";
 import { historyStmt } from "../history.js";
 import { hashIp } from "../history.js";
 import { clientIp } from "../util.js";
-import { todayInWarsaw } from "../../public/app/events.js";
+import { today as dayIn } from "../../public/app/events.js";
 import { sendGatheringMail } from "../mail.js";
 import { accountIdentity } from "./common.js";
 import { randomB64url as inviteId } from "../util.js";
@@ -45,7 +45,7 @@ function guestsAndTotals(rows) {
 
 async function getCurrent(request, env) {
   await requireSession(request, env);
-  const gathering = await q.currentGathering(env.DB, todayInWarsaw(new Date())).first();
+  const gathering = await q.currentGathering(env.DB, dayIn(new Date(), siteTz(env))).first();
   if (!gathering) return json({ gathering: null, guests: [], totals: { coming: 0, not_coming: 0, unanswered: 0 } });
   const { results } = await q.guestList(env.DB, gathering.id).all();
   return json({ gathering, ...guestsAndTotals(results) });

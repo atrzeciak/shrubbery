@@ -36,6 +36,9 @@ describe("passkeys", () => {
     const { r } = await addPasskey(c);
     expect(r.status).toBe(201);
     expect((await c.json("/api/me")).body.session.passkey_at).toBeNull();
+    // The configured zone reaches the browser here or the views cannot agree with the cron on what
+    // "today" is. Europe/Warsaw is what wrangler.example.toml sets, not a default: the fallback is UTC.
+    expect((await c.json("/api/me")).body.tz).toBe("Europe/Warsaw");
     let list = (await c.json("/api/me/passkeys")).body.passkeys;
     expect(list).toHaveLength(1);
     expect(list[0].name).toBe("phone");

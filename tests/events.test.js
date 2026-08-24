@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { fullDate, todayInWarsaw, upcoming, plural } from "../public/app/events.js";
+import { fullDate, today, upcoming, plural } from "../public/app/events.js";
+import { siteTz } from "../src/api/common.js";
 
 const P = (id, birth_date = null, death_date = null, deceased = 0) => ({ id, birth_date, death_date, deceased });
 
@@ -10,11 +11,18 @@ describe("fullDate", () => {
   });
 });
 
-describe("todayInWarsaw", () => {
-  it("formats in Europe/Warsaw", () => {
-    expect(todayInWarsaw(new Date("2026-06-15T05:00:00Z"))).toBe("2026-06-15");
+describe("today", () => {
+  it("formats in the zone it is given", () => {
+    expect(today(new Date("2026-06-15T05:00:00Z"), "Europe/Warsaw")).toBe("2026-06-15");
     // 23:30 UTC on Dec 31 is already Jan 1 in Warsaw (UTC+1)
-    expect(todayInWarsaw(new Date("2026-12-31T23:30:00Z"))).toBe("2027-01-01");
+    expect(today(new Date("2026-12-31T23:30:00Z"), "Europe/Warsaw")).toBe("2027-01-01");
+  });
+
+  it("answers differently for a different zone, which is the whole point of the argument", () => {
+    const at = new Date("2026-12-31T23:30:00Z");
+    expect(today(at, "UTC")).toBe("2026-12-31");
+    expect(today(at, "America/Chicago")).toBe("2026-12-31");
+    expect(today(at, "Europe/Warsaw")).toBe("2027-01-01");
   });
 });
 
@@ -58,5 +66,12 @@ describe("plural", () => {
   it("selects the right English category", () => {
     expect(plural(1, "en", forms)).toBe("one");
     expect(plural(2, "en", forms)).toBe("other");
+  });
+});
+
+describe("siteTz", () => {
+  it("falls back to UTC rather than to anybody's country", () => {
+    expect(siteTz({})).toBe("UTC");
+    expect(siteTz({ SITE_TZ: "Europe/Warsaw" })).toBe("Europe/Warsaw");
   });
 });

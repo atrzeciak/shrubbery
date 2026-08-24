@@ -3,7 +3,7 @@ import { clientIp, json, nowSec, randomB64url, readCookie } from "../util.js";
 import { hashIp, historyStmt, historyStmtIfPasskeyGone } from "../history.js";
 import { clearSessionCookie } from "../auth/sessions.js";
 import { verifyRegistration, WebAuthnError } from "../auth/webauthn.js";
-import { ApiError, appOrigin, readJson, requireAdmin, requireSession, rpIdOf } from "./common.js";
+import { ApiError, appOrigin, readJson, requireAdmin, requireSession, rpIdOf, siteTz } from "./common.js";
 import { CHALLENGE_COOKIE, clearChallenge } from "./auth.js";
 import { domainRenewsAt, warningsFor } from "../ops/checks.js";
 
@@ -57,6 +57,7 @@ async function getMe(request, env) {
     passkeys: n,
     session: { passkey_at: session.passkey_at, created_at: session.created_at },
     ops: account.role === "admin" ? await opsSummary(env) : null,
+    tz: siteTz(env),
   });
 }
 
