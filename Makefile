@@ -13,11 +13,15 @@ BUCKET  := $(shell sed -n 's/^bucket_name *= *"\(.*\)"/\1/p' wrangler.toml 2>/de
 SITE    := $(shell sed -n 's/^APP_ORIGIN *= *"\(.*\)"/\1/p' wrangler.toml 2>/dev/null)
 REMOTE  := origin
 
+# Where a copy of the git-ignored config is kept, so a lost working tree does not take the only one
+# with it. Named after this directory, so a second checkout does not overwrite the first one's copy.
+CONFIG_STORE ?= $(HOME)/.secrets/$(notdir $(CURDIR))
+
 # What a public copy would contain: everything except the working notes and this project's own list.
 PUBLIC_PATHS := . ":(exclude)docs" ":(exclude)TODO.md"
 BRANCH  := main
 
-.PHONY: help install test verify check dev tail deploy-status version health migrate migrations backup release scrub-check
+.PHONY: help install test verify check dev tail deploy-status version health migrate migrations backup release scrub-check save-config
 
 help:  ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -77,8 +81,25 @@ scrub-check:  ## Look for real names and addresses in what would actually be pub
 	@echo "== licence present =="
 	@test -f LICENSE && echo "  LICENSE" || echo "  MISSING"
 
-release: check  ## Run the checks, then push main so Actions deploys it
+release: check save-config  ## Run the checks, then push main so Actions deploys it
 	@test -z "$$(git status --porcelain)" || { echo "working tree is dirty; commit first"; exit 1; }
 	@test "$$(git rev-parse --abbrev-ref HEAD)" = "$(BRANCH)" || { echo "not on $(BRANCH)"; exit 1; }
 	git push $(REMOTE) $(BRANCH)
 	@echo "pushed; watch it with: make deploy-status"
+
+# The config is git-ignored and names the site, so it exists in exactly one place unless something
+# copies it. Releasing is the moment worth copying at: the tree is clean and the config is one that
+# actually deployed. Old versions are kept because the mistake you want to undo is an edit, not a loss.
+save-config:  ## Copy wrangler.toml to the config store, keeping the last 5 versions
+	@if [ ! -f wrangler.toml ]; then echo "  no wrangler.toml here; nothing to save"; exit 0; fi; \
+	mkdir -p "$(CONFIG_STORE)/versions"; \
+	if cmp -s wrangler.toml "$(CONFIG_STORE)/wrangler.toml"; then \
+		echo "  unchanged: $(CONFIG_STORE)/wrangler.toml"; \
+	else \
+		cp wrangler.toml "$(CONFIG_STORE)/versions/wrangler.toml.$$(date -u +%Y%m%dT%H%M%SZ)"; \
+		cp wrangler.toml "$(CONFIG_STORE)/wrangler.toml"; \
+		echo "  saved: $(CONFIG_STORE)/wrangler.toml"; \
+	fi; \
+	( cd "$(CONFIG_STORE)/versions" && ls -1 | sort -r | tail -n +6 | while read -r old; do rm -- "$$old"; done ); \
+	chmod 700 "$(CONFIG_STORE)" "$(CONFIG_STORE)/versions"; \
+	chmod 600 "$(CONFIG_STORE)/wrangler.toml" "$(CONFIG_STORE)"/versions/* 2>/dev/null || true

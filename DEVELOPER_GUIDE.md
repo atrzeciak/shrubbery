@@ -14,6 +14,10 @@ npx wrangler deploy
 ```
 
 `wrangler.toml` is git-ignored on purpose: it names your domain, your database and your bucket.
+That also means the working tree holds the only copy, so `make release` runs `make save-config`
+first: it copies the file to `~/.secrets/<this directory's name>/` (override with `CONFIG_STORE=`)
+and keeps the last five versions under `versions/`, newest by name. To recover after a fresh clone,
+copy it back: `cp ~/.secrets/$(basename $PWD)/wrangler.toml .`
 
 ### Mail
 

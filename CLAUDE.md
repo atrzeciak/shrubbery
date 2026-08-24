@@ -33,6 +33,7 @@ There is no build step. `make help` lists everything; the table below is what yo
 | `make check` | `verify` then `test` — what CI runs, in CI's order |
 | `make dev` | Serve locally on `http://localhost:8787` |
 | `make release` | Run the checks, refuse a dirty tree, push so Actions deploys |
+| `make save-config` | Copy `wrangler.toml` to the config store, keeping the last 5 versions |
 | `make scrub-check` | Look for real names and addresses in what would be published |
 | `make migrations` | List D1 migrations and whether they are applied remotely |
 | `make backup COOKIE=...` | Download the archive as a ZIP |
