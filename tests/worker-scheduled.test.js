@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import * as q from "../src/db/queries.js";
 import worker from "../src/worker.js";
+import { capturingErrors } from "./helpers/logging.js";
 import { makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
 
 // The one line that runs the whole alarm system every night. Everything else in this branch is tested
@@ -67,7 +68,8 @@ describe("the nightly scheduled handler", () => {
   it("still records the ops status when the reminders themselves blow up", async () => {
     await familyWithABirthdayComing();
     const broken = { ...env, EMAIL: { async send() { throw new Error("the mail provider is down"); } } };
-    await runScheduled(broken);
+    const { logged } = await capturingErrors(() => runScheduled(broken));
+    expect(logged.some((e) => /the mail provider is down/.test(e.message))).toBe(true);
     expect((await status()).checked_at).toBeGreaterThan(0);
   });
 });

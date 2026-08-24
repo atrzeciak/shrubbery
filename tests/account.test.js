@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { capturingErrors } from "./helpers/logging.js";
 import * as q from "../src/db/queries.js";
 import { nowSec } from "../src/util.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
@@ -230,8 +231,10 @@ describe("the ops summary on /api/me", () => {
     };
     const healthy = c.env;
     c.env = opsUnreadable;
-    const r = await c.json("/api/me");
+    const { value: r, logged } = await capturingErrors(() => c.json("/api/me"));
     c.env = healthy;
+    expect(logged).toHaveLength(1);                       // swallowed, but not silently
+    expect(logged[0].message).toMatch(/no such table: ops_status/);
     expect(r.status).toBe(200);
     expect(r.body.account.email).toBe("adm@x.org");        // the app still has everything it renders from
     // and the banner says it could not look, rather than showing a calm, empty all-clear

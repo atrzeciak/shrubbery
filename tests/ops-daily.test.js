@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { capturingErrors } from "./helpers/logging.js";
 import { makeEnv, resetDb, seedAccount } from "./helpers/env.js";
 import { runOps } from "../src/ops/daily.js";
 
@@ -104,7 +105,10 @@ describe("runOps", () => {
       ...env,
       DB: { prepare: (sql) => (/^\s*UPDATE/i.test(sql) ? { bind: () => ({ run: () => Promise.reject(new Error("no such column")) }) } : env.DB.prepare(sql)) },
     };
-    await expect(runOps(brokenWrite, AUG_14, noFetch)).resolves.toBeUndefined();
+    const { value, logged } = await capturingErrors(() => runOps(brokenWrite, AUG_14, noFetch));
+    expect(value).toBeUndefined();
+    expect(logged).toHaveLength(1);                       // swallowed, but not silently
+    expect(logged[0].message).toMatch(/no such column/);
 
     const row = await status();
     expect(row.checked_at).toBe(1_780_000_000);

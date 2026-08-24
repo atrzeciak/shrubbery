@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { capturingErrors } from "./helpers/logging.js";
 import * as q from "../src/db/queries.js";
 import { runDaily } from "../src/events/cron.js";
 import { makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
@@ -87,7 +88,9 @@ describe("runDaily", () => {
       sent.push(msg);
       return { messageId: `m${sent.length}` };
     };
-    await runDaily(env, NOW);
+    const { logged } = await capturingErrors(() => runDaily(env, NOW));
+    expect(logged).toHaveLength(1);                       // the dead mailbox was reported, not hidden
+    expect(logged[0].message).toBe("mail provider down");
     expect(sent).toHaveLength(1);
     const hist = (await env.DB.prepare("SELECT target_id FROM history WHERE action = 'event_notice_sent'").all()).results;
     expect(hist).toHaveLength(1);
