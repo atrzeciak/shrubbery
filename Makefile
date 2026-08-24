@@ -11,7 +11,10 @@ SHELL := /bin/bash
 DB      := $(shell sed -n 's/^database_name *= *"\(.*\)"/\1/p' wrangler.toml 2>/dev/null)
 BUCKET  := $(shell sed -n 's/^bucket_name *= *"\(.*\)"/\1/p' wrangler.toml 2>/dev/null)
 SITE    := $(shell sed -n 's/^APP_ORIGIN *= *"\(.*\)"/\1/p' wrangler.toml 2>/dev/null)
-REMOTE  := origin
+# The remote and the branch it calls default, detected rather than assumed: a clone whose remote is
+# not called origin still releases. Override either on the command line.
+REMOTE  ?= $(shell git remote | grep -qx origin && echo origin || git remote | head -1)
+BRANCH  ?= $(shell git symbolic-ref --quiet --short refs/remotes/$(REMOTE)/HEAD | cut -d/ -f2-)
 
 # Where a copy of the git-ignored config is kept, so a lost working tree does not take the only one
 # with it. Named after this directory, so a second checkout does not overwrite the first one's copy.
@@ -19,7 +22,6 @@ CONFIG_STORE ?= $(HOME)/.secrets/$(notdir $(CURDIR))
 
 # What a public copy would contain: everything except the working notes and this project's own list.
 PUBLIC_PATHS := . ":(exclude)docs" ":(exclude)TODO.md"
-BRANCH  := main
 
 .PHONY: help install test verify check dev tail deploy-status version health migrate migrations backup release scrub-check save-config
 
@@ -81,7 +83,9 @@ scrub-check:  ## Look for real names and addresses in what would actually be pub
 	@echo "== licence present =="
 	@test -f LICENSE && echo "  LICENSE" || echo "  MISSING"
 
-release: check save-config  ## Run the checks, then push main so Actions deploys it
+release: check save-config  ## Run the checks, then push the default branch so Actions deploys it
+	@test -n "$(REMOTE)" || { echo "no git remote configured"; exit 1; }
+	@test -n "$(BRANCH)" || { echo "cannot tell $(REMOTE)'s default branch; run: git remote set-head $(REMOTE) --auto"; exit 1; }
 	@test -z "$$(git status --porcelain)" || { echo "working tree is dirty; commit first"; exit 1; }
 	@test "$$(git rev-parse --abbrev-ref HEAD)" = "$(BRANCH)" || { echo "not on $(BRANCH)"; exit 1; }
 	git push $(REMOTE) $(BRANCH)
