@@ -21,7 +21,7 @@ flowchart LR
 | --------- | --------- | -------------- |
 | Router and cron | `src/worker.js` | Matches routes; runs the three nightly passes |
 | Route groups | `src/api/` | One module per area, each exporting `routes` |
-| Queries | `src/db/queries.js` | Every SQL statement in the project |
+| Queries | `src/db/queries.js` | Every SQL statement the routes run; the backup dump generates its own |
 | Auth | `src/auth/` | Sessions, one-time codes, WebAuthn verification |
 | Survival checks | `src/ops/` | What the site can learn about its own continuation |
 | Reminders | `src/events/` | Birthday, anniversary and gathering mail |
@@ -96,6 +96,7 @@ D1, migrations `0001`–`0010` in `src/db/migrations/`, append-only.
 | ----- | ----- |
 | `accounts` | Who may sign in; role, language, reminder opt-in, `founder`, `protected` |
 | `sessions`, `passkeys`, `login_codes` | Authentication state |
+| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:` — what stops a stranger asking for login codes all day |
 | `people` | The tree: names, dates, `deceased`, optional address |
 | `parent_of`, `partner_of`, `person_links` | Relationships and external links |
 | `avatars` | Portrait JPEGs, stored as blobs in D1 |

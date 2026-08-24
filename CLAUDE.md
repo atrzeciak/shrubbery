@@ -16,10 +16,13 @@ git-ignored; `wrangler.example.toml` is the tracked template.
 | `ARCHITECTURE.md` | Routes, data model, integrations, configuration, security, testing |
 | `DEVELOPER_GUIDE.md` | Setup, secrets, troubleshooting, operational procedures |
 | `README.md` | What this is, how to stand one up, how to run the tests |
+| `CONTRIBUTING.md` | What contributions are welcome, the checks, the conventions, commits |
+| `SECURITY.md` | How to report a vulnerability; what is a known and accepted decision |
 | `CLAUDE.md` | Build commands, structure, conventions (this file) |
 
 A change to a route or a table goes in ARCHITECTURE. A change to how you operate or recover the
-thing goes in DEVELOPER_GUIDE. Neither belongs in README.
+thing goes in DEVELOPER_GUIDE. Neither belongs in README. A change to what an outside
+contributor has to know goes in CONTRIBUTING.
 
 ## Build & Run
 
@@ -30,9 +33,10 @@ There is no build step. `make help` lists everything; the table below is what yo
 | `make install` | `npm ci`, exactly as CI does it |
 | `make test` | The whole suite in a real Workers runtime |
 | `make verify` | Repository checks: required files, self-containment, no stray secrets |
-| `make check` | `verify` then `test` — what CI runs, in CI's order |
+| `make lint` | `eslint`, correctness rules only — no formatting rules |
+| `make check` | `verify`, `lint`, then `test` — what CI runs, in CI's order |
 | `make dev` | Serve locally on `http://localhost:8787` |
-| `make release` | Run the checks, refuse a dirty tree, push so Actions deploys |
+| `make release` | Run the checks, refuse a dirty tree, tag the commit, push so Actions deploys |
 | `make save-config` | Copy `wrangler.toml` to the config store, keeping the last 5 versions |
 | `make scrub-check` | Look for real names and addresses in what would be published |
 | `make migrations` | List D1 migrations and whether they are applied remotely |
@@ -69,6 +73,7 @@ public/         static assets, served by the Worker
   app/i18n/       pl.json and en.json, which must stay key-for-key identical
 scripts/        verify.sh and the dev-only seeding scripts
 tests/          vitest suites
+screenshots/    images the README embeds; invented families only, never real data
 ```
 
 ## Key Conventions
@@ -77,7 +82,8 @@ tests/          vitest suites
   browser. `verify.sh` fails the build if a runtime dependency appears in `package.json` or if any
   file under `public/` references an external origin.
 - **Every SQL statement lives in `src/db/queries.js`.** Route modules compose them; they do not
-  write SQL.
+  write SQL. `src/backup/dump.js` is the one exception and has to be: it reads `sqlite_master`
+  and emits a statement per table it finds, so the set cannot be fixed in advance.
 - **The site names no domain.** Mail templates write `{app}` and `{domain}`; interface strings do
   the same. They are filled in from configuration at the point of use.
 - **`pl.json` and `en.json` must have identical keys.** `verify.sh` enforces it.
