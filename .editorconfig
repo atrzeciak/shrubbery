@@ -1,0 +1,21 @@
+# Formatting is not enforced by a tool here; this file is what an editor needs to not fight the
+# existing files. Line length is deliberately absent: some lines are long on purpose.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[Makefile]
+indent_style = tab
+
+[*.py]
+indent_size = 4
+
+[*.md]
+# Two trailing spaces are a line break in Markdown.
+trim_trailing_whitespace = false

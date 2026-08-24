@@ -1,14 +1,35 @@
 {
   "name": "shrubbery",
+  "description": "A private family archive on one Cloudflare Worker: a family tree, photographs and documents, reminders, and a backup anyone can take away.",
+  "license": "MIT",
+  "homepage": "https://github.com/atrzeciak/shrubbery#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atrzeciak/shrubbery.git"
+  },
+  "bugs": {
+    "url": "https://github.com/atrzeciak/shrubbery/issues"
+  },
+  "keywords": [
+    "family-tree",
+    "genealogy",
+    "archive",
+    "cloudflare-workers",
+    "d1",
+    "r2"
+  ],
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "test": "vitest run",
+    "lint": "eslint .",
     "verify": "scripts/verify.sh"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "eslint": "^9.39.5",
+    "globals": "^17.11.0",
     "vitest": "4.1",
     "wrangler": "^4.123.0"
   }
