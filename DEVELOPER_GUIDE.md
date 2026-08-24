@@ -6,10 +6,10 @@ You need a Cloudflare account (the free plan is enough) and a domain on it.
 
 ```sh
 cp wrangler.example.toml wrangler.toml       # then edit: domain, database, bucket
-npm ci
+make install
 npx wrangler d1 create <your-database>       # put the printed id into wrangler.toml
 npx wrangler r2 bucket create <your-bucket>
-npx wrangler d1 migrations apply <your-database> --remote
+make migrate                                 # applies migrations to the live database
 npx wrangler deploy
 ```
 
@@ -71,9 +71,9 @@ Tests pin their own origin and ignore `.dev.vars`.
 
 ## Deploying
 
-Pushing to `main` deploys. GitHub Actions verifies, tests, writes `wrangler.toml` from a secret,
-applies migrations, and only then deploys the Worker — migrations always land before the code that
-needs them.
+Pushing to `main` deploys. GitHub Actions verifies, lints, tests, writes `wrangler.toml` from a
+secret, applies migrations, and only then deploys the Worker — migrations always land before the
+code that needs them.
 
 Because the real configuration is not in the repository, CI needs:
 
@@ -87,7 +87,32 @@ Because the real configuration is not in the repository, CI needs:
 All of them are secrets, not variables: on a public repository the Actions logs are public, and
 GitHub masks secrets in them but does not mask variables.
 
-`make release` runs the checks, refuses a dirty tree or a non-`main` branch, and pushes.
+On a public repository, also turn on **private vulnerability reporting** — Settings → Advanced
+Security. `SECURITY.md` and the issue templates send reporters to it, and those links go nowhere
+until it is enabled. Without it the only channel a stranger has is a public issue, which for this
+kind of bug is a public exploit.
+
+`make release` runs the checks, refuses a dirty tree or a non-`main` branch, tags the commit, and
+pushes the tag with it.
+
+The tag is the version. It is CalVer — `v2026.08.24`, and `v2026.08.24.1` for a second release the
+same day — because a family archive publishes no API, so a number says nothing a date does not. It
+is annotated, so one `git push --follow-tags` carries it with the commit. Releasing a commit that
+already carries a tag is refused, and the message tells you the push command, so a release that
+failed halfway re-runs cleanly instead of minting a second tag on the same commit.
+
+The deploy job stamps `public/app/version.json` with `git describe --tags`, which is what the About
+panel and `make version` report:
+
+| Deploy | Version shown |
+| ------ | ------------- |
+| Sitting on a tag | `v2026.08.24` |
+| Three commits past one | `v2026.08.24-3-gabc1234` |
+| No tags in the repository yet | `20260824.0933`, the old timestamp |
+
+A plain `git push` to `main` still deploys — it is just not a release, and the About panel says so
+by showing the drift. Because the stamp needs tags, the deploy job checks out with `fetch-depth: 0`;
+a shallow clone carries none.
 
 ## Operations
 
@@ -142,5 +167,6 @@ than a date somebody retypes once a year. Empty or unreadable says so out loud r
 ## Before publishing anything
 
 `make scrub-check` looks for real addresses and, from a git-ignored `.scrub-names`, real surnames —
-in exactly the files a public copy would contain. Publishing is irreversible; forks and caches
-survive a later change of mind.
+in exactly the files a public copy would contain. It skips `LICENSE` and any `github.com/owner/repo`
+URL, because both name the account on purpose, and a check that reports them every run is one you
+stop reading. Publishing is irreversible; forks and caches survive a later change of mind.

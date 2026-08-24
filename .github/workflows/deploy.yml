@@ -28,6 +28,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Lint
+        run: npx eslint .
       - run: npx vitest run
 
   deploy:
@@ -37,6 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The version stamp below is `git describe`, and a shallow clone carries no tags.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -55,7 +60,12 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: d1 migrations apply ${{ secrets.D1_DATABASE }} --remote
       - name: Stamp version
-        run: printf '{"version":"%s","at":%s}\n' "$(date -u +%Y%m%d.%H%M)" "$(date -u +%s)" > public/app/version.json
+        # The tag `make release` pushed, plus how far past it this deploy is when it is not sitting
+        # exactly on one. With no tags in the repository at all, `git describe` fails and the old
+        # timestamp stands in, so this needs no flag day.
+        run: |
+          version="$(git describe --tags 2>/dev/null || date -u +%Y%m%d.%H%M)"
+          printf '{"version":"%s","at":%s}\n' "$version" "$(date -u +%s)" > public/app/version.json
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
