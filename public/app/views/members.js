@@ -1,6 +1,6 @@
 import { h, clear } from "../dom.js";
 import { t } from "../i18n.js";
-import { lifeSpan, yearOf } from "../graph.js";
+import { yearOf } from "../graph.js";
 import { loadGraph, avatarEl } from "../people.js";
 import { openSheet } from "../sheet.js";
 import { personCard } from "../person-card.js";

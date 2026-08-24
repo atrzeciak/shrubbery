@@ -14,7 +14,7 @@ export function sentence(item) {
 
 // Same templates as sentence(), but renders {actor} and {name} as clickable links to the
 // person's tree page (falling back to plain text when there is nothing to link to).
-export function sentenceNodes(item, ctx) {
+export function sentenceNodes(item) {
   const d = item.details || {};
   const vars = { email: d.email || item.target_id || "", role: d.role || "", lang: d.lang || "", action: item.action, other: d.other_name || "" };
   const key = `news.${item.action}`;
@@ -82,7 +82,7 @@ export async function render(root, ctx) {
   async function load(before) {
     const page = await api(`/api/news${before ? `?before=${before}` : ""}`);
     for (const item of page.items) {
-      list.append(h("li", { class: item.at > seenAt ? "fresh" : null }, h("div", {}, ...sentenceNodes(item, ctx)), h("div", { class: "muted", text: fmtAgo(item.at) })));
+      list.append(h("li", { class: item.at > seenAt ? "fresh" : null }, h("div", {}, ...sentenceNodes(item)), h("div", { class: "muted", text: fmtAgo(item.at) })));
     }
     next = page.next;
     more.hidden = !next;

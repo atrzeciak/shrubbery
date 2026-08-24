@@ -81,7 +81,6 @@ describe("dumpSql", () => {
 
   it("pages through tables larger than one page without skipping or duplicating", async () => {
     // Seed 250 people to cross several PAGE boundaries
-    const insertStmts = [];
     for (let i = 0; i < 250; i++) {
       await seedPerson(env, { id: `p${i}`, first_name: `Person${i}` });
     }

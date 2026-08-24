@@ -13,7 +13,8 @@ const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 const toUTC = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
 
 function occurrence(dateStr, year) {
-  let [m, d] = [dateStr.slice(5, 7), dateStr.slice(8, 10)];
+  const m = dateStr.slice(5, 7);
+  let d = dateStr.slice(8, 10);
   if (m === "02" && d === "29" && !isLeap(year)) d = "28";
   return `${year}-${m}-${d}`;
 }
