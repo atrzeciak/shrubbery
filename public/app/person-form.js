@@ -122,7 +122,7 @@ export function avatarPicker(currentUrl, { onSave }) {
   const stopDrag = (e) => { dragging = false; if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId); };
   canvas.onpointerup = stopDrag;
   canvas.onpointercancel = stopDrag;
-  const toBlob = (quality) => new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  const toBlob = (quality) => new Promise((resolve) => { canvas.toBlob(resolve, "image/jpeg", quality); });
   save.onclick = async () => {
     save.disabled = true;
     try {

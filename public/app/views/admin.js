@@ -168,7 +168,7 @@ const PANELS = {
       ? t("admin.backup.failed", { when: fmtDate(failedAt) })
       : lastAt ? t("admin.backup.last", { when: fmtDate(lastAt) }) : t("admin.backup.never"));
     const lastLine = h("p", { class: "muted", text: stateText() });
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
     button.onclick = async () => {
       button.disabled = true;
       try {

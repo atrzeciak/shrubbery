@@ -20,7 +20,7 @@ async function toJpeg(file, maxSide, quality) {
   canvas.width = Math.round(bitmap.width * k);
   canvas.height = Math.round(bitmap.height * k);
   canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  return new Promise((resolve) => { canvas.toBlob(resolve, "image/jpeg", quality); });
 }
 
 function uploadForm(personId, ctx, reload) {

@@ -63,7 +63,7 @@ describe("backup", () => {
     c.env = healthy;
     let row = await q.opsStatus(env.DB).first();
     for (let i = 0; i < 50 && row.backup_failed_at === null; i++) {
-      await new Promise((r) => setTimeout(r, 10));      // the write is handed to waitUntil, not awaited
+      await new Promise((r) => { setTimeout(r, 10); });  // the write is handed to waitUntil, not awaited
       row = await q.opsStatus(env.DB).first();
     }
     expect(row.backup_failed_at).toBeGreaterThan(0);
