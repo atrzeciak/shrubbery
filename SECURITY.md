@@ -41,6 +41,12 @@ These are decisions, not oversights. A report that describes one of them will be
   worth the machinery.
 - **`DOMAIN_RENEWS_AT` is typed in by hand.** A lookup that silently stops answering is worse than
   a date somebody retypes once a year.
+- **The content security policy admits Cloudflare's analytics beacon.** The zone injects
+  `static.cloudflareinsights.com/beacon.min.js` into every HTML response after the Worker has
+  returned it, and the Worker cannot strip what is added downstream of itself. Refusing it left a
+  console error on every page load without removing the script, so the policy permits it and
+  Cloudflare counts page views. Nothing under `public/` references that origin, and `verify.sh`
+  still fails if anything ever does.
 
 ## Running your own copy
 
