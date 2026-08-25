@@ -51,9 +51,11 @@ surprises.
 `scripts/verify.sh` is not a linter; it asserts the properties this project would otherwise lose
 quietly:
 
-- **Nothing under `public/` may reference an external origin.** No CDN, no font host, no analytics.
-  The site has to work when the third party is gone, and a family archive should not tell anybody
-  who is reading it.
+- **Nothing under `public/` may reference an external origin.** No CDN, no font host, no analytics
+  in anything committed here. The site has to work when the third party is gone, and a family
+  archive should not tell anybody who is reading it. This is a rule about what the source adds,
+  not a promise about the page: the zone injects an analytics beacon downstream of the Worker, and
+  `public/_headers` admits it because the Worker cannot strip it. `SECURITY.md` records that one.
 - **No runtime dependencies in `package.json`.** `public/app/` is plain ES modules the browser
   loads directly. There is no build step, and adding one is a larger conversation than a pull
   request.
