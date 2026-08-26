@@ -147,6 +147,14 @@ reminder opt-in as birthdays, and are protected by the same guard against a cron
 Most of a family will never sign in, so the guest list is worked by hand: an admin can record
 anyone's answer, and the list marks it as entered by somebody else.
 
+### Keeping the beacon off
+
+A Cloudflare Configuration Rule on the zone — *All incoming requests* → **Disable Real User
+Monitoring (RUM)** — stops Cloudflare injecting its analytics beacon into every HTML response. The
+injection happens after the Worker has returned, so nothing in this repository can prevent it and
+nothing in this repository records that it is off. Delete that rule and a third-party script
+reappears on every page, blocked by the content security policy and reported to nobody.
+
 ### Keeping the domain
 
 `DOMAIN_RENEWS_AT` is typed in by hand and **must be updated after every renewal**. There is no
