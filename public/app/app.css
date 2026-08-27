@@ -165,6 +165,8 @@ ul.list li.fresh { background: color-mix(in srgb, var(--accent) 8%, transparent)
 .media-upload { margin-top: 1rem; }
 .media-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; margin: 0; min-height: 116px; padding: 1rem; text-align: center; border: 2px dashed var(--line); border-radius: 12px; cursor: pointer; }
 .media-drop.is-over, .media-drop:focus-within { border-color: var(--accent); }
+.drop-touch { display: none; }
+@media (hover: none) { .drop-pointer { display: none; } .drop-touch { display: inline; } }
 .media-chosen { display: flex; align-items: center; gap: .75rem; padding: .75rem; border: 1px solid var(--line); border-radius: 12px; }
 .media-meta { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
 .media-name { overflow-wrap: anywhere; }

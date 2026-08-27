@@ -26,10 +26,13 @@ export function uploadForm(personId, ctx, reload) {
   let chosen = null;
   let previewUrl = null;
 
-  const input = h("input", { type: "file", accept: "image/*,application/pdf", class: "vh" });
+  // No accept filter: Android resolves a mixed MIME list down to Files alone, which hides the
+  // gallery. pickKind refuses anything that is not an image or a PDF once it arrives.
+  const input = h("input", { type: "file", class: "vh" });
   const zone = h("label", { class: "media-drop" },
     input,
-    h("span", { text: t("media.drop") }),
+    h("span", { class: "drop-pointer", text: t("media.drop") }),
+    h("span", { class: "drop-touch", text: t("media.tap") }),
     h("span", { class: "muted small", text: t("media.accepts") }));
 
   const thumb = h("span", { class: "media-preview" });
