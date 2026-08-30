@@ -22,7 +22,7 @@ export function sentenceNodes(item) {
   if (s === key) s = t("news.other", vars);
   const actorNode = () => item.actor_person_id
     ? h("a", { href: `/app/tree/${item.actor_person_id}`, "data-link": true, text: item.actor_name })
-    : document.createTextNode(t("news.someone"));
+    : document.createTextNode(item.actor_email || t("news.someone"));
   const nameNode = () => item.target_type === "person"
     ? h("a", { href: `/app/tree/${item.target_id}`, "data-link": true, text: d.name || "" })
     : document.createTextNode(d.name || "");
