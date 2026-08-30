@@ -181,7 +181,8 @@ describe("backup", () => {
 
   it("records a missing original or thumbnail in BRAKUJACE.txt instead of staying silent", async () => {
     const c = await steppedUpAdmin();
-    await seedOneMedia();                                 // media/m1.jpg is never put into R2
+    await seedOneMedia();
+    await env.MEDIA.delete("media/m1.jpg");                // the row stays, the original is gone
     await q.setMediaThumb(env.DB, "m1").run();             // has_thumb=1, but no thumbnail object either
 
     const res = await c.raw("/api/admin/backup");
