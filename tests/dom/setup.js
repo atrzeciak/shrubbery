@@ -3,6 +3,14 @@ import { resolve } from "node:path";
 import { beforeEach, vi } from "vitest";
 import { mockApi } from "./helpers.js";
 
+// happy-dom keeps localStorage as a getter on the window's prototype, and vitest copies only own
+// properties and a fixed key list onto the global, so whether it arrives depends on load order.
+// A Map behind the four methods the app uses makes it certain.
+if (!globalThis.localStorage) {
+  const store = new Map();
+  vi.stubGlobal("localStorage", { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k), clear: () => store.clear() });
+}
+
 // Every test starts with a fresh document, storage, and an API that answers nothing.
 beforeEach(() => {
   document.body.innerHTML = "";
