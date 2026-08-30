@@ -134,6 +134,17 @@ describe("assertion shapes", () => {
     return { auth, reg };
   }
 
+  it("refuses fields that are not base64url strings as bad input, not as a crash", async () => {
+    const { auth, reg } = await registered();
+    const ch = newChallenge();
+    const cred = await auth.get(ch);
+    const assertWith = (over) => verifyAssertion({ ...SITE, ...cred.response, ...over, publicKey: reg.publicKey, expectedChallenge: ch, prevCounter: 0 });
+    await rejects(assertWith({ signature: 42 }), "bad_encoding");
+    await rejects(assertWith({ authenticatorData: "not base64url!" }), "bad_encoding");
+    await rejects(assertWith({ clientDataJSON: null }), "bad_encoding");
+    await rejects(verifyRegistration({ ...SITE, attestationObject: {}, clientDataJSON: clientData("webauthn.create", ch), expectedChallenge: ch }), "bad_encoding");
+  });
+
   it("refuses a signature that is not DER at all, without crashing", async () => {
     const { auth, reg } = await registered();
     const ch = newChallenge();

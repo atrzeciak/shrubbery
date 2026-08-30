@@ -196,6 +196,18 @@ describe("passkey step", () => {
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM sessions").first()).n).toBe(0);
   });
 
+  it("a credential with a non-base64url field is refused, not a 500", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
+    const auth = await registerPasskey(env, "a1");
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
+    const cred = await auth.get(ch.body.challenge);
+    cred.response.signature = "%%%";
+    const login = await c.json("/api/auth/passkey/login", { method: "POST", body: { email: "a@x.org", credential: cred } });
+    expect(login.status).toBe(401);
+  });
+
   it("a passkey of another account, a stale challenge, or a replay is refused", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     await seedAccount(env, { id: "b1", email: "b@x.org" });

@@ -131,10 +131,17 @@ async function checkRpIdHash(auth, rpId) {
   if (!auth.userPresent) throw new WebAuthnError("user_not_present");
 }
 
+// The base64url fields arrive straight from the client. Anything that is not a base64url string
+// is malformed input and has to fail as such, not as an atob exception the router reports as a 500.
+function decodeField(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]*$/.test(value)) throw new WebAuthnError("bad_encoding");
+  return b64urlDecode(value);
+}
+
 export async function verifyRegistration({ attestationObject, clientDataJSON, expectedChallenge, expectedOrigin, rpId }) {
-  const cd = b64urlDecode(clientDataJSON);
+  const cd = decodeField(clientDataJSON);
   checkClientData(cd, "webauthn.create", expectedChallenge, expectedOrigin);
-  const [att] = cborDecode(b64urlDecode(attestationObject));
+  const [att] = cborDecode(decodeField(attestationObject));
   if (!(att instanceof Map) || !att.get("authData")) throw new WebAuthnError("bad_attestation");
   const auth = parseAuthData(att.get("authData"));
   await checkRpIdHash(auth, rpId);
@@ -144,9 +151,9 @@ export async function verifyRegistration({ attestationObject, clientDataJSON, ex
 }
 
 export async function verifyAssertion({ authenticatorData, clientDataJSON, signature, publicKey, expectedChallenge, expectedOrigin, rpId, prevCounter }) {
-  const cd = b64urlDecode(clientDataJSON);
+  const cd = decodeField(clientDataJSON);
   checkClientData(cd, "webauthn.get", expectedChallenge, expectedOrigin);
-  const authData = b64urlDecode(authenticatorData);
+  const authData = decodeField(authenticatorData);
   const auth = parseAuthData(authData);
   await checkRpIdHash(auth, rpId);
   const { alg, key } = await importCoseKey(publicKey);
@@ -154,7 +161,7 @@ export async function verifyAssertion({ authenticatorData, clientDataJSON, signa
   const signed = new Uint8Array(authData.length + hash.length);
   signed.set(authData);
   signed.set(hash, authData.length);
-  const sig = b64urlDecode(signature);
+  const sig = decodeField(signature);
   let ok = false;
   try {
     ok = alg === -7
