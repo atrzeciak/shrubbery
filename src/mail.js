@@ -95,13 +95,15 @@ const INVITES = {
 
 // inviter: { name, email } of the person inviting; null falls back to the family.
 // bcc: admin addresses that keep a copy of every invitation sent.
-export async function sendInvitation(env, to, lang, inviter = null, bcc = []) {
+// attachment: { filename, content, type } — one document from the archive, or null.
+export async function sendInvitation(env, to, lang, inviter = null, bcc = [], attachment = null) {
   const { subject, text } = (INVITES[lang] || INVITES.pl)(inviter?.name || null, to, Boolean(inviter?.founder));
   const from = { email: familyFrom(env), name: inviter?.name || familyName(lang) };
   await env.EMAIL.send({
     to, from, subject: fill(env, subject), text: fill(env, text),
     ...(inviter?.email ? { replyTo: inviter.email } : {}),
     ...(bcc.length ? { bcc } : {}),
+    ...(attachment ? { attachments: [{ ...attachment, disposition: "attachment" }] } : {}),
   });
 }
 

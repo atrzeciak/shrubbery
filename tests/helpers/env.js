@@ -2,8 +2,7 @@ import { env as baseEnv, createExecutionContext, waitOnExecutionContext } from "
 import worker from "../../src/worker.js";
 import * as q from "../../src/db/queries.js";
 
-const TABLES = ["rsvps", "gatherings", "ops_status", "history", "rate_limits", "media_people", "media", "join_requests", "avatars", "person_links", "parent_of", "partner_of",
-  "invitations", "login_codes", "sessions", "passkeys", "accounts", "people"];
+const TABLES = ["rsvps", "gatherings", "ops_status", "history", "rate_limits", "media_people", "invitations", "media", "join_requests", "avatars", "person_links", "parent_of", "partner_of", "login_codes", "sessions", "passkeys", "accounts", "people"];
 
 export function makeEnv() {
   const sent = [];

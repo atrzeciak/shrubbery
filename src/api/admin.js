@@ -3,9 +3,34 @@ import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { sendAdminGranted, sendInvitation } from "../mail.js";
 import { ApiError, EMAIL_RE, accountIdentity, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { keyFor } from "./media.js";
 
 const INVITE_TTL = 14 * 86400;
 const PAGE = 50;
+// The mail provider caps a whole message at 5 MiB; this leaves room for the text and encoding.
+export const ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;
+
+// The document an invitation carries, read fresh from R2 each time it is sent. `strict` is the
+// create path: a bad choice is the admin's mistake and gets a 400. A re-send whose document has
+// since gone away just goes out without it — the invitation itself is still good.
+async function invitationAttachment(env, mediaId, strict) {
+  if (!mediaId) return null;
+  const media = await q.mediaById(env.DB, mediaId).first();
+  const usable = media && media.kind === "document" && media.content_type === "application/pdf" && media.size <= ATTACHMENT_MAX_BYTES;
+  const obj = usable ? await env.MEDIA.get(keyFor(media)) : null;
+  if (!obj) {
+    if (strict) throw new ApiError(400, "bad_attachment");
+    return null;
+  }
+  const stem = (media.caption || "dokument").normalize("NFKD").replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "dokument";
+  return { filename: `${stem}.pdf`, content: await obj.arrayBuffer(), type: "application/pdf" };
+}
+
+async function listDocuments(request, env) {
+  await admin(request, env, false);
+  const { results } = await q.listDocuments(env.DB).all();
+  return json({ documents: results.filter((d) => d.content_type === "application/pdf" && d.size <= ATTACHMENT_MAX_BYTES) });
+}
 
 async function admin(request, env, write) {
   const ctx = await requireSession(request, env);
@@ -32,12 +57,14 @@ async function createInvitation(request, env) {
   const now = nowSec();
   if (await q.accountByEmail(env.DB, email).first()) throw new ApiError(409, "conflict");
   if (await q.activeInvitationByEmail(env.DB, email, now).first()) throw new ApiError(409, "conflict");
+  const attachmentMediaId = typeof body.attachment === "string" && body.attachment ? body.attachment : null;
+  const attachment = await invitationAttachment(env, attachmentMediaId, true);
   const id = randomB64url(16);
   await env.DB.batch([
-    q.insertInvitation(env.DB, { id, email, lang, invitedBy: account.id, createdAt: now, expiresAt: now + INVITE_TTL }),
+    q.insertInvitation(env.DB, { id, email, lang, invitedBy: account.id, createdAt: now, expiresAt: now + INVITE_TTL, attachmentMediaId }),
     await adminHistory(request, env, account, "invite_sent", "invitation", id, { email }, now),
   ]);
-  await sendInvitation(env, email, lang, await accountIdentity(env, account.id), await adminEmails(env));
+  await sendInvitation(env, email, lang, await accountIdentity(env, account.id), await adminEmails(env), attachment);
   return json({ id }, 201);
 }
 
@@ -50,7 +77,8 @@ async function resendInvitation(request, env, ctx, m) {
     q.extendInvitation(env.DB, inv.id, now + INVITE_TTL),
     await adminHistory(request, env, account, "invite_resent", "invitation", inv.id, { email: inv.email }, now),
   ]);
-  await sendInvitation(env, inv.email, inv.lang, await accountIdentity(env, inv.invited_by), await adminEmails(env));
+  await sendInvitation(env, inv.email, inv.lang, await accountIdentity(env, inv.invited_by), await adminEmails(env),
+    await invitationAttachment(env, inv.attachment_media_id, false));
   return json({ ok: true });
 }
 
@@ -182,6 +210,7 @@ export const routes = [
   ["GET", /^\/api\/admin\/invitations$/, listInvitations],
   ["POST", /^\/api\/admin\/invitations$/, createInvitation],
   ["POST", /^\/api\/admin\/invitations\/([A-Za-z0-9_-]+)\/resend$/, resendInvitation],
+  ["GET", /^\/api\/admin\/documents$/, listDocuments],
   ["DELETE", /^\/api\/admin\/invitations\/([A-Za-z0-9_-]+)$/, revokeInvitation],
   ["GET", /^\/api\/admin\/accounts$/, listAccounts],
   ["PATCH", /^\/api\/admin\/accounts\/([A-Za-z0-9_-]+)$/, patchAccount],

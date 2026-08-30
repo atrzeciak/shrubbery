@@ -247,6 +247,8 @@
   "admin.tab.backup": "Backup",
   "admin.invite.email": "Email",
   "admin.invite.lang": "Language",
+  "admin.invite.attachment": "Attachment (a PDF document from the archive)",
+  "admin.invite.attachment.none": "— no attachment —",
   "admin.invite.send": "Invite",
   "admin.invite.sent": "Invitation sent.",
   "admin.invite.empty": "No pending invitations.",

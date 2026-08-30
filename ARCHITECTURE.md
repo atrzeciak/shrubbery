@@ -45,7 +45,7 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 | News | `GET /news` |
 | Join | `POST /join/request`, `POST /join/confirm` |
 | Health | `GET /health` — public |
-| Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `backup.js`, `gatherings.js`) |
+| Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `backup.js`, `gatherings.js`); `GET /admin/documents` lists the PDFs an invitation may carry |
 
 `GET /api/me` carries `tz` alongside the account: the site's zone, so the browser works out
 "today" exactly as the cron does rather than from whatever zone the reader's laptop is in.
@@ -71,6 +71,10 @@ holding a session or learning anything.
   put in in the first place. The news feed and the gathering payload carry no addresses.
 - **The founder** (`accounts.founder`) is fixed: they cannot be demoted, only they may protect
   another admin, and only their invitations speak in the first person.
+- **An invitation may carry one document** already in the archive (`invitations.attachment_media_id`
+  → a PDF in `media`, at most 4 MiB so the whole mail stays under the provider's 5 MiB). The
+  bytes are read from R2 at send time, so a re-send carries the current file; if the document has
+  since been removed, the re-send goes out without it rather than failing.
 - IP addresses in the history log are stored hashed (`src/history.js`, `IP_HASH_SECRET`).
 
 ## 5. Scheduled work
@@ -90,7 +94,7 @@ repeated run mails nobody twice.
 
 ## 6. Data model
 
-D1, migrations `0001`–`0010` in `src/db/migrations/`, append-only.
+D1, migrations `0001`–`0011` in `src/db/migrations/`, append-only.
 
 | Table | Holds |
 | ----- | ----- |

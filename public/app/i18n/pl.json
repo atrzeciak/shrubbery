@@ -247,6 +247,8 @@
   "admin.tab.backup": "Kopia zapasowa",
   "admin.invite.email": "E-mail",
   "admin.invite.lang": "Język",
+  "admin.invite.attachment": "Załącznik (dokument PDF z archiwum)",
+  "admin.invite.attachment.none": "— bez załącznika —",
   "admin.invite.send": "Zaproś",
   "admin.invite.sent": "Zaproszenie wysłane.",
   "admin.invite.empty": "Brak oczekujących zaproszeń.",

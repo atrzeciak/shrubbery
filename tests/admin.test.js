@@ -93,6 +93,38 @@ describe("invitation voice", () => {
     expect(sent[0].text.trimEnd().endsWith("Piotr Mazur")).toBe(true);
   });
 
+  it("an invitation can carry one PDF document from the archive, and a re-send carries it again", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await seedPerson(env, { id: "p_doc", first_name: "Anna", last_name: "Nowak" });
+    const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, ...new Array(200).fill(0x20)]);
+    await env.MEDIA.put("media/tree1.pdf", pdf, { httpMetadata: { contentType: "application/pdf" } });
+    await q.insertMedia(env.DB, { id: "tree1", ownerPersonId: "p_doc", kind: "document", caption: "Drzewo rodziny — wersja 2026", year: 2026, contentType: "application/pdf", size: pdf.length, uploadedBy: "adm", createdAt: 1_800_000_000 }).run();
+    await q.insertMedia(env.DB, { id: "photo1", ownerPersonId: "p_doc", kind: "photo", caption: null, year: null, contentType: "image/jpeg", size: 10, uploadedBy: "adm", createdAt: 1_800_000_000 }).run();
+    const docs = await c.json("/api/admin/documents");
+    expect(docs.status).toBe(200);
+    expect(docs.body.documents.map((d) => d.id)).toEqual(["tree1"]);           // photos are not offered
+    sent.length = 0;
+    const inv = await c.json("/api/admin/invitations", { method: "POST", body: { email: "kin@x.org", lang: "pl", attachment: "tree1" } });
+    expect(inv.status).toBe(201);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].attachments).toHaveLength(1);
+    expect(sent[0].attachments[0]).toMatchObject({ filename: "Drzewo_rodziny_wersja_2026.pdf", type: "application/pdf", disposition: "attachment" });
+    expect(new Uint8Array(sent[0].attachments[0].content)).toEqual(pdf);      // the bytes come from R2, not from the request
+    expect((await c.json("/api/admin/invitations")).body.invitations[0].attachment_media_id).toBe("tree1");
+    expect((await c.json(`/api/admin/invitations/${inv.body.id}/resend`, { method: "POST", body: {} })).status).toBe(200);
+    expect(sent[1].attachments[0].filename).toBe("Drzewo_rodziny_wersja_2026.pdf");
+    // a photo, or a document that does not exist, is the admin's mistake and is refused up front
+    expect((await c.json("/api/admin/invitations", { method: "POST", body: { email: "kin2@x.org", lang: "pl", attachment: "photo1" } })).body).toEqual({ error: "bad_attachment" });
+    expect((await c.json("/api/admin/invitations", { method: "POST", body: { email: "kin2@x.org", lang: "pl", attachment: "nope" } })).status).toBe(400);
+    // the plain invitation is unchanged: no attachments key at all
+    expect((await c.json("/api/admin/invitations", { method: "POST", body: { email: "kin3@x.org", lang: "pl" } })).status).toBe(201);
+    expect(sent[sent.length - 1].attachments).toBeUndefined();
+    // a document removed after the invitation went out does not break the re-send
+    await env.MEDIA.delete("media/tree1.pdf");
+    expect((await c.json(`/api/admin/invitations/${inv.body.id}/resend`, { method: "POST", body: {} })).status).toBe(200);
+    expect(sent[sent.length - 1].attachments).toBeUndefined();
+  });
+
   it("the founder still invites in his own voice", async () => {
     const { c } = await adminWithFreshPasskey();
     await seedPerson(env, { id: "p_and", first_name: "Jan", last_name: "Nowak" });

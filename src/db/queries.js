@@ -56,14 +56,17 @@ export const markCodeUsed = (db, id, at) => db.prepare("UPDATE login_codes SET u
 
 // invitations
 export const insertInvitation = (db, i) =>
-  db.prepare("INSERT INTO invitations (id, email, lang, invited_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(i.id, i.email, i.lang, i.invitedBy, i.createdAt, i.expiresAt);
+  db.prepare("INSERT INTO invitations (id, email, lang, invited_by, created_at, expires_at, attachment_media_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(i.id, i.email, i.lang, i.invitedBy, i.createdAt, i.expiresAt, i.attachmentMediaId ?? null);
 export const activeInvitationByEmail = (db, email, now) =>
   db.prepare("SELECT * FROM invitations WHERE email = ? AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1").bind(email, now);
 export const invitationById = (db, id) => db.prepare("SELECT * FROM invitations WHERE id = ?").bind(id);
 export const listInvitations = (db, now) =>
-  db.prepare("SELECT id, email, lang, invited_by, created_at, expires_at FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > ? ORDER BY created_at DESC")
+  db.prepare("SELECT id, email, lang, invited_by, created_at, expires_at, attachment_media_id FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > ? ORDER BY created_at DESC")
     .bind(now);
+// Documents an admin may attach to an invitation: what the archive already holds, newest first.
+export const listDocuments = (db) =>
+  db.prepare("SELECT id, caption, year, size, content_type FROM media WHERE kind = 'document' ORDER BY created_at DESC");
 export const acceptInvitation = (db, id, at) => db.prepare("UPDATE invitations SET accepted_at = ? WHERE id = ?").bind(at, id);
 export const revokeInvitation = (db, id, at) => db.prepare("UPDATE invitations SET revoked_at = ? WHERE id = ? AND accepted_at IS NULL").bind(at, id);
 export const extendInvitation = (db, id, expiresAt) => db.prepare("UPDATE invitations SET expires_at = ? WHERE id = ?").bind(expiresAt, id);
