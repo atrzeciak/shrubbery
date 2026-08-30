@@ -26,6 +26,25 @@ export async function render(root, ctx) {
 
 const act = (ctx, redraw) => async (fn) => { try { await fn(); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e)); } };
 
+// A type-to-find person input. The label carries the years and the parents, which is what tells
+// two people with the same name apart; when even that collides, a counter is added.
+// `value()` yields the id only when the text names exactly one person, so nothing links blind.
+function personPicker(g, people, { id, initial = null, placeholder }) {
+  const parents = (p) => g.parents(p.id).map((pid) => g.byId.get(pid)?.display_name).filter(Boolean).join(" & ");
+  const detail = (p) => [lifeSpan(p), parents(p) && t("admin.person.of", { parents: parents(p) })].filter(Boolean).join(" · ");
+  const labels = new Map(), seen = new Map();
+  for (const p of people) {
+    const base = [p.display_name, detail(p)].filter(Boolean).join(" · ");
+    const n = (seen.get(base) || 0) + 1;
+    seen.set(base, n);
+    labels.set(n > 1 ? `${base} #${n}` : base, p.id);
+  }
+  const byId = new Map([...labels].map(([l, pid]) => [pid, l]));
+  const el = h("input", { id, type: "search", list: `${id}-list`, placeholder, autocomplete: "off", value: byId.get(initial) || "" });
+  const list = h("datalist", { id: `${id}-list` }, ...[...labels.keys()].map((l) => h("option", { value: l })));
+  return { el, list, value: () => labels.get(el.value.trim()) || null };
+}
+
 const PANELS = {
   async invitations(panel, ctx, redraw) {
     const run = act(ctx, redraw);
@@ -35,17 +54,17 @@ const PANELS = {
     const open = requests.filter((r) => r.status === "pending");
     if (!open.length) reqList.append(h("li", { class: "muted", text: t("admin.requests.empty") }));
     for (const r of open) {
-      const sel = h("select", { "aria-label": t("admin.requests.person") }, h("option", { value: "", text: t("admin.requests.create") }),
-        ...g.people.map((p) => h("option", { value: p.id, text: `${p.display_name} ${lifeSpan(p)}`.trim(), selected: p.id === r.match })));
+      const pick = personPicker(g, g.people, { id: `req-person-${r.id}`, initial: r.match, placeholder: t("admin.requests.create") });
       const approve = h("button", { class: "btn", type: "button", text: t("admin.requests.approve") });
       const reject = h("button", { class: "btn danger", type: "button", text: t("admin.requests.reject") });
-      approve.onclick = () => run(() => api(`/api/admin/join-requests/${r.id}/approve`, { method: "POST", body: sel.value ? { person_id: sel.value } : { create: true } }));
+      pick.el.oninput = () => { approve.disabled = !!pick.el.value.trim() && !pick.value(); };
+      approve.onclick = () => { const pid = pick.value(); run(() => api(`/api/admin/join-requests/${r.id}/approve`, { method: "POST", body: pid ? { person_id: pid } : { create: true } })); };
       reject.onclick = () => { const note = prompt(t("admin.requests.note")); if (note !== null) run(() => api(`/api/admin/join-requests/${r.id}/reject`, { method: "POST", body: { note } })); };
       reqList.append(h("li", {},
         h("div", {}, h("strong", { text: `${r.first_name} ${r.last_name}` }), " ", h("span", { class: "muted", text: `${r.birth_date} · ${r.email} · ${fmtDate(r.created_at)}` })),
         h("div", { text: `${t("admin.requests.parent")}: ${r.parent_text}` }), r.message ? h("div", { class: "muted prewrap", text: r.message }) : null,
         r.match ? h("div", { class: "muted", text: t("admin.requests.match", { name: g.byId.get(r.match).display_name }) }) : null,
-        h("div", { class: "row" }, sel, approve, reject)));
+        h("div", { class: "row" }, pick.el, pick.list, approve, reject)));
     }
     panel.append(h("h2", { text: t("admin.requests.title") }), reqList, h("h2", { text: t("admin.tab.invitations") }));
     const email = h("input", { type: "email", required: true, id: "inv-email", autocomplete: "off" });
@@ -121,10 +140,13 @@ const PANELS = {
           if (!confirm(t("admin.accounts.unlink_confirm", { who }))) return;
           return run(() => api(`/api/admin/accounts/${a.id}/unlink`, { method: "POST", body: {} }));
         }
-        const sel = h("select", { id: "link-person" }, h("option", { value: "", text: "—" }), ...g.people.filter((p) => !p.account_id).map((p) => h("option", { value: p.id, text: `${p.display_name} ${lifeSpan(p)}`.trim() })));
-        const ok = h("button", { class: "btn", type: "button", text: t("admin.accounts.link") });
-        ok.onclick = () => sel.value && run(() => api(`/api/admin/accounts/${a.id}/link`, { method: "POST", body: { person_id: sel.value } }));
-        openSheet(h("div", {}, h("h2", { text: a.email }), h("label", { for: "link-person", text: t("admin.accounts.link.person") }), sel, h("div", { class: "row" }, ok)), a.email);
+        const free = g.people.filter((p) => !p.account_id);
+        const same = free.find((p) => p.email && p.email.toLowerCase() === a.email);
+        const pick = personPicker(g, free, { id: "link-person", initial: same?.id, placeholder: t("admin.accounts.link.find") });
+        const ok = h("button", { class: "btn", type: "button", text: t("admin.accounts.link"), disabled: !pick.value() });
+        pick.el.oninput = () => { ok.disabled = !pick.value(); };
+        ok.onclick = () => run(() => api(`/api/admin/accounts/${a.id}/link`, { method: "POST", body: { person_id: pick.value() } }));
+        openSheet(h("div", {}, h("h2", { text: a.email }), h("label", { for: "link-person", text: t("admin.accounts.link.person") }), pick.el, pick.list, h("div", { class: "row" }, ok)), a.email);
       };
       const meta = `${t(`account.role.${a.role}`)} · ${t("admin.accounts.passkeys", { n: a.passkeys })} · ${t("admin.accounts.seen", { when: fmtAgo(a.last_seen_at) })}${a.founder ? ` · ${t("admin.accounts.founder")}` : a.protected ? ` · ${t("admin.accounts.protected")}` : ""}${a.disabled_at ? ` · ${t("admin.accounts.disabled")}` : ""}${a.person_id ? ` · ${g.byId.get(a.person_id)?.display_name || "?"}` : ""}`;
       list.append(h("li", {},

@@ -129,6 +129,8 @@
   "admin.requests.match": "Pasuje do: {name}",
   "admin.accounts.link": "Połącz z osobą",
   "admin.accounts.unlink": "Odłącz osobę",
+  "admin.accounts.link.find": "Wpisz imię…",
+  "admin.person.of": "dziecko: {parents}",
   "admin.accounts.link.person": "Osoba",
   "me.title": "Ja",
   "me.unlinked": "Twoje konto nie jest jeszcze połączone z osobą w drzewie. Poproś administratora.",
