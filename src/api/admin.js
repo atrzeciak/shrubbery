@@ -184,7 +184,8 @@ export function historyPage(results, limit, { emails } = {}) {
     action: r.action,
     ...(emails ? { actor_email: r.actor_email } : {}),
     actor_person_id: r.actor_person_id,
-    actor_name: r.actor_nickname || [r.actor_first_name, r.actor_last_name].filter(Boolean).join(" ") || r.actor_display_name || null,
+    // An account with no person yet is still somebody: name it by its address rather than "someone".
+    actor_name: r.actor_nickname || [r.actor_first_name, r.actor_last_name].filter(Boolean).join(" ") || r.actor_display_name || r.actor_email || null,
     target_type: r.target_type,
     target_id: r.target_id,
     details: r.details ? JSON.parse(r.details) : {},

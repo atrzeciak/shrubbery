@@ -245,6 +245,7 @@ describe("history and news", () => {
     const famNews = (await fam.json("/api/news")).body;
     expect(famNews.items.map((i) => i.action)).toEqual(["login", "invite_accepted", "login"]);
     expect(famNews.items[0]).not.toHaveProperty("actor_email");
+    expect(famNews.items[0].actor_name).toBe("n@x.org");
     const admNews = (await c.json("/api/news")).body;
     // Admins now see the same family-visible feed — the full event table lives at Admin → Historia.
     expect(admNews.items.map((i) => i.action)).toEqual(famNews.items.map((i) => i.action));
