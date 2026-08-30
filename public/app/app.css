@@ -69,6 +69,11 @@ input:disabled, textarea:disabled, select:disabled { opacity: .5; background: va
 ul.list { list-style: none; padding: 0; margin: 0; }
 ul.list li { padding: .75rem 0; border-bottom: 1px solid var(--line); }
 ul.list li:last-child { border-bottom: 0; }
+.picker-wrap { position: relative; flex: 1; min-width: 16rem; }
+.picker-wrap input { width: 100%; }
+.picker { position: absolute; left: 0; right: 0; top: 100%; max-height: 40vh; overflow: auto; margin: 0; padding: .25rem 0; list-style: none; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.25); z-index: 7; }
+.picker li { padding: .5rem .75rem; cursor: pointer; }
+.picker li:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tabs { display: flex; gap: .25rem; margin-bottom: 1rem; overflow-x: auto; }
 .tabs button { flex: 1 0 auto; min-height: 44px; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 8px; padding: 0 .75rem; }
 .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }

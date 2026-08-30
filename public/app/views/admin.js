@@ -26,31 +26,30 @@ export async function render(root, ctx) {
 
 const act = (ctx, redraw) => async (fn) => { try { await fn(); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e)); } };
 
-// A type-to-find person input. The label carries the years and the parents, which is what tells
-// two people with the same name apart; when even that collides, a counter is added.
-// `value()` yields the id only when the text names exactly one person, so nothing links blind.
+// A type-to-find person input with its own list: the browser's datalist matches on the whole
+// label and places its popup where it likes. Rows carry the years and the parents, which is what
+// tells two people with the same name apart. `value()` yields the id only once a row was chosen,
+// so nothing links blind.
 function personPicker(g, people, { id, initial = null, placeholder }) {
   const parents = (p) => g.parents(p.id).map((pid) => g.byId.get(pid)?.display_name).filter(Boolean).join(" & ");
   const detail = (p) => [lifeSpan(p), parents(p) && t("admin.person.of", { parents: parents(p) })].filter(Boolean).join(" · ");
-  const labels = new Map(), seen = new Map();
-  for (const p of people) {
-    const base = [p.display_name, detail(p)].filter(Boolean).join(" · ");
-    const n = (seen.get(base) || 0) + 1;
-    seen.set(base, n);
-    labels.set(n > 1 ? `${base} #${n}` : base, p.id);
-  }
-  const byId = new Map([...labels].map(([l, pid]) => [pid, l]));
-  const el = h("input", { id, type: "search", list: `${id}-list`, placeholder, autocomplete: "off", value: byId.get(initial) || "" });
-  // The list is filled only once two characters are typed: a datalist that is full from the
-  // start pops up whole on focus, which is the scroll this input exists to avoid.
-  const list = h("datalist", { id: `${id}-list` });
+  let chosen = people.find((p) => p.id === initial) || null;
+  const el = h("input", { id, type: "search", placeholder, autocomplete: "off", value: chosen?.display_name || "" });
+  const list = h("ul", { class: "picker", hidden: true });
+  const onChange = [];
+  const choose = (p) => { chosen = p; el.value = p.display_name; list.hidden = true; for (const f of onChange) f(); };
   const fill = () => {
     const q = el.value.trim().toLowerCase();
     clear(list);
-    if (q.length >= 2) for (const l of labels.keys()) if (l.toLowerCase().includes(q)) list.append(h("option", { value: l }));
+    const hits = q.length >= 2 ? people.filter((p) => p.display_name.toLowerCase().includes(q)) : [];
+    for (const p of hits) list.append(h("li", { onmousedown: (e) => { e.preventDefault(); choose(p); } }, h("span", { text: p.display_name }), " ", h("span", { class: "muted", text: detail(p) })));
+    list.hidden = !hits.length;
   };
-  el.addEventListener("input", fill);
-  return { el, list, value: () => labels.get(el.value.trim()) || null };
+  el.addEventListener("input", () => { if (chosen && el.value !== chosen.display_name) chosen = null; fill(); for (const f of onChange) f(); });
+  el.addEventListener("focus", fill);
+  el.addEventListener("blur", () => { list.hidden = true; });
+  el.addEventListener("keydown", (e) => { if (e.key === "Escape") list.hidden = true; if (e.key === "Enter" && list.children.length === 1) { e.preventDefault(); list.firstChild.dispatchEvent(new Event("mousedown")); } });
+  return { el: h("div", { class: "picker-wrap" }, el, list), value: () => chosen?.id || null, text: () => el.value.trim(), onChange: (f) => onChange.push(f) };
 }
 
 const PANELS = {
@@ -65,14 +64,14 @@ const PANELS = {
       const pick = personPicker(g, g.people, { id: `req-person-${r.id}`, initial: r.match, placeholder: t("admin.requests.create") });
       const approve = h("button", { class: "btn", type: "button", text: t("admin.requests.approve") });
       const reject = h("button", { class: "btn danger", type: "button", text: t("admin.requests.reject") });
-      pick.el.oninput = () => { approve.disabled = !!pick.el.value.trim() && !pick.value(); };
+      pick.onChange(() => { approve.disabled = !!pick.text() && !pick.value(); });
       approve.onclick = () => { const pid = pick.value(); run(() => api(`/api/admin/join-requests/${r.id}/approve`, { method: "POST", body: pid ? { person_id: pid } : { create: true } })); };
       reject.onclick = () => { const note = prompt(t("admin.requests.note")); if (note !== null) run(() => api(`/api/admin/join-requests/${r.id}/reject`, { method: "POST", body: { note } })); };
       reqList.append(h("li", {},
         h("div", {}, h("strong", { text: `${r.first_name} ${r.last_name}` }), " ", h("span", { class: "muted", text: `${r.birth_date} · ${r.email} · ${fmtDate(r.created_at)}` })),
         h("div", { text: `${t("admin.requests.parent")}: ${r.parent_text}` }), r.message ? h("div", { class: "muted prewrap", text: r.message }) : null,
         r.match ? h("div", { class: "muted", text: t("admin.requests.match", { name: g.byId.get(r.match).display_name }) }) : null,
-        h("div", { class: "row" }, pick.el, pick.list, approve, reject)));
+        h("div", { class: "row" }, pick.el, approve, reject)));
     }
     panel.append(h("h2", { text: t("admin.requests.title") }), reqList, h("h2", { text: t("admin.tab.invitations") }));
     const email = h("input", { type: "email", required: true, id: "inv-email", autocomplete: "off" });
@@ -152,9 +151,9 @@ const PANELS = {
         const same = free.find((p) => p.email && p.email.toLowerCase() === a.email);
         const pick = personPicker(g, free, { id: "link-person", initial: same?.id, placeholder: t("admin.accounts.link.find") });
         const ok = h("button", { class: "btn", type: "button", text: t("admin.accounts.link"), disabled: !pick.value() });
-        pick.el.oninput = () => { ok.disabled = !pick.value(); };
+        pick.onChange(() => { ok.disabled = !pick.value(); });
         ok.onclick = () => run(() => api(`/api/admin/accounts/${a.id}/link`, { method: "POST", body: { person_id: pick.value() } }));
-        openSheet(h("div", {}, h("h2", { text: a.email }), h("label", { for: "link-person", text: t("admin.accounts.link.person") }), pick.el, pick.list, h("div", { class: "row" }, ok)), a.email);
+        openSheet(h("div", {}, h("h2", { text: a.email }), h("label", { for: "link-person", text: t("admin.accounts.link.person") }), pick.el, h("div", { class: "row" }, ok)), a.email);
       };
       const meta = `${t(`account.role.${a.role}`)} · ${t("admin.accounts.passkeys", { n: a.passkeys })} · ${t("admin.accounts.seen", { when: fmtAgo(a.last_seen_at) })}${a.founder ? ` · ${t("admin.accounts.founder")}` : a.protected ? ` · ${t("admin.accounts.protected")}` : ""}${a.disabled_at ? ` · ${t("admin.accounts.disabled")}` : ""}${a.person_id ? ` · ${g.byId.get(a.person_id)?.display_name || "?"}` : ""}`;
       list.append(h("li", {},
