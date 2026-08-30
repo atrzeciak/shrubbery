@@ -130,7 +130,7 @@
   "admin.accounts.link": "Połącz z osobą",
   "admin.accounts.unlink": "Odłącz osobę",
   "admin.accounts.link.find": "Wpisz imię…",
-  "admin.person.of": "dziecko: {parents}",
+  "admin.person.of": "rodzice: {parents}",
   "admin.accounts.link.person": "Osoba",
   "me.title": "Ja",
   "me.unlinked": "Twoje konto nie jest jeszcze połączone z osobą w drzewie. Poproś administratora.",

@@ -41,7 +41,15 @@ function personPicker(g, people, { id, initial = null, placeholder }) {
   }
   const byId = new Map([...labels].map(([l, pid]) => [pid, l]));
   const el = h("input", { id, type: "search", list: `${id}-list`, placeholder, autocomplete: "off", value: byId.get(initial) || "" });
-  const list = h("datalist", { id: `${id}-list` }, ...[...labels.keys()].map((l) => h("option", { value: l })));
+  // The list is filled only once two characters are typed: a datalist that is full from the
+  // start pops up whole on focus, which is the scroll this input exists to avoid.
+  const list = h("datalist", { id: `${id}-list` });
+  const fill = () => {
+    const q = el.value.trim().toLowerCase();
+    clear(list);
+    if (q.length >= 2) for (const l of labels.keys()) if (l.toLowerCase().includes(q)) list.append(h("option", { value: l }));
+  };
+  el.addEventListener("input", fill);
   return { el, list, value: () => labels.get(el.value.trim()) || null };
 }
 

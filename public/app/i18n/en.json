@@ -130,7 +130,7 @@
   "admin.accounts.link": "Link to person",
   "admin.accounts.unlink": "Unlink person",
   "admin.accounts.link.find": "Type a name…",
-  "admin.person.of": "of {parents}",
+  "admin.person.of": "parents: {parents}",
   "admin.accounts.link.person": "Person",
   "me.title": "Me",
   "me.unlinked": "Your login is not linked to a person in the tree yet. Ask an admin.",
