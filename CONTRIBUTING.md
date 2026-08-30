@@ -87,9 +87,10 @@ make test
 `vitest` on `@cloudflare/vitest-pool-workers`: real D1, real R2, the real Workers runtime, no mocks.
 Tests read `wrangler.example.toml`, never anybody's real `wrangler.toml`.
 
-There is no DOM environment, so view code under `public/app/views/` has no render tests. Logic that
-deserves a test belongs in a module that imports without a browser — `events.js`, `graph.js`,
-`tree-layout.js`, `person-form.js` are the existing examples.
+Browser code has its own project: `tests/dom/` runs under `happy-dom` with `fetch` stubbed, so a view
+is tested by rendering it against `mockApi({ "GET /api/people": ... })` and asserting what appears
+and what was requested. A change to `public/app/` comes with such a test. `make coverage` shows
+what is left; keep it near 100% of lines, and never add a hook to app code only so a test can reach it.
 
 Two things are worth a test more than anything else you could write one for: the backup, because it
 is what outlives the author, and the scheduled mail, because it reaches real relatives and cannot

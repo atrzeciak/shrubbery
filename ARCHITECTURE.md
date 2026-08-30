@@ -158,8 +158,9 @@ Two hard-won details:
 the environment and a stub `EMAIL` binding that records messages. Tests read
 `wrangler.example.toml`, never a real configuration.
 
-No DOM environment exists, so view code in `public/app/views/` is not render-tested; logic that
-deserves tests lives in importable modules instead.
+A second vitest project runs `tests/dom/` under `happy-dom`, with `fetch` stubbed so every view in
+`public/app/` renders against a scripted API and its requests are recorded. Coverage (`make
+coverage`, istanbul) is close to 100% of lines for both the Worker and the browser modules.
 
 ## 10. References
 

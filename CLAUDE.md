@@ -35,6 +35,7 @@ There is no build step. `make help` lists everything; the table below is what yo
 | `make verify` | Repository checks: required files, self-containment, no stray secrets |
 | `make lint` | `eslint`, correctness rules only — no formatting rules |
 | `make check` | `verify`, `lint`, then `test` — what CI runs, in CI's order |
+| `make coverage` | The suite with a per-file coverage table |
 | `make dev` | Serve locally on `http://localhost:8787` |
 | `make release` | Run the checks, refuse a dirty tree, tag the commit, push so Actions deploys |
 | `make save-config` | Copy `wrangler.toml` to the config store, keeping the last 5 versions |
@@ -50,9 +51,11 @@ Workers runtime rather than mocks. Config: `vitest.config.js`, which reads
 real configuration. Helpers live in `tests/helpers/`; `makeEnv()` builds an env with a stub `EMAIL`
 binding that records what was sent.
 
-There is no DOM test environment, so `public/app/` view code has no render tests. Logic worth
-testing is kept in modules that can be imported without a browser (`events.js`, `graph.js`,
-`tree-layout.js`, `person-form.js`).
+Two vitest projects: `workers` runs `tests/*.test.js` in the Workers runtime; `dom` runs
+`tests/dom/*.test.js` under `happy-dom` for `public/app/`. `tests/dom/setup.js` stubs `fetch`
+(i18n files from disk, everything else to `mockApi(routes)` from `tests/dom/helpers.js`, which
+records the calls). `make coverage` prints the per-file table; lines sit near 100% and a change
+should keep them there. Tests must never add hooks or exports to app code for their own sake.
 
 ## Project Structure
 

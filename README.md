@@ -71,7 +71,8 @@ make test
 ```
 
 `vitest` on `@cloudflare/vitest-pool-workers`: real D1, real R2, the real Workers runtime. Tests run
-against `wrangler.example.toml`, so they can never depend on anybody's real configuration.
+against `wrangler.example.toml`, so they can never depend on anybody's real configuration. The
+browser modules run under `happy-dom` in a second project; `make coverage` prints the table.
 
 ## Licence
 
