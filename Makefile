@@ -47,6 +47,10 @@ verify:  ## Run the repository checks (self-containment, i18n parity, no stray s
 	scripts/verify.sh
 
 .PHONY: check
+.PHONY: coverage
+coverage:  ## The test suite with a per-file coverage table
+	npx vitest run --coverage
+
 check: verify lint test  ## Everything CI runs, in the same order
 
 .PHONY: dev
