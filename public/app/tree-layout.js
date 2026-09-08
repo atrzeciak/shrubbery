@@ -107,6 +107,16 @@ export function familyLayout(g) {
   };
   // Lays out `id`, their spouses and everyone below them, from column x0 to the right.
   // Returns the block's width and the ids it placed.
+  // Where a couple's drop leaves the row, as a position along the chain: between them when they
+  // are side by side, otherwise at whichever end is not already taken by another partner (the
+  // view draws the bridge the same way).
+  const dropAt = (chain, i, j) => {
+    if (j === i + 1) return i + 0.5;
+    const taken = (k, d) => spouses(chain[k]).includes(chain[k + d]);
+    return !taken(i, 1) ? i + 0.5 : !taken(j, -1) ? j - 0.5 : (i + j) / 2;
+  };
+  // Lays out `id`, their spouses and everyone below them, from column x0 to the right.
+  // Returns the block's width and the ids it placed.
   function block(id, x0) {
     const chain = chainOf(id);
     for (const m of chain) col.set(m, x0);
@@ -114,20 +124,38 @@ export function familyLayout(g) {
     chain.forEach((m, i) => {
       const alone = kids(m);
       if (alone.length) groups.push({ at: i, kids: alone });
-      for (let j = i + 1; j < chain.length; j++) { const k = kids(m, chain[j]); if (k.length) groups.push({ at: (i + j) / 2, kids: k }); }
+      for (let j = i + 1; j < chain.length; j++) { const k = kids(m, chain[j]); if (k.length) groups.push({ at: dropAt(chain, i, j), kids: k }); }
     });
     groups.sort((a, b) => a.at - b.at);
     const ids = [...chain];
     let x = 0;
     for (const grp of groups) {
-      const own = [];
-      for (const c of grp.kids) { if (col.has(c)) continue; const b = block(c, x0 + x); x += b.width; ids.push(...b.ids); own.push(c); }
-      grp.mid = own.length ? own.reduce((sum, c) => sum + col.get(c), 0) / own.length - x0 : (x - 1) / 2;
+      grp.ids = []; grp.own = [];
+      for (const c of grp.kids) { if (col.has(c)) continue; const b = block(c, x0 + x); x += b.width; grp.ids.push(...b.ids); grp.own.push(c); }
+      ids.push(...grp.ids);
+      const at = grp.own.map((c) => col.get(c) - x0);
+      grp.left = Math.min(...at); grp.right = Math.max(...at); grp.mid = at.reduce((a, b) => a + b, 0) / at.length;
     }
-    // Each couple wants to sit over its own children; with several couples in the row the chain
-    // settles on the average. No children: the chain simply starts the block.
-    const wants = groups.map((grp) => grp.mid - grp.at);
-    const off = wants.length ? wants.reduce((a, b) => a + b, 0) / wants.length : (x - chain.length) / 2;
+    // Each couple would like to sit right over its children. It must at least drop between the
+    // neighbouring groups' children, or its bar would reach over them; where the packed groups
+    // leave no such position, they are spread apart until they do.
+    const active = groups.filter((grp) => grp.own.length);
+    let off = active.length ? active.reduce((sum, grp) => sum + grp.mid - grp.at, 0) / active.length : (x - chain.length) / 2;
+    for (let pass = 0; active.length && pass < 2 * active.length + 2; pass++) {
+      let lo = -Infinity, hi = Infinity;
+      active.forEach((grp, k) => {
+        if (k > 0) lo = Math.max(lo, active[k - 1].right + 0.5 - grp.at);
+        if (k + 1 < active.length) hi = Math.min(hi, active[k + 1].left - 0.5 - grp.at);
+      });
+      if (lo <= hi) { off = Math.min(Math.max(off, lo), hi); break; }
+      off = lo;
+      for (let k = 1; k < active.length; k++) {
+        const gap = off + active[k - 1].at + 0.5 - active[k].left;
+        if (gap <= 0) continue;
+        for (const grp of active.slice(k)) { for (const m of grp.ids) col.set(m, col.get(m) + gap); grp.left += gap; grp.right += gap; grp.mid += gap; }
+        x += gap;
+      }
+    }
     const shift = Math.max(0, -off);
     for (const m of ids) if (!chain.includes(m)) col.set(m, col.get(m) + shift);
     chain.forEach((m, i) => col.set(m, x0 + off + shift + i));

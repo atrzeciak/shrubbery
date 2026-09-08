@@ -290,3 +290,103 @@ describe("family mode", () => {
     expect(qa(".tree-legend .edge.divorce", root)).toHaveLength(1);
   });
 });
+
+// Every straight stroke the tree draws, tagged by the element it belongs to. The divorce strike
+// is decoration and is left out.
+function strokes(svg) {
+  const out = [];
+  qa("line.edge", svg).forEach((l, i) => out.push({ owner: `l${i}`, x1: +l.getAttribute("x1"), y1: +l.getAttribute("y1"), x2: +l.getAttribute("x2"), y2: +l.getAttribute("y2") }));
+  qa("path.edge:not(.divorce)", svg).forEach((p, i) => {
+    let x = 0, y = 0;
+    for (const [, cmd, a, b] of p.getAttribute("d").matchAll(/([MVH])([-\d.]+)(?: ([-\d.]+))?/g)) {
+      if (cmd === "M") { x = +a; y = +b; continue; }
+      const nx = cmd === "H" ? +a : x, ny = cmd === "V" ? +a : y;
+      out.push({ owner: `p${i}`, x1: x, y1: y, x2: nx, y2: ny });
+      x = nx; y = ny;
+    }
+  });
+  return out;
+}
+const between = (v, a, b) => v > Math.min(a, b) && v < Math.max(a, b);
+const samePoint = (a, b) => (a.x1 === b.x1 && a.y1 === b.y1) || (a.x1 === b.x2 && a.y1 === b.y2) || (a.x2 === b.x1 && a.y2 === b.y1) || (a.x2 === b.x2 && a.y2 === b.y2);
+
+// Strokes of different elements that cut across each other, or run along each other for more
+// than the few pixels where two lines meet at somebody's avatar (that is a junction, not a crossing).
+function crossings(svg) {
+  const s = strokes(svg);
+  const out = [];
+  const line = (t) => `${t.owner}:(${t.x1},${t.y1})-(${t.x2},${t.y2})`;
+  for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) {
+    const a = s[i], b = s[j];
+    if (a.owner === b.owner) continue;
+    const av = a.x1 === a.x2, bv = b.x1 === b.x2;
+    if (av !== bv) {
+      const v = av ? a : b, h = av ? b : a;
+      if (between(v.x1, h.x1, h.x2) && between(h.y1, v.y1, v.y2)) out.push(`${line(a)} x ${line(b)}`);
+    } else if ((av ? a.x1 === b.x1 : a.y1 === b.y1) && !samePoint(a, b)) {
+      const [a0, a1] = av ? [a.y1, a.y2] : [a.x1, a.x2], [b0, b1] = av ? [b.y1, b.y2] : [b.x1, b.x2];
+      if (Math.min(Math.max(a0, a1), Math.max(b0, b1)) - Math.max(Math.min(a0, a1), Math.min(b0, b1)) >= 20) out.push(`${line(a)} = ${line(b)}`);
+    }
+  }
+  return out;
+}
+
+// Strokes that pass through somebody's avatar rather than ending at it.
+function piercings(svg) {
+  const R = 32;
+  const nodes = qa(".node", svg).map((g) => { const [, x, y] = g.getAttribute("transform").match(/translate\(([-\d.]+) ([-\d.]+)\)/).map(Number); return { cx: x, cy: y + R }; });
+  let n = 0;
+  for (const s of strokes(svg)) for (const { cx, cy } of nodes) {
+    const inside = (x, y) => Math.hypot(x - cx, y - cy) <= R + 1;
+    if (inside(s.x1, s.y1) || inside(s.x2, s.y2)) continue;
+    const v = s.x1 === s.x2;
+    if ((v ? Math.abs(s.x1 - cx) : Math.abs(s.y1 - cy)) < R && (v ? between(cy, s.y1, s.y2) : between(cx, s.x1, s.x2))) n++;
+  }
+  return n;
+}
+
+const P = (id, display_name, birth_date = null) => ({ id, display_name, birth_date });
+const kids = (parents, children) => children.flatMap((child_id) => parents.map((parent_id) => ({ parent_id, child_id })));
+const pair = (a_id, b_id, kind = "married") => ({ a_id, b_id, kind });
+// Four generations: grandparents with three children and one recorded under the grandfather
+// alone, a child with three partners and
+// children by each, an in-law whose own parents are in the tree, a pair who share a child but
+// were never partners, and a childless couple nobody is related to. (A union between two people
+// who both descend from the tree, cousins say, is left out: no layered drawing can avoid a long
+// crossing link for that, and this test is about everything else.)
+const clan = {
+  people: [P("g1", "Aleksy", "1900"), P("g2", "Maria", "1902"), P("q1", "Ignacy", "1905"), P("q2", "Rozalia", "1908"),
+    P("w", "Wanda", "1928"), P("a", "Anna", "1930"), P("b", "Bogdan", "1933"), P("c", "Celina", "1936"), P("d", "Dawid", "1934"), P("e", "Ewa", "1940"), P("f", "Feliks", "1938"), P("h", "Hanna", "1942"),
+    P("k1", "Kuba", "1960"), P("k2", "Kasia", "1962"), P("k3", "Karol", "1965"), P("k4", "Klara", "1968"), P("k5", "Krzysztof", "1970"), P("k6", "Kinga", "1972"),
+    P("n", "Natalia", "1961"), P("m", "Marta", "1990"), P("z1", "Zenon", "1950"), P("z2", "Zofia", "1952")],
+  parents: [...kids(["g1"], ["w"]), ...kids(["g1", "g2"], ["a", "b", "c"]), ...kids(["q1", "q2"], ["d"]), ...kids(["a", "d"], ["k1", "k2"]),
+    ...kids(["b", "e"], ["k3"]), ...kids(["b", "f"], ["k4"]), ...kids(["b", "h"], ["k5"]), ...kids(["c"], ["k6"]), ...kids(["k1", "n"], ["m"])],
+  partners: [pair("g1", "g2"), pair("q1", "q2"), pair("a", "d"), pair("b", "e", "divorced"), pair("b", "f", "partner"), pair("b", "h"), pair("z1", "z2")],
+  links: [], avatars: [],
+};
+
+describe("nothing crosses", () => {
+  const clean = async (mode, path, routes) => {
+    const { root, mode: pick } = await draw(viewCtx(meFixture({ account: { person_id: null } })), path, routes);
+    await pick(mode);
+    return q(".tree-wrap svg", root);
+  };
+  it("in the default family, whole and around each person", async () => {
+    expect([crossings(await clean("Whole family", "/app/tree")), piercings(await clean("Whole family", "/app/tree"))]).toEqual([[], 0]);
+    for (const id of people.map((p) => p.id)) {
+      const svg = await clean("Around a person", `/app/tree/${id}`);
+      expect([id, crossings(svg), piercings(svg)]).toEqual([id, [], 0]);
+    }
+  });
+  it("in a clan with three partnerships, co-parents and a stranger couple; the one in-law link is the only crossing", async () => {
+    const svg = await clean("Whole family", "/app/tree", { "GET /api/people": clan });
+    expect(qa(".node", svg)).toHaveLength(clan.people.length);
+    expect(piercings(svg)).toBe(0);
+    // Dawid's parents hang above him beside Anna's, and their line to him has to cut Anna's family bar
+    expect(crossings(svg)).toHaveLength(1);
+    for (const id of ["b", "a", "d", "k1", "k6", "m", "q1"]) {
+      const around = await clean("Around a person", `/app/tree/${id}`, { "GET /api/people": clan });
+      expect([id, crossings(around), piercings(around)]).toEqual([id, [], 0]);
+    }
+  });
+});
