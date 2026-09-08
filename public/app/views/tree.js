@@ -4,6 +4,7 @@ import { initials, lifeSpan, yearOf } from "../graph.js";
 import { focusLayout, familyLayout } from "../tree-layout.js";
 import { loadGraph, avatarUrl } from "../people.js";
 import { openSheet } from "../sheet.js";
+import { personPicker } from "../picker.js";
 import { personCard } from "../person-card.js";
 
 const W = 120, H = 180, GX = 40, GY = 60, R = 32;
@@ -132,13 +133,12 @@ export async function render(root, ctx) {
   const layout = familyLayout(g);
   const svg = drawSvg(g, layout, { focus, onTap: onPerson });
   const pz = panZoom(svg);
-  const find = h("input", { type: "search", placeholder: t("tree.find"), "aria-label": t("tree.find"), list: "tree-names" });
-  const list = h("datalist", { id: "tree-names" }, ...g.people.map((p) => h("option", { value: p.display_name })));
-  find.onchange = () => { const p = g.people.find((x) => x.display_name.toLowerCase() === find.value.trim().toLowerCase()); if (p) pz.centerOn(p.id); };
+  const find = personPicker(g, g.people, { id: "tree-find", placeholder: t("tree.find") });
+  find.onChange(() => { if (find.value()) pz.centerOn(find.value()); });
   const zin = h("button", { class: "btn secondary", type: "button", text: "+", "aria-label": t("tree.zoom.in") });
   const zout = h("button", { class: "btn secondary", type: "button", text: "−", "aria-label": t("tree.zoom.out") });
   const fit = h("button", { class: "btn secondary", type: "button", text: t("tree.zoom.fit") });
   zin.onclick = () => pz.zoom(1 / 1.3); zout.onclick = () => pz.zoom(1.3); fit.onclick = pz.reset;
-  root.append(h("div", { class: "row tree-tools" }, find, list, zin, zout, fit), h("div", { class: "card tree-wrap family" }, svg));
+  root.append(h("div", { class: "row tree-tools" }, find.el, zin, zout, fit), h("div", { class: "card tree-wrap family" }, svg));
   requestAnimationFrame(() => pz.centerOn(focus));
 }

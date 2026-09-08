@@ -111,22 +111,26 @@ describe("family mode", () => {
     await mode("Whole family");
     expect(localStorage.getItem("treeMode")).toBe("family");
     expect(names(root)).toHaveLength(5);
-    expect(qa("datalist option", root).map((o) => o.value)).toContain("Zofia Wiśniewska Trzecia");
+    expect(q("datalist", root)).toBeNull();
     expect(q("svg", root).getAttribute("viewBox")).not.toBe(`${q("svg", root).bounds.minX} ${q("svg", root).bounds.minY} ${q("svg", root).bounds.w} ${q("svg", root).bounds.h}`);
   });
 
-  it("finds a person by name and centres on them; an unknown name does nothing", async () => {
+  it("finds a person as the name is typed and centres on the chosen row; no hit, no move", async () => {
     const { root, mode } = await draw(me(), "/app/tree/p1");
     await mode("Whole family");
-    const svg = q("svg", root), find = q("input[type=search]", root);
+    const svg = q("svg", root), find = q("input[type=search]", root), list = q(".picker", root);
+    const type = (v) => { find.value = v; find.dispatchEvent(new Event("input")); };
     const before = svg.getAttribute("viewBox");
-    find.value = " zofia wiśniewska trzecia ";
-    find.dispatchEvent(new Event("change"));
+    type("nobody");
+    expect(list.hidden).toBe(true);
+    expect(svg.getAttribute("viewBox")).toBe(before);
+    type("zof");
+    expect(list.hidden).toBe(false);
+    expect(qa("li", list).map((r) => q("span", r).textContent)).toEqual(["Zofia Wiśniewska Trzecia"]);
+    q("li", list).dispatchEvent(new Event("mousedown", { cancelable: true }));
+    expect(find.value).toBe("Zofia Wiśniewska Trzecia");
+    expect(list.hidden).toBe(true);
     expect(svg.getAttribute("viewBox")).not.toBe(before);
-    const after = svg.getAttribute("viewBox");
-    find.value = "nobody";
-    find.dispatchEvent(new Event("change"));
-    expect(svg.getAttribute("viewBox")).toBe(after);
   });
 
   it("zooms in and out with the buttons and the wheel, and Fit restores the whole tree", async () => {
