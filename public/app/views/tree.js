@@ -40,11 +40,92 @@ function node(g, n, { onTap, focus }) {
   return grp;
 }
 
-function edgePath(a, b, type) {
-  const ax = a.col * (W + GX), ay = a.row * (H + GY), bx = b.col * (W + GX), by = b.row * (H + GY);
-  if (type === "partner") return s("line", { x1: ax, y1: ay + R, x2: bx, y2: by + R, class: "edge partner" });
-  const y1 = ay + 2 * R + 62, y2 = by - 4, ym = (y1 + y2) / 2;
-  return s("path", { d: `M${ax} ${y1} V${ym} H${bx} V${y2}`, class: "edge parent" });
+const X = (n) => n.col * (W + GX), Y = (n) => n.row * (H + GY);
+const KIND = { married: "married", partner: "unmarried", divorced: "divorced" };
+
+const adjacent = (a, b) => Math.abs(a.col - b.col) === 1;
+const cell = (pos, row, col) => [...pos.values()].find((n) => n.row === row && n.col === col);
+// Half a column inside `from`, toward `to`: between two people, never through one.
+const beside = (from, to) => X(from) + Math.sign(X(to) - X(from)) * (W + GX) / 2;
+// A couple with someone between them is joined by a bridge above the row; a longer span rides higher.
+const bridgeTop = (a, b) => Y(a) - 16 - 14 * (Math.abs(a.col - b.col) - 2);
+// The end of a couple's span where the row is not already taken by one of their other partners,
+// so a strike or a drop placed there belongs unmistakably to this couple.
+function clearEnd(g, pos, a, b) {
+  const dir = Math.sign(b.col - a.col);
+  const taken = (n, d) => { const m = cell(pos, n.row, n.col + d); return !!m && g.partners(n.id).some((q) => q.id === m.id); };
+  return !taken(a, dir) ? a : !taken(b, -dir) ? b : null;
+}
+
+// The genealogist's conventions: a marriage is a solid line, a partnership a dashed one, a
+// divorce a dashed line struck through.
+function partnerEdges(g, pos, e) {
+  const a = pos.get(e.from), b = pos.get(e.to), cls = `edge partner ${KIND[e.kind] || "married"}`;
+  let out, sx, sy;
+  if (adjacent(a, b)) { sy = Y(a) + R; sx = (X(a) + X(b)) / 2; out = [s("line", { x1: X(a), y1: sy, x2: X(b), y2: sy, class: cls })]; }
+  else {
+    sy = bridgeTop(a, b);
+    const end = clearEnd(g, pos, a, b) || a;
+    sx = beside(end, end === a ? b : a);
+    out = [s("path", { d: `M${X(a)} ${Y(a)} V${sy} H${X(b)} V${Y(b)}`, class: cls })];
+  }
+  if (e.kind === "divorced") out.push(s("path", { d: `M${sx - 7} ${sy + 6} l5 -12 M${sx + 2} ${sy + 6} l5 -12`, class: "edge divorce" }));
+  return out;
+}
+
+// One drop per family to a bar the children hang from, so siblings read as siblings. A couple's
+// drop leaves their line halfway between them, or, when someone else sits between them, from the
+// clear end of their bridge. Parents who were never partners have no line to leave from, so the
+// drop starts below the row.
+function familyTop(g, pos, parents, children, coupled) {
+  const below = Y(parents[0]) + 2 * R + 62;
+  if (parents.length === 1) return { x: X(parents[0]), y: below };
+  const [a, b] = parents;
+  if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: coupled ? Y(a) + R : below };
+  const cx = children.reduce((sum, c) => sum + X(c), 0) / children.length;
+  const nearer = Math.abs(X(a) - cx) <= Math.abs(X(b) - cx) ? a : b;
+  const end = (coupled && clearEnd(g, pos, a, b)) || nearer;
+  return { x: beside(end, end === a ? b : a), y: coupled ? bridgeTop(a, b) : below };
+}
+
+// Bars of neighbouring families in one row sit at different heights so they cannot merge.
+const LEVELS = [0, -14, 14];
+
+function familyEdge({ parents, children, top }, level) {
+  const y2 = Y(children[0]) - 4, ym = (Y(parents[0]) + 2 * R + 62 + y2) / 2 + LEVELS[level % LEVELS.length];
+  const xs = children.map(X), x0 = Math.min(top.x, ...xs), x1 = Math.max(top.x, ...xs);
+  let d = `M${top.x} ${top.y} V${ym}`;
+  if (x0 !== x1) d += ` M${x0} ${ym} H${x1}`;
+  for (const x of xs) d += ` M${x} ${ym} V${y2}`;
+  return s("path", { d, class: "edge family" });
+}
+
+function familyShapes(g, pos, edges) {
+  const coupled = new Set(edges.filter((e) => e.type === "partner").map((e) => [e.from, e.to].sort().join("|")));
+  const units = [];
+  for (const e of edges) {
+    if (e.type !== "family") continue;
+    const parents = e.parents.map((id) => pos.get(id)), children = e.children.map((id) => pos.get(id));
+    // parents on different rows cannot share a drop
+    if (parents.length === 2 && Y(parents[0]) !== Y(parents[1])) for (const p of parents) units.push({ parents: [p], children });
+    else units.push({ parents, children, coupled: coupled.has(e.parents.join("|")) });
+  }
+  for (const u of units) u.top = familyTop(g, pos, u.parents, u.children, u.coupled);
+  units.sort((a, b) => a.top.x - b.top.x);
+  const level = new Map();
+  return units.map((u) => { const row = Y(u.parents[0]), k = level.get(row) || 0; level.set(row, k + 1); return familyEdge(u, k); });
+}
+
+function legend() {
+  const sample = (...shapes) => s("svg", { class: "tree sample", viewBox: "0 0 36 16", "aria-hidden": "true" }, ...shapes);
+  const line = (cls) => s("line", { x1: 2, y1: 8, x2: 34, y2: 8, class: `edge partner ${cls}` });
+  const items = [
+    ["married", sample(line("married"))],
+    ["unmarried", sample(line("unmarried"))],
+    ["divorced", sample(line("divorced"), s("path", { d: "M11 14 l5 -12 M20 14 l5 -12", class: "edge divorce" }))],
+    ["children", sample(s("path", { d: "M18 1 V8 M6 8 H30 M6 8 V15 M30 8 V15", class: "edge family" }))],
+  ];
+  return h("ul", { class: "tree-legend" }, ...items.map(([key, svg]) => h("li", {}, svg, h("span", { text: t(`tree.legend.${key}`) }))));
 }
 
 function drawSvg(g, layout, opts) {
@@ -54,7 +135,8 @@ function drawSvg(g, layout, opts) {
   const minY = Math.min(...rows) * (H + GY) - 10, maxY = Math.max(...rows) * (H + GY) + H + 10;
   const svg = s("svg", { class: "tree", viewBox: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`, role: "group", "aria-label": t("tree.title") });
   const edges = s("g", { class: "edges" });
-  for (const e of layout.edges) if (pos.has(e.from) && pos.has(e.to)) edges.append(edgePath(pos.get(e.from), pos.get(e.to), e.type));
+  edges.append(...familyShapes(g, pos, layout.edges));
+  for (const e of layout.edges) if (e.type === "partner") edges.append(...partnerEdges(g, pos, e));
   svg.append(edges);
   for (const n of layout.nodes) svg.append(node(g, n, opts));
   svg.bounds = { minX, minY, w: maxX - minX, h: maxY - minY };
@@ -127,7 +209,7 @@ export async function render(root, ctx) {
   if (mode === "focus") {
     const layout = focusLayout(g, focus);
     const svg = drawSvg(g, layout, { focus, onTap: (id) => (id === focus ? onPerson(id) : ctx.navigate(`/app/tree/${id}`)) });
-    root.append(h("p", { class: "muted", text: t("tree.hint.focus") }), h("div", { class: "card tree-wrap focus" }, svg));
+    root.append(h("p", { class: "muted", text: t("tree.hint.focus") }), h("div", { class: "card tree-wrap focus" }, svg), legend());
     return;
   }
   const layout = familyLayout(g);
@@ -139,6 +221,6 @@ export async function render(root, ctx) {
   const zout = h("button", { class: "btn secondary", type: "button", text: "−", "aria-label": t("tree.zoom.out") });
   const fit = h("button", { class: "btn secondary", type: "button", text: t("tree.zoom.fit") });
   zin.onclick = () => pz.zoom(1 / 1.3); zout.onclick = () => pz.zoom(1.3); fit.onclick = pz.reset;
-  root.append(h("div", { class: "row tree-tools" }, find.el, zin, zout, fit), h("div", { class: "card tree-wrap family" }, svg));
+  root.append(h("div", { class: "row tree-tools" }, find.el, zin, zout, fit), h("div", { class: "card tree-wrap family" }, svg), legend());
   requestAnimationFrame(() => pz.centerOn(focus));
 }

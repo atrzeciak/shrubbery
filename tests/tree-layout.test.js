@@ -15,9 +15,10 @@ describe("focusLayout", () => {
     expect([at(nodes, "g1").row, at(nodes, "g2").row]).toEqual([0, 0]);
     expect([at(nodes, "g1").col, at(nodes, "g2").col].sort()).toEqual([-0.5, 0.5]);
     expect([at(nodes, "c1"), at(nodes, "c2")].map((n) => [n.col, n.row, n.role])).toEqual([[-0.5, 2, "child"], [0.5, 2, "child"]]);
+    // one family per set of shared parents: the focus and their sibling from the grandparents, the children from the couple
     expect(edges).toEqual(expect.arrayContaining([
-      { from: "g1", to: "p1", type: "parent" }, { from: "p1", to: "c1", type: "parent" },
-      { from: "p1", to: "p2", type: "partner" }, { from: "g1", to: "g2", type: "partner" },
+      { type: "family", parents: ["g1", "g2"], children: ["p3", "p1"] }, { type: "family", parents: ["p1", "p2"], children: ["c1", "c2"] },
+      { from: "p1", to: "p2", type: "partner", kind: "married" }, { from: "g1", to: "g2", type: "partner", kind: "married" },
     ]));
     expect(nodes).toHaveLength(7);
   });
@@ -40,8 +41,8 @@ describe("familyLayout", () => {
     const mid = (at(nodes, "p1").col + at(nodes, "p2").col) / 2;
     const kids = (at(nodes, "c1").col + at(nodes, "c2").col) / 2;
     expect(Math.abs(mid - kids)).toBeLessThanOrEqual(1);
-    expect(edges.filter((e) => e.type === "partner")).toHaveLength(2);
-    expect(edges.filter((e) => e.type === "parent")).toHaveLength(8);
+    expect(edges.filter((e) => e.type === "partner").map((e) => e.kind)).toEqual(["married", "married"]);
+    expect(edges.filter((e) => e.type === "family").map((e) => e.children.sort())).toEqual([["p1", "p3"], ["c1", "c2"]]);
   });
   it("survives a cycle without hanging", () => {
     const cyc = buildGraph({ people: [{ id: "a", display_name: "a" }, { id: "b", display_name: "b" }], parents: [{ parent_id: "a", child_id: "b" }, { parent_id: "b", child_id: "a" }], partners: [], links: [], avatars: [] });

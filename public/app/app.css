@@ -138,7 +138,12 @@ input[type=range] { width: 100%; }
 .tree .name { fill: var(--fg); font-size: 15px; }
 .tree .years { fill: var(--muted); font-size: 13px; }
 .tree .edge { fill: none; stroke: var(--muted); stroke-width: 2; }
-.tree .edge.partner { stroke-dasharray: 6 4; }
+.tree .edge.partner.married { stroke-width: 3; }
+.tree .edge.partner.unmarried { stroke-dasharray: 6 4; }
+.tree .edge.partner.divorced { stroke-dasharray: 3 5; stroke-width: 1.5; }
+.tree-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; margin: .5rem 0 0; padding: 0; list-style: none; font-size: .9rem; color: var(--muted); }
+.tree-legend li { display: flex; align-items: center; gap: .4rem; }
+.tree-legend .sample { width: 36px; height: 16px; flex: 0 0 auto; }
 .person-row > span { flex: 1 1 auto; min-width: 0; }
 .person-row > .btn { flex: 0 0 auto; margin-left: auto; min-height: 36px; padding: .25rem 1rem; }
 .sheet.full { inset: 0; width: auto; max-height: none; border: 0; border-radius: 0; padding: 3rem 1rem 2rem; }

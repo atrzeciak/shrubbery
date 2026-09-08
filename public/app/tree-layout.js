@@ -2,6 +2,20 @@ import { byBirth } from "./graph.js";
 
 const centred = (ids) => ids.map((id, i) => ({ id, col: i - (ids.length - 1) / 2 }));
 
+// Children grouped by the parents they share among `ids`: one drop per couple or single parent,
+// one bar per set of siblings. Half-siblings share a parent, not a bar.
+function families(g, ids) {
+  const out = new Map();
+  for (const id of ids) {
+    const parents = g.parents(id).filter((p) => ids.has(p)).sort();
+    if (!parents.length) continue;
+    const key = parents.join("|");
+    if (!out.has(key)) out.set(key, { type: "family", parents, children: [] });
+    out.get(key).children.push(id);
+  }
+  return [...out.values()];
+}
+
 export function focusLayout(g, focusId) {
   const cmp = byBirth(g);
   const parents = g.parents(focusId);
@@ -21,10 +35,8 @@ export function focusLayout(g, focusId) {
     ...centred(children).map((n) => ({ ...n, row: 2, role: "child" })),
   ];
   const ids = new Set(nodes.map((n) => n.id));
-  const edges = [];
-  for (const p of parents) edges.push({ from: p, to: focusId, type: "parent" });
-  for (const c of children) edges.push({ from: focusId, to: c, type: "parent" });
-  for (const id of ids) for (const q of g.partners(id)) if (ids.has(q.id) && id < q.id) edges.push({ from: id, to: q.id, type: "partner" });
+  const edges = families(g, ids);
+  for (const id of ids) for (const q of g.partners(id)) if (ids.has(q.id) && id < q.id) edges.push({ from: id, to: q.id, type: "partner", kind: q.kind });
   return { nodes, edges };
 }
 
@@ -80,8 +92,7 @@ export function familyLayout(g) {
     flat.forEach((id, i) => col.set(id, i - (flat.length - 1) / 2));
   });
   const nodes = g.people.map((p) => ({ id: p.id, col: col.get(p.id), row: gen.get(p.id) }));
-  const edges = [];
-  for (const p of g.people) for (const par of g.parents(p.id)) edges.push({ from: par, to: p.id, type: "parent" });
-  for (const p of g.people) for (const q of g.partners(p.id)) if (p.id < q.id) edges.push({ from: p.id, to: q.id, type: "partner" });
+  const edges = families(g, new Set(g.people.map((p) => p.id)));
+  for (const p of g.people) for (const q of g.partners(p.id)) if (p.id < q.id) edges.push({ from: p.id, to: q.id, type: "partner", kind: q.kind });
   return { nodes, edges, rows: rows.length };
 }
