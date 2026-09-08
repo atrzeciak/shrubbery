@@ -179,6 +179,16 @@ describe("toast and errors", () => {
     vi.useRealTimers();
   });
 
+  it("looks like good news unless told it is an error", async () => {
+    const { app } = await boot();
+    app.toast("saved");
+    expect(q("#toast").className).toBe("toast ok");
+    app.toast("refused", "error");
+    expect(q("#toast").className).toBe("toast error");
+    app.toast("saved again");
+    expect(q("#toast").className).toBe("toast ok");
+  });
+
   it("turns errors into the right sentence", async () => {
     const { app } = await boot();
     const { ApiError } = await import("../../public/app/api.js");
@@ -263,6 +273,7 @@ describe("passkeys", () => {
     btn.click();
     await until(() => !q("#toast").hidden);
     expect(q("#toast").textContent).toBe(pl["error.network"]);
+    expect(q("#toast").className).toBe("toast error");
   });
 
   it("answers a step-up demand with the passkey and retries the call", async () => {
@@ -284,5 +295,6 @@ describe("passkeys", () => {
     const { api } = await import("../../public/app/api.js");
     await expect(api("/api/admin/x", { method: "POST", body: {} })).rejects.toMatchObject({ code: "step_up_required" });
     expect(q("#toast").textContent).toBe(pl["stepup.needed"]);
+    expect(q("#toast").className).toBe("toast error");
   });
 });

@@ -62,7 +62,7 @@ function fileControls(m, ctx, { admin, people, reload }) {
     const del = h("button", { class: "link-btn danger", type: "button", text: t("media.delete") });
     del.onclick = async () => {
       if (!confirm(t("confirm"))) return;
-      try { await api(`/api/media/${m.id}`, { method: "DELETE" }); await reload(); }
+      try { await api(`/api/media/${m.id}`, { method: "DELETE" }); ctx.toast(t("done")); await reload(); }
       catch (e) { toastApiError(ctx, e); }
     };
     actions.append(del);

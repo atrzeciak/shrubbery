@@ -5,8 +5,8 @@ import { pickKind, formatSize } from "./upload-rules.js";
 
 // 409-with-person conflict gets its own message; everything else goes through errorText.
 export function toastApiError(ctx, e) {
-  if (e && e.code === "conflict" && e.detail && e.detail.person) ctx.toast(t("media.full", { person: e.detail.person }));
-  else ctx.toast(e && e.code ? ctx.errorText(e) : String((e && e.message) || e));
+  if (e && e.code === "conflict" && e.detail && e.detail.person) ctx.toast(t("media.full", { person: e.detail.person }), "error");
+  else ctx.toast(e && e.code ? ctx.errorText(e) : String((e && e.message) || e), "error");
 }
 
 async function toJpeg(file, maxSide, quality) {
@@ -62,7 +62,7 @@ export function uploadForm(personId, ctx, reload) {
 
   function choose(file) {
     const verdict = pickKind(file);
-    if (verdict.error) { ctx.toast(t(`media.${verdict.error}`)); return; }
+    if (verdict.error) { ctx.toast(t(`media.${verdict.error}`), "error"); return; }
     release();
     chosen = file;
     name.textContent = file.name;
@@ -98,7 +98,7 @@ export function uploadForm(personId, ctx, reload) {
   btn.onclick = async () => {
     if (!chosen) return;
     const verdict = pickKind(chosen);
-    if (verdict.error) { ctx.toast(t(`media.${verdict.error}`)); return; }
+    if (verdict.error) { ctx.toast(t(`media.${verdict.error}`), "error"); return; }
     btn.disabled = true;
     btn.textContent = t("media.sending");
     try {

@@ -24,7 +24,9 @@ export async function render(root, ctx) {
   await PANELS[tab](panel, ctx, () => render(root, ctx));
 }
 
-const act = (ctx, redraw) => async (fn) => { try { await fn(); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e)); } };
+const act = (ctx, redraw) => async (fn, done = t("done")) => {
+  try { await fn(); ctx.toast(done); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
+};
 
 const PANELS = {
   async invitations(panel, ctx, redraw) {
@@ -66,14 +68,14 @@ const PANELS = {
       h("label", { for: "inv-lang", text: t("admin.invite.lang") }), lang,
       h("label", { for: "inv-attachment", text: t("admin.invite.attachment") }), attachment,
       h("div", { class: "row" }, send));
-    form.onsubmit = (ev) => { ev.preventDefault(); run(async () => { await api("/api/admin/invitations", { method: "POST", body: { email: email.value, lang: lang.value, attachment: attachment.value || null } }); ctx.toast(t("admin.invite.sent")); }); };
+    form.onsubmit = (ev) => { ev.preventDefault(); run(() => api("/api/admin/invitations", { method: "POST", body: { email: email.value, lang: lang.value, attachment: attachment.value || null } }), t("admin.invite.sent")); };
     const list = h("ul", { class: "list card" });
     const { invitations } = await api("/api/admin/invitations");
     if (!invitations.length) list.append(h("li", { class: "muted", text: t("admin.invite.empty") }));
     for (const inv of invitations) {
       const resend = h("button", { class: "btn secondary", type: "button", text: t("admin.invite.resend") });
       const revoke = h("button", { class: "btn danger", type: "button", text: t("admin.invite.revoke") });
-      resend.onclick = () => run(() => api(`/api/admin/invitations/${inv.id}/resend`, { method: "POST", body: {} }));
+      resend.onclick = () => run(() => api(`/api/admin/invitations/${inv.id}/resend`, { method: "POST", body: {} }), t("admin.invite.sent"));
       revoke.onclick = () => confirm(t("confirm")) && run(() => api(`/api/admin/invitations/${inv.id}`, { method: "DELETE" }));
       const person = byEmail(inv.email);
       const meta = `${inv.lang} · ${t("admin.invite.expires", { when: fmtDate(inv.expires_at) })}${inv.attachment_media_id ? " · 📎" : ""}${person ? ` · ${person.display_name}` : ""}`;
@@ -156,7 +158,7 @@ const PANELS = {
     const list = h("ul", { class: "list card" });
     const more = h("button", { class: "btn secondary", type: "button", text: t("admin.history.more"), hidden: true });
     let next = null;
-    const run = (p) => p.catch((e) => ctx.toast(ctx.errorText(e)));
+    const run = (p) => p.catch((e) => ctx.toast(ctx.errorText(e), "error"));
     async function load(before) {
       const qs = new URLSearchParams();
       if (before) qs.set("before", before);
@@ -180,7 +182,8 @@ const PANELS = {
     let lastAt = info.backup_at;
     let failedAt = info.backup_failed_at;
     // A failure only speaks while it is the most recent word: a good download afterwards settles it.
-    const stateText = () => (failedAt && failedAt > (lastAt || 0)
+    const failed = () => !!failedAt && failedAt > (lastAt || 0);
+    const stateText = () => (failed()
       ? t("admin.backup.failed", { when: fmtDate(failedAt) })
       : lastAt ? t("admin.backup.last", { when: fmtDate(lastAt) }) : t("admin.backup.never"));
     const lastLine = h("p", { class: "muted", text: stateText() });
@@ -192,7 +195,7 @@ const PANELS = {
         // passkey prompt still works, rather than in the middle of a file download.
         await api("/api/admin/backup/check");
       } catch (e) {
-        ctx.toast(ctx.errorText(e));
+        ctx.toast(ctx.errorText(e), "error");
         button.disabled = false;
         return;
       }
@@ -203,20 +206,22 @@ const PANELS = {
       // The archive can be tens of megabytes and streams at the pace the browser reads it, so a slow
       // download is not a failed one. Either outcome is written down by the server, so this waits for
       // one of them rather than guessing from a timeout.
-      for (let i = 0; i < 24; i++) {
+      let heard = false;
+      for (let i = 0; i < 24 && !heard; i++) {
         await sleep(5000);
         try {
           const check = await api("/api/admin/backup/check");
           if (check.backup_at !== lastAt || check.backup_failed_at !== failedAt) {
             lastAt = check.backup_at;
             failedAt = check.backup_failed_at;
-            break;
+            heard = true;
           }
         } catch {
           // transient — keep polling until the loop gives up
         }
       }
       lastLine.textContent = stateText();
+      if (heard) ctx.toast(stateText(), failed() ? "error" : "ok");
       button.disabled = false;
     };
     panel.append(h("div", { class: "card" },

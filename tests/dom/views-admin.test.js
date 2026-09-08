@@ -118,12 +118,13 @@ describe("invitations: join requests", () => {
   });
 
   it("creates a new person when the field is blank", async () => {
-    const { root, calls } = await open("Invitations", { "POST /api/admin/join-requests/r1/approve": { ok: true } });
+    const { root, calls, ctx } = await open("Invitations", { "POST /api/admin/join-requests/r1/approve": { ok: true } });
     const li = qa("ul.list li", root)[0];
     type(picker(li), "");
     byText("button", "Approve", li).click();
     await tick();
     expect(calls.find((c) => c.path.endsWith("/approve")).body).toEqual({ create: true });
+    expect(ctx.toast).toHaveBeenCalledWith("Done.");
   });
 
   it("picks the only hit on Enter, hides the list on Escape and blur, refills on focus", async () => {
@@ -145,7 +146,7 @@ describe("invitations: join requests", () => {
   });
 
   it("rejects with a note, or not at all when the prompt is dismissed", async () => {
-    const { root, calls } = await open("Invitations", { "POST /api/admin/join-requests/r2/reject": { ok: true } });
+    const { root, calls, ctx } = await open("Invitations", { "POST /api/admin/join-requests/r2/reject": { ok: true } });
     const li = qa("ul.list li", root)[1];
     prompt.mockReturnValueOnce(null);
     byText("button", "Reject", li).click();
@@ -154,13 +155,14 @@ describe("invitations: join requests", () => {
     byText("button", "Reject", li).click();
     await tick();
     expect(calls.find((c) => c.path.endsWith("/reject")).body).toEqual({ note: "no thanks" });
+    expect(ctx.toast).toHaveBeenCalledWith("Done.");
   });
 
   it("toasts when an action fails", async () => {
     const { root, ctx } = await open("Invitations", { "POST /api/admin/join-requests/r1/approve": { status: 409, body: { error: "conflict" } } });
     byText("button", "Approve", qa("ul.list li", root)[0]).click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("conflict");
+    expect(ctx.toast).toHaveBeenCalledWith("conflict", "error");
   });
 });
 
@@ -208,13 +210,14 @@ describe("invitations: sending and managing", () => {
   });
 
   it("lists invitations with a paperclip for an attachment, re-sends, and revokes after confirming", async () => {
-    const { root, calls } = await open("Invitations", { "POST /api/admin/invitations/i1/resend": { ok: true }, "DELETE /api/admin/invitations/i2": { ok: true } });
+    const { root, calls, ctx } = await open("Invitations", { "POST /api/admin/invitations/i1/resend": { ok: true }, "DELETE /api/admin/invitations/i2": { ok: true } });
     const items = qa("ul.list li.row", root);
     expect(items[0].textContent).toContain("📎");
     expect(items[1].textContent).not.toContain("📎");
     byText("button", "Re-send", items[0]).click();
     await tick();
     expect(calls.some((c) => c.path === "/api/admin/invitations/i1/resend")).toBe(true);
+    expect(ctx.toast).toHaveBeenCalledWith("Invitation sent.");
     confirm.mockReturnValueOnce(false);
     byText("button", "Revoke", items[1]).click();
     await tick();
@@ -222,6 +225,7 @@ describe("invitations: sending and managing", () => {
     byText("button", "Revoke", items[1]).click();
     await tick();
     expect(calls.filter((c) => c.method === "DELETE").map((c) => c.path)).toEqual(["/api/admin/invitations/i2"]);
+    expect(ctx.toast).toHaveBeenLastCalledWith("Done.");
   });
 });
 
@@ -250,7 +254,7 @@ describe("accounts", () => {
   });
 
   it("grants and revokes admin after naming the person in the confirmation", async () => {
-    const { root, calls } = await open("Accounts", { "PATCH /api/admin/accounts/acc2": { ok: true }, "PATCH /api/admin/accounts/acc6": { ok: true } });
+    const { root, calls, ctx } = await open("Accounts", { "PATCH /api/admin/accounts/acc2": { ok: true }, "PATCH /api/admin/accounts/acc6": { ok: true } });
     confirm.mockReturnValueOnce(false);
     byText("button", "Grant admin", row(root, "kasia@x.org")).click();
     await tick();
@@ -263,6 +267,8 @@ describe("accounts", () => {
     await tick();
     expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining("boss@x.org"));
     expect(calls.filter((c) => c.method === "PATCH").at(-1).body).toEqual({ role: "family" });
+    expect(ctx.toast).toHaveBeenCalledTimes(2);
+    expect(ctx.toast).toHaveBeenLastCalledWith("Done.");
   });
 
   it("disables, enables and signs out", async () => {
@@ -299,17 +305,18 @@ describe("accounts", () => {
   });
 
   it("unlinks after confirming", async () => {
-    const { root, calls } = await open("Accounts", { "POST /api/admin/accounts/acc2/unlink": { ok: true } });
+    const { root, calls, ctx } = await open("Accounts", { "POST /api/admin/accounts/acc2/unlink": { ok: true } });
     confirm.mockReturnValueOnce(false);
     byText("button", "Unlink person", row(root, "kasia@x.org")).click();
     byText("button", "Unlink person", row(root, "kasia@x.org")).click();
     await tick();
     expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining("Kasia Nowak"));
     expect(calls.filter((c) => c.path.endsWith("/unlink"))).toHaveLength(1);
+    expect(ctx.toast).toHaveBeenCalledWith("Done.");
   });
 
   it("links through a sheet whose button waits for a chosen, unlinked person", async () => {
-    const { root, calls } = await open("Accounts", { "POST /api/admin/accounts/acc1/link": { ok: true } });
+    const { root, calls, ctx } = await open("Accounts", { "POST /api/admin/accounts/acc1/link": { ok: true } });
     byText("button", "Link to person", row(root, "me@x.org")).click();
     const sheet = q(".sheet");
     expect(q("h2", sheet).textContent).toBe("me@x.org");
@@ -325,6 +332,7 @@ describe("accounts", () => {
     await tick();
     expect(calls.find((c) => c.path.endsWith("/link")).body).toEqual({ person_id: "p1" });
     expect(q(".sheet")).toBeNull();
+    expect(ctx.toast).toHaveBeenCalledWith("Done.");
   });
 
   it("pre-fills the person whose e-mail matches the account", async () => {
@@ -364,7 +372,7 @@ describe("history", () => {
     mockApi({ "GET /api/admin/history": { status: 500, body: { error: "internal" } } });
     byText("button", "Show older", root).click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("internal");
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
   });
 });
 
@@ -385,12 +393,12 @@ describe("backup", () => {
     const button = byText("button", "Download the backup", root);
     button.click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("step_up_required");
+    expect(ctx.toast).toHaveBeenCalledWith("step_up_required", "error");
     expect(button.disabled).toBe(false);
   });
 
   it("waits for the server to record the download, riding out a transient failure", async () => {
-    const { root } = await open("Backup");
+    const { root, ctx } = await open("Backup");
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     let n = 0;
     mockApi({ "GET /api/admin/backup/check": () => (++n === 2 ? { status: 500, body: { error: "internal" } } : n < 4 ? { backup_at: null, backup_failed_at: null } : { backup_at: 3e9, backup_failed_at: null }) });
@@ -401,18 +409,31 @@ describe("backup", () => {
     expect(root.textContent).toContain("Confirming the download…");
     await vi.advanceTimersByTimeAsync(15000);
     expect(root.textContent).toContain("Last backup:");
+    expect(ctx.toast).toHaveBeenCalledWith(expect.stringContaining("Last backup:"), "ok");
     expect(button.disabled).toBe(false);
     vi.useRealTimers();
   });
 
+  it("says so when the server records a download that did not finish", async () => {
+    const { root, ctx } = await open("Backup");
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    mockApi({ "GET /api/admin/backup/check": { backup_at: null, backup_failed_at: 2e9 } });
+    byText("button", "Download the backup", root).click();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(root.textContent).toContain("did not finish");
+    expect(ctx.toast).toHaveBeenCalledWith(expect.stringContaining("did not finish"), "error");
+    vi.useRealTimers();
+  });
+
   it("gives up after two minutes without word from the server", async () => {
-    const { root } = await open("Backup");
+    const { root, ctx } = await open("Backup");
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     mockApi({ "GET /api/admin/backup/check": { backup_at: null, backup_failed_at: null } });
     const button = byText("button", "Download the backup", root);
     button.click();
     await vi.advanceTimersByTimeAsync(24 * 5000);
     expect(root.textContent).toContain("No backup has been downloaded yet.");
+    expect(ctx.toast).not.toHaveBeenCalled();
     expect(button.disabled).toBe(false);
     vi.useRealTimers();
   });

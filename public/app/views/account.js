@@ -30,11 +30,11 @@ async function passkeys(ctx, redraw) {
     rename.onclick = async () => {
       const name = prompt(t("account.passkeys.name"), p.name);
       if (!name) return;
-      try { await api(`/api/me/passkeys/${p.id}`, { method: "PATCH", body: { name } }); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e)); }
+      try { await api(`/api/me/passkeys/${p.id}`, { method: "PATCH", body: { name } }); ctx.toast(t("done")); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
     };
     remove.onclick = async () => {
       if (!confirm(t("confirm"))) return;
-      try { await api(`/api/me/passkeys/${p.id}`, { method: "DELETE" }); await ctx.refreshMe(); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e)); }
+      try { await api(`/api/me/passkeys/${p.id}`, { method: "DELETE" }); ctx.toast(t("done")); await ctx.refreshMe(); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
     };
     list.append(h("li", { class: "row" }, h("span", {}, h("strong", { text: p.name }), " ", h("span", { class: "muted", text: fmtDate(p.created_at) })), rename, remove));
   }
@@ -48,7 +48,7 @@ async function passkeys(ctx, redraw) {
       ctx.toast(t("account.passkeys.added"));
       await ctx.refreshMe();
       await redraw();
-    } catch (e) { if (!e || e.name !== "NotAllowedError") ctx.toast(ctx.errorText(e)); add.disabled = false; }
+    } catch (e) { if (!e || e.name !== "NotAllowedError") ctx.toast(ctx.errorText(e), "error"); add.disabled = false; }
   };
   return h("div", { class: "card" }, list, h("div", { class: "row" }, add),
     passkeysSupported() ? null : h("p", { class: "muted", text: t("account.passkeys.unsupported") }));
@@ -60,7 +60,7 @@ async function sessions(ctx, redraw) {
   for (const s of sessions) {
     const revoke = h("button", { class: "btn secondary", type: "button", text: t("account.sessions.revoke"), hidden: s.current });
     revoke.onclick = async () => {
-      try { await api(`/api/me/sessions/${s.id}`, { method: "DELETE" }); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e)); }
+      try { await api(`/api/me/sessions/${s.id}`, { method: "DELETE" }); ctx.toast(t("done")); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
     };
     list.append(h("li", { class: "row" },
       h("span", {}, h("strong", { text: s.current ? t("account.sessions.current") : (s.user_agent || "").slice(0, 40) }), " ",
@@ -70,7 +70,7 @@ async function sessions(ctx, redraw) {
   const all = h("button", { class: "btn danger", type: "button", text: t("account.sessions.revokeAll") });
   all.onclick = async () => {
     if (!confirm(t("confirm"))) return;
-    try { await api("/api/me/sessions/revoke-all", { method: "POST", body: {} }); ctx.state.me = null; ctx.navigate("/app/login", { replace: true }); } catch (e) { ctx.toast(ctx.errorText(e)); }
+    try { await api("/api/me/sessions/revoke-all", { method: "POST", body: {} }); ctx.state.me = null; ctx.navigate("/app/login", { replace: true }); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
   };
   return h("div", { class: "card" }, list, h("div", { class: "row" }, all));
 }
@@ -80,8 +80,8 @@ function language(ctx) {
     h("option", { value: "pl", text: t("account.lang.pl"), selected: getLang() === "pl" }),
     h("option", { value: "en", text: t("account.lang.en"), selected: getLang() === "en" }));
   select.onchange = async () => {
-    try { await api("/api/me", { method: "PATCH", body: { lang: select.value } }); await setLang(select.value); await ctx.refreshMe(); ctx.navigate("/app/account", { replace: true }); }
-    catch (e) { ctx.toast(ctx.errorText(e)); }
+    try { await api("/api/me", { method: "PATCH", body: { lang: select.value } }); await setLang(select.value); await ctx.refreshMe(); ctx.navigate("/app/account", { replace: true }); ctx.toast(t("done")); }
+    catch (e) { ctx.toast(ctx.errorText(e), "error"); }
   };
   return h("div", { class: "card" }, select);
 }
@@ -90,8 +90,8 @@ function reminders(ctx) {
   const me = ctx.state.me;
   const box = h("input", { type: "checkbox", id: "notify-events", checked: me.account.notify_events === 1, disabled: !me.account.person_id });
   box.onchange = async () => {
-    try { await api("/api/me", { method: "PATCH", body: { notify_events: box.checked ? 1 : 0 } }); await ctx.refreshMe(); }
-    catch (e) { box.checked = !box.checked; ctx.toast(ctx.errorText(e)); }
+    try { await api("/api/me", { method: "PATCH", body: { notify_events: box.checked ? 1 : 0 } }); ctx.toast(t("done")); await ctx.refreshMe(); }
+    catch (e) { box.checked = !box.checked; ctx.toast(ctx.errorText(e), "error"); }
   };
   return h("div", { class: "card" },
     h("label", { class: "check", for: "notify-events" }, box, ` ${t("account.notify")}`),

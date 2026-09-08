@@ -31,9 +31,11 @@ let renderedPath = null;
 const $ = (id) => document.getElementById(id);
 const main = $("main"), side = $("side"), backdrop = $("backdrop"), menuBtn = $("menu-btn"), userBtn = $("user-btn"), toastEl = $("toast");
 
+// Every button that writes something ends in one of these: what happened, and whether it worked.
 let toastTimer;
-export function toast(msg) {
+export function toast(msg, kind = "ok") {
   toastEl.textContent = msg;
+  toastEl.className = `toast ${kind}`;
   toastEl.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3500);
@@ -115,7 +117,7 @@ function passkeyBanner() {
       await refreshMe();
       render();
     } catch (e) {
-      if (!e || e.name !== "NotAllowedError") toast(errorText(e));
+      if (!e || e.name !== "NotAllowedError") toast(errorText(e), "error");
       btn.disabled = false;
     }
   };
@@ -183,7 +185,7 @@ menuBtn.onclick = () => openMenu(!side.classList.contains("open"));
 backdrop.onclick = () => openMenu(false);
 userBtn.onclick = () => navigate("/app/account");
 onStepUp(async () => {
-  try { await stepUp(); await refreshMe(); return true; } catch { toast(t("stepup.needed")); return false; }
+  try { await stepUp(); await refreshMe(); return true; } catch { toast(t("stepup.needed"), "error"); return false; }
 });
 
 (async () => {

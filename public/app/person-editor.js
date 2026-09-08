@@ -11,7 +11,7 @@ export async function openPersonEditor(id, ctx, { onDone = () => {} } = {}) {
   const g = await loadGraph();
   const editor = h("div", { class: "editor" });
   const redraw = () => openPersonEditor(id, ctx, { onDone });
-  const run = async (fn) => { try { await fn(); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e)); } };
+  const run = async (fn) => { try { await fn(); ctx.toast(t("done")); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); } };
   const options = (exclude) => g.people.filter((p) => p.id !== exclude).sort((a, b) => a.display_name.localeCompare(b.display_name)).map((p) => h("option", { value: p.id, text: `${p.display_name} ${lifeSpan(p)}`.trim() }));
 
   clear(editor);
@@ -53,8 +53,8 @@ export async function openPersonEditor(id, ctx, { onDone = () => {} } = {}) {
     const del = h("button", { class: "btn danger", type: "button", text: t("admin.people.delete") });
     del.onclick = async () => {
       if (!confirm(t("confirm"))) return;
-      try { await api(`/api/admin/people/${id}`, { method: "DELETE" }); closeSheet(); onDone(); }
-      catch (e) { ctx.toast(ctx.errorText(e)); }
+      try { await api(`/api/admin/people/${id}`, { method: "DELETE" }); ctx.toast(t("done")); closeSheet(); onDone(); }
+      catch (e) { ctx.toast(ctx.errorText(e), "error"); }
     };
     editor.append(
       h("div", { class: "card" }, h("h2", { text: t("person.parents") }), parents, h("div", { class: "row" }, parentSel, addParent)),

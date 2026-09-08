@@ -128,6 +128,7 @@ describe("openPersonEditor", () => {
     c.Partnerzy.querySelector(".secondary").click();
     await tick();
     expect(calls.find((x) => x.method === "POST")).toMatchObject({ path: "/api/admin/people/p1/partners/p3", body: { kind: "married", start_year: null, end_year: null } });
+    expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
     c = cards();
     const [who, kind] = qa("select", c.Partnerzy);
     who.value = "p3"; kind.value = "divorced";
@@ -139,12 +140,12 @@ describe("openPersonEditor", () => {
     c = cards();
     c.Partnerzy.querySelector("li .danger").click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("internal");
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
   });
   it("deletes the person only after confirming, then closes and reports done", async () => {
     const calls = mockApi(routes({ "DELETE /api/admin/people/p1": {} }));
     globalThis.confirm = vi.fn(() => false);
-    const { onDone } = await open("p1");
+    const { ctx, onDone } = await open("p1");
     q(".editor > .row .danger").click();
     await tick();
     expect(calls.filter((x) => x.method === "DELETE").length).toBe(0);
@@ -154,6 +155,7 @@ describe("openPersonEditor", () => {
     expect(calls.filter((x) => x.method === "DELETE").length).toBe(1);
     expect(q('[role="dialog"]')).toBeNull();
     expect(onDone).toHaveBeenCalledTimes(1);
+    expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
   });
   it("toasts when the delete is refused and keeps the editor open", async () => {
     mockApi(routes({ "DELETE /api/admin/people/p1": { status: 409, body: { error: "conflict" } } }));
@@ -161,7 +163,7 @@ describe("openPersonEditor", () => {
     const { ctx, onDone } = await open("p1");
     q(".editor > .row .danger").click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("conflict");
+    expect(ctx.toast).toHaveBeenCalledWith("conflict", "error");
     expect(q('[role="dialog"]')).not.toBeNull();
     expect(onDone).not.toHaveBeenCalled();
   });

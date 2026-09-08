@@ -21,9 +21,10 @@ function form(g, onSaved, ctx) {
       const body = { on_date: date.value, place: place.value, note: note.value };
       if (g) await api(`/api/admin/gatherings/${g.id}`, { method: "PATCH", body });
       else await api("/api/admin/gatherings", { method: "POST", body });
+      ctx.toast(t("form.saved"));
       await onSaved();
     } catch (e) {
-      ctx.toast(ctx.errorText(e));
+      ctx.toast(ctx.errorText(e), "error");
       save.disabled = false;
     }
   };
@@ -89,7 +90,7 @@ export async function render(root, ctx) {
             await api(`/api/gatherings/${g.id}/rsvp`, { method: "PUT", body: answer });
             ctx.toast(t("gathering.rsvp.saved"));
             await draw();
-          } catch (e) { ctx.toast(ctx.errorText(e)); }
+          } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
         }));
       }
       body.append(card);
@@ -116,8 +117,9 @@ export async function render(root, ctx) {
           open.replaceWith(answerControls(guest, async (a) => {
             try {
               await api(`/api/admin/gatherings/${g.id}/rsvp/${guest.person_id}`, { method: "PUT", body: a });
+              ctx.toast(t("gathering.rsvp.saved"));
               await draw();
-            } catch (e) { ctx.toast(ctx.errorText(e)); }
+            } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
           }));
         };
         row.append(open);
@@ -133,8 +135,9 @@ export async function render(root, ctx) {
         cancel.disabled = true;
         try {
           await api(`/api/admin/gatherings/${g.id}`, { method: "PATCH", body: { cancelled: g.cancelled_at ? 0 : 1 } });
+          ctx.toast(t("done"));
           await draw();
-        } catch (e) { ctx.toast(ctx.errorText(e)); cancel.disabled = false; }
+        } catch (e) { ctx.toast(ctx.errorText(e), "error"); cancel.disabled = false; }
       };
       const del = h("button", { class: "btn danger", type: "button", text: t("gathering.admin.delete") });
       del.onclick = async () => {
@@ -142,8 +145,9 @@ export async function render(root, ctx) {
         del.disabled = true;
         try {
           await api(`/api/admin/gatherings/${g.id}`, { method: "DELETE" });
+          ctx.toast(t("done"));
           await draw();
-        } catch (e) { ctx.toast(ctx.errorText(e)); del.disabled = false; }
+        } catch (e) { ctx.toast(ctx.errorText(e), "error"); del.disabled = false; }
       };
       // Both of these write to real people and cannot be taken back, so each asks first and each
       // disappears once it has been done.
@@ -156,7 +160,7 @@ export async function render(root, ctx) {
             const r = await api(`/api/admin/gatherings/${g.id}/${path}`, { method: "POST", body: {} });
             ctx.toast(t("gathering.admin.sent", { n: r.sent }));
             await draw();
-          } catch (e) { ctx.toast(ctx.errorText(e)); b.disabled = false; }
+          } catch (e) { ctx.toast(ctx.errorText(e), "error"); b.disabled = false; }
         };
         return b;
       };

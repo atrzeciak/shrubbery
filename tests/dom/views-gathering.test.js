@@ -40,7 +40,7 @@ describe("without a gathering", () => {
 
   it("lets an admin create one and redraws with it", async () => {
     let g = null;
-    const { calls } = await draw(admin(), {
+    const { calls, ctx } = await draw(admin(), {
       "GET /api/gatherings": () => feed(g, g ? guests : []),
       "POST /api/admin/gatherings": (body) => { g = gathering({ on_date: body.on_date, place: body.place, note: body.note }); return { id: "g1" }; },
     });
@@ -52,6 +52,7 @@ describe("without a gathering", () => {
     expect(calls.find((c) => c.method === "POST").body).toEqual({ on_date: dayPlus(0), place: "Park", note: "Noon" });
     expect(document.body.textContent).toContain("today");
     expect(document.body.textContent).toContain("Where: Park");
+    expect(ctx.toast).toHaveBeenCalledWith("Saved.");
   });
 
   it("keeps the form usable when saving fails", async () => {
@@ -59,7 +60,7 @@ describe("without a gathering", () => {
     const save = byText("button", "Save");
     save.click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("bad_request");
+    expect(ctx.toast).toHaveBeenCalledWith("bad_request", "error");
     expect(save.disabled).toBe(false);
   });
 });
@@ -128,7 +129,7 @@ describe("with a gathering", () => {
     const { ctx } = await draw(family(), { "GET /api/gatherings": feed(gathering()), "PUT /api/gatherings/g1/rsvp": { status: 403, body: { error: "forbidden" } } });
     byText("button", "No", q(".rsvp")).click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("forbidden");
+    expect(ctx.toast).toHaveBeenCalledWith("forbidden", "error");
   });
 
   it("lists answered guests first for a member, with on-behalf answers marked", async () => {
@@ -143,7 +144,7 @@ describe("with a gathering", () => {
 
 describe("as an admin", () => {
   it("lists the unanswered first and answers for a guest on the telephone", async () => {
-    const { calls } = await draw(admin(), { "GET /api/gatherings": feed(gathering()), "PUT /api/admin/gatherings/g1/rsvp/p1": { ok: true } });
+    const { calls, ctx } = await draw(admin(), { "GET /api/gatherings": feed(gathering()), "PUT /api/admin/gatherings/g1/rsvp/p1": { ok: true } });
     const rows = qa("ul.list li");
     expect(rows.map((r) => q("a", r).textContent)).toEqual(["Bartek Nowak", "Anna Nowak", "Celina Nowak"]);
     byText("button", "Enter an answer", rows[1]).click();
@@ -152,6 +153,7 @@ describe("as an admin", () => {
     byText("button", "Yes", controls).click();
     await tick();
     expect(calls.find((c) => c.path.includes("/rsvp/p1")).body).toEqual({ coming: 1, headcount: 3 });
+    expect(ctx.toast).toHaveBeenCalledWith("Saved.");
   });
 
   it("toasts when answering for a guest fails", async () => {
@@ -160,11 +162,11 @@ describe("as an admin", () => {
     byText("button", "Enter an answer", row).click();
     byText("button", "No", q(".rsvp", row)).click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("internal");
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
   });
 
   it("edits the gathering in place", async () => {
-    const { calls } = await draw(admin(), { "GET /api/gatherings": feed(gathering()), "PATCH /api/admin/gatherings/g1": { ok: true } });
+    const { calls, ctx } = await draw(admin(), { "GET /api/gatherings": feed(gathering()), "PATCH /api/admin/gatherings/g1": { ok: true } });
     const form = qa(".card").find((c) => q("input[type=date]", c));
     expect(q("input[type=date]", form).value).toBe(dayPlus(10));
     expect(q("textarea", form).value).toBe("Bring cake");
@@ -172,11 +174,12 @@ describe("as an admin", () => {
     byText("button", "Save", form).click();
     await tick();
     expect(calls.find((c) => c.method === "PATCH").body).toEqual({ on_date: dayPlus(10), place: "Elsewhere", note: "Bring cake" });
+    expect(ctx.toast).toHaveBeenCalledWith("Saved.");
   });
 
   it("cancels and uncancels, and re-enables the button on failure", async () => {
     let g = gathering();
-    const { calls } = await draw(admin(), { "GET /api/gatherings": () => feed(g), "PATCH /api/admin/gatherings/g1": (body) => { g = gathering({ cancelled_at: body.cancelled ? 1 : null }); return { ok: true }; } });
+    const { calls, ctx } = await draw(admin(), { "GET /api/gatherings": () => feed(g), "PATCH /api/admin/gatherings/g1": (body) => { g = gathering({ cancelled_at: body.cancelled ? 1 : null }); return { ok: true }; } });
     byText("button", "Cancel the gathering").click();
     await tick();
     expect(calls.find((c) => c.method === "PATCH").body).toEqual({ cancelled: 1 });
@@ -185,13 +188,15 @@ describe("as an admin", () => {
     await tick();
     expect(calls.filter((c) => c.method === "PATCH").at(-1).body).toEqual({ cancelled: 0 });
     expect(q(".error")).toBeNull();
+    expect(ctx.toast).toHaveBeenCalledTimes(2);
+    expect(ctx.toast).toHaveBeenLastCalledWith("Done.");
 
     document.body.innerHTML = "";
     const { ctx: ctx2 } = await draw(admin(), { "GET /api/gatherings": feed(gathering()), "PATCH /api/admin/gatherings/g1": { status: 500, body: { error: "internal" } } });
     const cancel = byText("button", "Cancel the gathering");
     cancel.click();
     await tick();
-    expect(ctx2.toast).toHaveBeenCalledWith("internal");
+    expect(ctx2.toast).toHaveBeenCalledWith("internal", "error");
     expect(cancel.disabled).toBe(false);
   });
 
@@ -209,11 +214,12 @@ describe("as an admin", () => {
     del.click();
     await tick();
     expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(1);
-    expect(ctx.toast).toHaveBeenCalledWith("internal");
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
     expect(del.disabled).toBe(false);
     del.click();
     await tick();
     expect(document.body.textContent).toContain("No gathering has been arranged yet.");
+    expect(ctx.toast).toHaveBeenLastCalledWith("Done.");
   });
 
   it("offers announce, then nudge, then nothing, each behind a confirmation", async () => {
@@ -243,7 +249,7 @@ describe("as an admin", () => {
     const b = byText("button", "Send the invitations");
     b.click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("internal");
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
     expect(b.disabled).toBe(false);
   });
 });

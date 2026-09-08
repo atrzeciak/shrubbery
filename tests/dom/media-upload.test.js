@@ -14,13 +14,13 @@ describe("toastApiError", () => {
     const ctx = appCtx();
     const full = new ApiError(409, "conflict"); full.detail = { person: "Anna" };
     toastApiError(ctx, full);
-    expect(ctx.toast).toHaveBeenLastCalledWith("Limit Anna: 6 plików — usuń coś najpierw.");
+    expect(ctx.toast).toHaveBeenLastCalledWith("Limit Anna: 6 plików — usuń coś najpierw.", "error");
     toastApiError(ctx, new ApiError(500, "internal"));
-    expect(ctx.toast).toHaveBeenLastCalledWith("internal");
+    expect(ctx.toast).toHaveBeenLastCalledWith("internal", "error");
     toastApiError(ctx, new Error("boom"));
-    expect(ctx.toast).toHaveBeenLastCalledWith("boom");
+    expect(ctx.toast).toHaveBeenLastCalledWith("boom", "error");
     toastApiError(ctx, "plain");
-    expect(ctx.toast).toHaveBeenLastCalledWith("plain");
+    expect(ctx.toast).toHaveBeenLastCalledWith("plain", "error");
   });
 });
 
@@ -36,9 +36,9 @@ describe("uploadForm", () => {
   it("refuses a file that is neither a picture nor a PDF, and a PDF that is too large", () => {
     const { ctx } = mount();
     pickFile(q("input[type=file]"), new File(["x"], "a.txt", { type: "text/plain" }));
-    expect(ctx.toast).toHaveBeenLastCalledWith("To musi być zdjęcie lub PDF.");
+    expect(ctx.toast).toHaveBeenLastCalledWith("To musi być zdjęcie lub PDF.", "error");
     pickFile(q("input[type=file]"), pdf(10 * 1024 * 1024 + 1));
-    expect(ctx.toast).toHaveBeenLastCalledWith("Plik jest za duży (limit 10 MB).");
+    expect(ctx.toast).toHaveBeenLastCalledWith("Plik jest za duży (limit 10 MB).", "error");
     expect(q(".media-drop").hidden).toBe(false);
   });
   it("previews a picked photo with its name and size, and clears back to the drop zone", () => {
@@ -153,7 +153,7 @@ describe("uploadForm", () => {
     q(".media-fields .btn").click();
     await tick();
     expect(calls.length).toBe(0);
-    expect(ctx.toast).toHaveBeenLastCalledWith("Nie udało się odczytać obrazu.");
+    expect(ctx.toast).toHaveBeenLastCalledWith("Nie udało się odczytać obrazu.", "error");
     expect(reload).not.toHaveBeenCalled();
     expect(q(".media-fields .btn").disabled).toBe(false);
     expect(q(".media-fields .btn").textContent).toBe("Dodaj plik");
@@ -164,7 +164,7 @@ describe("uploadForm", () => {
     pickFile(q("input[type=file]"), pdf());
     q(".media-fields .btn").click();
     await tick();
-    expect(ctx.toast).toHaveBeenLastCalledWith("Limit Anna: 6 plików — usuń coś najpierw.");
+    expect(ctx.toast).toHaveBeenLastCalledWith("Limit Anna: 6 plików — usuń coś najpierw.", "error");
     expect(reload).not.toHaveBeenCalled();
     expect(q(".media-chosen").hidden).toBe(false);
   });

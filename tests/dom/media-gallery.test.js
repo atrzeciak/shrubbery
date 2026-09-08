@@ -53,7 +53,7 @@ describe("mediaGallery", () => {
   it("lets a member delete only their own uploads, after confirming", async () => {
     const calls = mockApi({ ...gallery(media), "DELETE /api/media/m1": {} });
     globalThis.confirm = vi.fn(() => false);
-    await mount({ editable: true });
+    const ctx = await mount({ editable: true });
     const dels = qa(".media-actions .danger");
     expect(dels.length).toBe(2);
     expect(qa(".media-actions .link-btn:not(.danger)").length).toBe(0);
@@ -65,6 +65,7 @@ describe("mediaGallery", () => {
     await tick();
     expect(calls.map((c) => `${c.method} ${c.path}`)).toContain("DELETE /api/media/m1");
     expect(calls.filter((c) => c.method === "GET").length).toBe(2);
+    expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
   });
   it("toasts when a delete fails", async () => {
     mockApi({ ...gallery(media), "DELETE /api/media/m1": { status: 403, body: { error: "forbidden" } } });
@@ -72,7 +73,7 @@ describe("mediaGallery", () => {
     const ctx = await mount({ editable: true });
     q(".media-actions .danger").click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("forbidden");
+    expect(ctx.toast).toHaveBeenCalledWith("forbidden", "error");
   });
   it("offers the upload form under the cap and a notice at it", async () => {
     mockApi(gallery(media, { used: 4, cap: 6 }));
@@ -130,7 +131,7 @@ describe("mediaGallery", () => {
     expect(save.disabled).toBe(true);
     await tick();
     expect(calls.find((c) => c.method === "PATCH").body).toEqual({ caption: null, year: null, owner_person_id: "p1", tags: [] });
-    expect(ctx.toast).toHaveBeenCalledWith("internal");
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
     expect(save.disabled).toBe(false);
   });
 });

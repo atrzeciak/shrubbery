@@ -53,7 +53,7 @@ describe("passkeys", () => {
   });
 
   it("lists them with their dates; renaming asks for a name and saves it, cancelling does nothing", async () => {
-    const { calls } = await start({ ...base(), "GET /api/me/passkeys": { passkeys }, "PATCH /api/me/passkeys/k1": {} });
+    const { calls, ctx } = await start({ ...base(), "GET /api/me/passkeys": { passkeys }, "PATCH /api/me/passkeys/k1": {} });
     const rows = qa("ul.list")[0].children;
     expect([...rows].map((li) => q("strong", li).textContent)).toEqual(["phone", "laptop"]);
     expect(rows[0].textContent).toContain("2023");
@@ -66,6 +66,7 @@ describe("passkeys", () => {
     expect(prompt).toHaveBeenLastCalledWith("Nazwa (np. telefon)", "phone");
     expect(calls.filter((c) => c.method === "PATCH")).toEqual([{ method: "PATCH", path: "/api/me/passkeys/k1", body: { name: "new name" } }]);
     expect(calls.filter((c) => c.path === "/api/me/passkeys").length).toBe(2);
+    expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
   });
 
   it("removing asks first, then deletes and refreshes; a refusal is toasted", async () => {
@@ -79,9 +80,10 @@ describe("passkeys", () => {
     await tick();
     expect(calls.filter((c) => c.method === "DELETE").map((c) => c.path)).toEqual(["/api/me/passkeys/k1"]);
     expect(ctx.refreshMe).toHaveBeenCalled();
+    expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
     byText("button", "Usuń", qa("ul.list li")[1]).click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("last_passkey");
+    expect(ctx.toast).toHaveBeenCalledWith("last_passkey", "error");
     prompt.mockReturnValueOnce("");
     byText("button", "Zmień nazwę", qa("ul.list li")[0]).click();
   });
@@ -90,7 +92,7 @@ describe("passkeys", () => {
     const { ctx } = await start({ ...base(), "GET /api/me/passkeys": { passkeys }, "PATCH /api/me/passkeys/k1": { status: 400, body: { error: "bad_request" } } });
     byText("button", "Zmień nazwę", q("ul.list li")).click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("bad_request");
+    expect(ctx.toast).toHaveBeenCalledWith("bad_request", "error");
   });
 
   it("adds one: registers the credential under the name given, then refreshes", async () => {
@@ -126,13 +128,13 @@ describe("passkeys", () => {
     const second = await start({ ...base(), "POST /api/auth/passkey/challenge": { challenge: "AAAA", rpId: "test.local" }, "POST /api/me/passkeys": { status: 400, body: { error: "bad_request" } } });
     button("Dodaj klucz dostępu").click();
     await tick();
-    expect(second.ctx.toast).toHaveBeenCalledWith("bad_request");
+    expect(second.ctx.toast).toHaveBeenCalledWith("bad_request", "error");
   });
 });
 
 describe("sessions", () => {
   it("names this device, shortens other agents, and signs out one of them", async () => {
-    const { calls } = await start({ ...base(), "GET /api/me/sessions": { sessions }, "DELETE /api/me/sessions/s2": {} });
+    const { calls, ctx } = await start({ ...base(), "GET /api/me/sessions": { sessions }, "DELETE /api/me/sessions/s2": {} });
     const rows = qa("ul.list")[1].children;
     expect(q("strong", rows[0]).textContent).toBe("to urządzenie");
     expect(byText("button", "Wyloguj", rows[0]).hidden).toBe(true);
@@ -142,13 +144,14 @@ describe("sessions", () => {
     await tick();
     expect(calls.filter((c) => c.method === "DELETE").map((c) => c.path)).toEqual(["/api/me/sessions/s2"]);
     expect(calls.filter((c) => c.path === "/api/me/sessions").length).toBe(2);
+    expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
   });
 
   it("toasts when a session cannot be signed out", async () => {
     const { ctx } = await start({ ...base(), "GET /api/me/sessions": { sessions }, "DELETE /api/me/sessions/s2": { status: 404, body: { error: "not_found" } } });
     byText("button", "Wyloguj", qa("ul.list")[1].children[1]).click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("not_found");
+    expect(ctx.toast).toHaveBeenCalledWith("not_found", "error");
   });
 
   it("'sign out everywhere' asks, then ends every session and returns to the login page", async () => {
@@ -165,7 +168,7 @@ describe("sessions", () => {
     const failed = await start({ ...base(), "POST /api/me/sessions/revoke-all": { status: 500, body: { error: "internal" } } });
     button("Wyloguj wszędzie").click();
     await tick();
-    expect(failed.ctx.toast).toHaveBeenCalledWith("internal");
+    expect(failed.ctx.toast).toHaveBeenCalledWith("internal", "error");
     expect(failed.ctx.state.me).not.toBeNull();
   });
 });
@@ -182,12 +185,13 @@ describe("language", () => {
     expect(document.documentElement.lang).toBe("en");
     expect(ctx.refreshMe).toHaveBeenCalled();
     expect(ctx.navigate).toHaveBeenCalledWith("/app/account", { replace: true });
+    expect(ctx.toast).toHaveBeenCalledWith("Done.");
     const failed = await start({ ...base(), "PATCH /api/me": { status: 400, body: { error: "bad_request" } } });
     expect(q("select").value).toBe("en");
     q("select").value = "pl";
     q("select").dispatchEvent(new Event("change"));
     await until(() => failed.ctx.toast.mock.calls.length);
-    expect(failed.ctx.toast).toHaveBeenCalledWith("bad_request");
+    expect(failed.ctx.toast).toHaveBeenCalledWith("bad_request", "error");
     expect(document.documentElement.lang).toBe("en");
   });
 });
@@ -211,6 +215,7 @@ describe("reminders", () => {
     await tick();
     expect(calls.find((c) => c.method === "PATCH")).toEqual({ method: "PATCH", path: "/api/me", body: { notify_events: 0 } });
     expect(ctx.refreshMe).toHaveBeenCalled();
+    expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
     box.checked = true;
     box.dispatchEvent(new Event("change"));
     await tick();
@@ -220,7 +225,7 @@ describe("reminders", () => {
     q("#notify-events").dispatchEvent(new Event("change"));
     await tick();
     expect(q("#notify-events").checked).toBe(true);
-    expect(failed.ctx.toast).toHaveBeenCalledWith("internal");
+    expect(failed.ctx.toast).toHaveBeenCalledWith("internal", "error");
   });
 });
 
