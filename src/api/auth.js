@@ -118,8 +118,10 @@ async function postCode(request, env) {
   if (!account) {
     const inv = await q.activeInvitationByEmail(db, email, now).first();
     if (!inv) throw new ApiError(401, "unauthorized");
+    // An admin's approval names the person; failing that, the tree's own record of the address does.
     const granted = await q.grantedJoinRequestByEmail(db, email).first();
-    const personId = granted && !(await q.accountByPerson(db, granted.matched_person_id).first()) ? granted.matched_person_id : null;
+    const candidate = granted ? granted.matched_person_id : (await q.personByEmail(db, email).first())?.id;
+    const personId = candidate && !(await q.accountByPerson(db, candidate).first()) ? candidate : null;
     account = { id: randomB64url(16), email, role: "family", lang: inv.lang, createdAt: now, invitedBy: inv.invited_by, personId };
     stmts.push(
       q.insertAccount(db, account),

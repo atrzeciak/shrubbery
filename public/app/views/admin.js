@@ -75,13 +75,20 @@ const PANELS = {
     }
     panel.append(h("h2", { text: t("admin.requests.title") }), reqList, h("h2", { text: t("admin.tab.invitations") }));
     const email = h("input", { type: "email", required: true, id: "inv-email", autocomplete: "off" });
+    const byEmail = (v) => { const e = v.trim().toLowerCase(); return e ? g.people.find((p) => p.email === e) : undefined; };
+    const match = h("div", { class: "muted", id: "inv-match", hidden: true });
+    email.oninput = () => {
+      const e = email.value.trim(), p = byEmail(e);
+      match.hidden = !e;
+      match.textContent = !e ? "" : !p ? t("admin.invite.match.none") : p.account_id ? t("admin.invite.match.taken", { name: p.display_name }) : t("admin.invite.match", { name: p.display_name });
+    };
     const lang = h("select", { id: "inv-lang" }, h("option", { value: "pl", text: "Polski" }), h("option", { value: "en", text: "English" }));
     const { documents } = await api("/api/admin/documents");
     const attachment = h("select", { id: "inv-attachment" }, h("option", { value: "", text: t("admin.invite.attachment.none") }),
       ...documents.map((d) => h("option", { value: d.id, text: `${d.caption || d.id}${d.year ? ` (${d.year})` : ""} · ${Math.round(d.size / 1024)} KB` })));
     const send = h("button", { class: "btn", type: "submit", text: t("admin.invite.send") });
     const form = h("form", { class: "card" },
-      h("label", { for: "inv-email", text: t("admin.invite.email") }), email,
+      h("label", { for: "inv-email", text: t("admin.invite.email") }), email, match,
       h("label", { for: "inv-lang", text: t("admin.invite.lang") }), lang,
       h("label", { for: "inv-attachment", text: t("admin.invite.attachment") }), attachment,
       h("div", { class: "row" }, send));
@@ -94,7 +101,8 @@ const PANELS = {
       const revoke = h("button", { class: "btn danger", type: "button", text: t("admin.invite.revoke") });
       resend.onclick = () => run(() => api(`/api/admin/invitations/${inv.id}/resend`, { method: "POST", body: {} }));
       revoke.onclick = () => confirm(t("confirm")) && run(() => api(`/api/admin/invitations/${inv.id}`, { method: "DELETE" }));
-      const meta = `${inv.lang} · ${t("admin.invite.expires", { when: fmtDate(inv.expires_at) })}${inv.attachment_media_id ? " · 📎" : ""}`;
+      const person = byEmail(inv.email);
+      const meta = `${inv.lang} · ${t("admin.invite.expires", { when: fmtDate(inv.expires_at) })}${inv.attachment_media_id ? " · 📎" : ""}${person ? ` · ${person.display_name}` : ""}`;
       list.append(h("li", { class: "row" }, h("span", {}, h("strong", { text: inv.email }), " ", h("span", { class: "muted", text: meta })), resend, revoke));
     }
     panel.append(form, list);

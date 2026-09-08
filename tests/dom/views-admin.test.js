@@ -177,6 +177,28 @@ describe("invitations: sending and managing", () => {
     expect(ctx.toast).toHaveBeenCalledWith("Invitation sent.");
   });
 
+  it("names the person the address will link to as it is typed", async () => {
+    const { root } = await open("Invitations");
+    const hint = q("#inv-match", root);
+    expect(hint.hidden).toBe(true);
+    type(q("#inv-email", root), " Anna@X.org ");
+    expect(hint.hidden).toBe(false);
+    expect(hint.textContent).toBe("Will be linked to Anna Nowak");
+    type(q("#inv-email", root), "kasia@x.org");
+    expect(hint.textContent).toBe("Kasia Nowak already has an account");
+    type(q("#inv-email", root), "nobody@x.org");
+    expect(hint.textContent).toBe("No person in the tree has this address. Set it on the person first, or the account will arrive unlinked.");
+    type(q("#inv-email", root), "");
+    expect(hint.hidden).toBe(true);
+  });
+
+  it("shows the matched person on a pending invitation", async () => {
+    const { root } = await open("Invitations", { "GET /api/admin/invitations": { invitations: [{ ...invitations[0], email: "anna@x.org" }, invitations[1]] } });
+    const items = qa("ul.list li.row", root);
+    expect(items[0].textContent).toContain("Anna Nowak");
+    expect(items[1].textContent).not.toContain("Nowak");
+  });
+
   it("sends null for no attachment", async () => {
     const { root, calls } = await open("Invitations", { "POST /api/admin/invitations": { id: "i9" } });
     q("#inv-email", root).value = "x@y.org";

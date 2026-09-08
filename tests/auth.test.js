@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
 import { verifyRegistration } from "../src/auth/webauthn.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
-import { makeEnv, resetDb, seedAccount, lastCode, Client } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client } from "./helpers/env.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
@@ -113,6 +113,34 @@ describe("code step", () => {
     const hist = (await q.listHistory(env.DB, { beforeId: null, limit: 10, actions: null, accountId: null }).all()).results;
     expect(hist.map((h) => h.action)).toEqual(["login", "invite_accepted", "code_sent"]);
     expect(JSON.parse(hist[0].details)).toEqual({ passkey: false });
+  });
+
+  it("first login links the account to the person in the tree who has that email", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    await seedPerson(env, { id: "p1", first_name: "Nowa", last_name: "Osoba", email: "New@X.org" });
+    await q.insertInvitation(env.DB, { id: "i1", email: "new@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await loginWithCode(new Client(env), "new@x.org");
+    expect((await q.accountByEmail(env.DB, "new@x.org").first()).person_id).toBe("p1");
+  });
+
+  it("first login leaves the account unlinked when that person already has an account", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    await seedAccount(env, { id: "old", email: "old@x.org" });
+    await seedPerson(env, { id: "p1", first_name: "Nowa", last_name: "Osoba", email: "new@x.org" });
+    await env.DB.prepare("UPDATE accounts SET person_id = 'p1' WHERE id = 'old'").run();
+    await q.insertInvitation(env.DB, { id: "i1", email: "new@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await loginWithCode(new Client(env), "new@x.org");
+    expect((await q.accountByEmail(env.DB, "new@x.org").first()).person_id).toBeNull();
+  });
+
+  it("a granted join request names the person even when another person carries the email", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    await seedPerson(env, { id: "p_mail", first_name: "By", last_name: "Mail", email: "new@x.org" });
+    await seedPerson(env, { id: "p_admin", first_name: "By", last_name: "Admin" });
+    await q.insertJoinRequest(env.DB, { id: "j1", first_name: "By", last_name: "Admin", birth_date: "1980", parent_text: "x", email: "new@x.org", message: null, lang: "pl", created_at: 1, status: "approved", matched_person_id: "p_admin" }).run();
+    await q.insertInvitation(env.DB, { id: "i1", email: "new@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await loginWithCode(new Client(env), "new@x.org");
+    expect((await q.accountByEmail(env.DB, "new@x.org").first()).person_id).toBe("p_admin");
   });
 
   it("wrong code → invalid_code and login_failed; a browser without the nonce cannot use the code", async () => {

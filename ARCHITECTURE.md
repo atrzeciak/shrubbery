@@ -75,6 +75,10 @@ holding a session or learning anything.
   → a PDF in `media`, at most 4 MiB so the whole mail stays under the provider's 5 MiB). The
   bytes are read from R2 at send time, so a re-send carries the current file; if the document has
   since been removed, the re-send goes out without it rather than failing.
+- **An invited address is linked to its person at first login.** An approved join request names the
+  person; otherwise the person in the tree carrying that email (`people.email`) is used, provided
+  they have no account yet. The invite form shows which it will be before the mail goes out, and an
+  admin can relink from the Accounts tab at any time.
 - IP addresses in the history log are stored hashed (`src/history.js`, `IP_HASH_SECRET`).
 
 ## 5. Scheduled work
