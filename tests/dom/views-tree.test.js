@@ -50,6 +50,7 @@ describe("empty and default focus", () => {
     const { root, mode } = await draw();
     await mode("Around a person");
     expect(q(".node.is-focus", root).getAttribute("aria-label")).toBe("Kasia Nowak");
+    // reading order: the parents' row, then Kasia beside her elder half-sister, then her daughter
     expect(names(root)).toEqual(["Anna Nowak", "Jan Nowak", "Konstantynopolita Kowalska", "Kasia Nowak", "Zofia Wiśniewska Trzecia"]);
   });
 
@@ -240,7 +241,7 @@ describe("family mode", () => {
     expect(Math.abs(mark - xd)).toBe(80);
   });
 
-  it("drops from each parent separately when the two are not on one row", async () => {
+  it("drops once from between two co-parents, from below the row since they have no line", async () => {
     const rows = {
       people: [{ id: "a", display_name: "A" }, { id: "b", display_name: "B" }, { id: "c", display_name: "C" }, { id: "k", display_name: "K" }],
       parents: [{ parent_id: "b", child_id: "c" }, { parent_id: "a", child_id: "k" }, { parent_id: "c", child_id: "k" }],
@@ -249,11 +250,11 @@ describe("family mode", () => {
     const { root, mode } = await draw(viewCtx(meFixture({ account: { person_id: null } })), "/app/tree", { "GET /api/people": rows });
     await mode("Whole family");
     const svg = q(".tree-wrap svg", root);
-    const xs = qa(".node", svg).map((n) => Number(n.getAttribute("transform").match(/translate\(([-\d.]+)/)[1]));
-    const drops = qa("path.edge.family", svg).map((e) => Number(e.getAttribute("d").match(/^M([-\d.]+)/)[1]));
-    expect(drops).toHaveLength(3);
-    // every drop leaves a parent's own column: no midpoint between A and C
-    for (const d of drops) expect(xs).toContain(d);
+    const x = (name) => Number(qa(".node", svg).find((n) => n.getAttribute("aria-label") === name).getAttribute("transform").match(/translate\(([-\d.]+)/)[1]);
+    const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
+    expect(ds).toHaveLength(2);
+    // A is pulled down beside C, one row above K; the drop leaves the row's foot, not an avatar
+    expect(ds.some((d) => d.startsWith(`M${(x("A") + x("C")) / 2} ${240 + 126} V`))).toBe(true);
   });
 
   it("tells marriage, partnership and divorce apart, bars siblings together, and explains itself", async () => {
@@ -275,8 +276,8 @@ describe("family mode", () => {
     const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
     expect(ds).toHaveLength(2);
     // Kasia and Konstantynopolita hang from one bar: a drop, the bar, two verticals
-    const bar = ds.find((d) => d.includes(" H"));
-    expect(bar.match(/V/g)).toHaveLength(3);
+    const bar = ds.find((d) => (d.match(/V/g) || []).length === 3);
+    expect(bar).toContain(" H");
     // Zofia alone under Anna: the bar reaches from Anna's drop to Zofia, however far apart they sit
     const lone = ds.find((d) => d !== bar);
     const [, tx, x0, x1, cx] = lone.match(/^M([-\d.]+) [-\d.]+ V[-\d.]+(?: M([-\d.]+) [-\d.]+ H([-\d.]+))? M([-\d.]+) [-\d.]+ V/).map((v) => (v === undefined ? undefined : Number(v)));

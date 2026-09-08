@@ -105,10 +105,7 @@ function familyShapes(g, pos, edges) {
   const units = [];
   for (const e of edges) {
     if (e.type !== "family") continue;
-    const parents = e.parents.map((id) => pos.get(id)), children = e.children.map((id) => pos.get(id));
-    // parents on different rows cannot share a drop
-    if (parents.length === 2 && Y(parents[0]) !== Y(parents[1])) for (const p of parents) units.push({ parents: [p], children });
-    else units.push({ parents, children, coupled: coupled.has(e.parents.join("|")) });
+    units.push({ parents: e.parents.map((id) => pos.get(id)), children: e.children.map((id) => pos.get(id)), coupled: coupled.has(e.parents.join("|")) });
   }
   for (const u of units) u.top = familyTop(g, pos, u.parents, u.children, u.coupled);
   units.sort((a, b) => a.top.x - b.top.x);
