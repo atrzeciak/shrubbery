@@ -298,15 +298,20 @@ function strokes(svg) {
   qa("line.edge", svg).forEach((l, i) => out.push({ owner: `l${i}`, x1: +l.getAttribute("x1"), y1: +l.getAttribute("y1"), x2: +l.getAttribute("x2"), y2: +l.getAttribute("y2") }));
   qa("path.edge:not(.divorce)", svg).forEach((p, i) => {
     let x = 0, y = 0;
-    for (const [, cmd, a, b] of p.getAttribute("d").matchAll(/([MVH])([-\d.]+)(?: ([-\d.]+))?/g)) {
-      if (cmd === "M") { x = +a; y = +b; continue; }
-      const nx = cmd === "H" ? +a : x, ny = cmd === "V" ? +a : y;
+    for (const [, cmd, rest] of p.getAttribute("d").matchAll(/([MVHa])((?:[-\d.]+ ?)+)/g)) {
+      const n = rest.trim().split(" ").map(Number);
+      if (cmd === "M") { [x, y] = n; continue; }
+      // a hop is an arc: the pen lands past it and the gap it leaves is the point
+      if (cmd === "a") { x += n[5]; y += n[6]; continue; }
+      const nx = cmd === "H" ? n[0] : x, ny = cmd === "V" ? n[0] : y;
       out.push({ owner: `p${i}`, x1: x, y1: y, x2: nx, y2: ny });
       x = nx; y = ny;
     }
   });
   return out;
 }
+// Hops: the places where a line jumps over another because the crossing could not be avoided.
+const hops = (svg) => qa("path.edge.family", svg).reduce((n, p) => n + (p.getAttribute("d").match(/ a/g) || []).length, 0);
 const between = (v, a, b) => v > Math.min(a, b) && v < Math.max(a, b);
 const samePoint = (a, b) => (a.x1 === b.x1 && a.y1 === b.y1) || (a.x1 === b.x2 && a.y1 === b.y2) || (a.x2 === b.x1 && a.y2 === b.y1) || (a.x2 === b.x2 && a.y2 === b.y2);
 
@@ -372,21 +377,24 @@ describe("nothing crosses", () => {
     return q(".tree-wrap svg", root);
   };
   it("in the default family, whole and around each person", async () => {
-    expect([crossings(await clean("Whole family", "/app/tree")), piercings(await clean("Whole family", "/app/tree"))]).toEqual([[], 0]);
+    const whole = await clean("Whole family", "/app/tree");
+    expect([crossings(whole), piercings(whole), hops(whole)]).toEqual([[], 0, 0]);
     for (const id of people.map((p) => p.id)) {
       const svg = await clean("Around a person", `/app/tree/${id}`);
-      expect([id, crossings(svg), piercings(svg)]).toEqual([id, [], 0]);
+      expect([id, crossings(svg), piercings(svg), hops(svg)]).toEqual([id, [], 0, 0]);
     }
   });
-  it("in a clan with three partnerships, co-parents and a stranger couple; the one in-law link is the only crossing", async () => {
+  it("in a clan with three partnerships, co-parents and a stranger couple; the one in-law link hops, nothing crosses", async () => {
     const svg = await clean("Whole family", "/app/tree", { "GET /api/people": clan });
     expect(qa(".node", svg)).toHaveLength(clan.people.length);
     expect(piercings(svg)).toBe(0);
-    // Dawid's parents hang above him beside Anna's, and their line to him has to cut Anna's family bar
-    expect(crossings(svg)).toHaveLength(1);
+    // Dawid's parents hang above him beside Anna's, and their line to him has to cut Anna's family
+    // bar: it does so with a hop, and nothing else crosses anything
+    expect(crossings(svg)).toEqual([]);
+    expect(hops(svg)).toBe(1);
     for (const id of ["b", "a", "d", "k1", "k6", "m", "q1"]) {
       const around = await clean("Around a person", `/app/tree/${id}`, { "GET /api/people": clan });
-      expect([id, crossings(around), piercings(around)]).toEqual([id, [], 0]);
+      expect([id, crossings(around), piercings(around), hops(around)]).toEqual([id, [], 0, 0]);
     }
   });
 });

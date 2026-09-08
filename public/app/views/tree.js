@@ -59,7 +59,8 @@ function clearEnd(g, pos, a, b) {
 
 // The genealogist's conventions: a marriage is a solid line, a partnership a dashed one, a
 // divorce a dashed line struck through.
-function partnerEdges(g, pos, e) {
+// `bridges` collects the horizontal stretch of every bridge drawn, so a family line can hop it.
+function partnerEdges(g, pos, e, bridges) {
   const a = pos.get(e.from), b = pos.get(e.to), cls = `edge partner ${KIND[e.kind] || "married"}`;
   let out, sx, sy;
   if (adjacent(a, b)) { sy = Y(a) + R; sx = (X(a) + X(b)) / 2; out = [s("line", { x1: X(a), y1: sy, x2: X(b), y2: sy, class: cls })]; }
@@ -68,6 +69,7 @@ function partnerEdges(g, pos, e) {
     const end = clearEnd(g, pos, a, b) || a;
     sx = beside(end, end === a ? b : a);
     out = [s("path", { d: `M${X(a)} ${Y(a)} V${sy} H${X(b)} V${Y(b)}`, class: cls })];
+    bridges.push({ y: sy, x0: Math.min(X(a), X(b)), x1: Math.max(X(a), X(b)), owner: e });
   }
   if (e.kind === "divorced") out.push(s("path", { d: `M${sx - 7} ${sy + 6} l5 -12 M${sx + 2} ${sy + 6} l5 -12`, class: "edge divorce" }));
   return out;
@@ -91,16 +93,28 @@ function familyTop(g, pos, parents, children, coupled) {
 // Bars of neighbouring families in one row sit at different heights so they cannot merge.
 const LEVELS = [0, -14, 14];
 
-function familyEdge({ parents, children, top }, level) {
+function familyGeometry({ parents, children, top }, level) {
   const y2 = Y(children[0]) - 4, ym = (Y(parents[0]) + 2 * R + 62 + y2) / 2 + LEVELS[level % LEVELS.length];
-  const xs = children.map(X), x0 = Math.min(top.x, ...xs), x1 = Math.max(top.x, ...xs);
-  let d = `M${top.x} ${top.y} V${ym}`;
+  const xs = children.map(X);
+  return { top, ym, y2, xs, x0: Math.min(top.x, ...xs), x1: Math.max(top.x, ...xs) };
+}
+
+// A stroke straight down from ya to yb. Where it would cut a horizontal of some other line, it
+// hops over it instead, so a crossing the layout could not avoid never reads as a junction.
+function vertical(x, ya, yb, mine, horizontals) {
+  const cuts = [...new Set(horizontals.filter((h) => h.owner !== mine && x > h.x0 && x < h.x1 && h.y > ya && h.y < yb).map((h) => h.y))].sort((p, q) => p - q);
+  return cuts.map((y) => ` V${y - 6} a6 6 0 0 1 0 12`).join("") + ` V${yb}`;
+}
+
+function familyPath(u, horizontals) {
+  const { top, ym, y2, xs, x0, x1 } = u.geom;
+  let d = `M${top.x} ${top.y}` + vertical(top.x, top.y, ym, u, horizontals);
   if (x0 !== x1) d += ` M${x0} ${ym} H${x1}`;
-  for (const x of xs) d += ` M${x} ${ym} V${y2}`;
+  for (const x of xs) d += ` M${x} ${ym}` + vertical(x, ym, y2, u, horizontals);
   return s("path", { d, class: "edge family" });
 }
 
-function familyShapes(g, pos, edges) {
+function familyShapes(g, pos, edges, bridges) {
   const coupled = new Set(edges.filter((e) => e.type === "partner").map((e) => [e.from, e.to].sort().join("|")));
   const units = [];
   for (const e of edges) {
@@ -110,7 +124,9 @@ function familyShapes(g, pos, edges) {
   for (const u of units) u.top = familyTop(g, pos, u.parents, u.children, u.coupled);
   units.sort((a, b) => a.top.x - b.top.x);
   const level = new Map();
-  return units.map((u) => { const row = Y(u.parents[0]), k = level.get(row) || 0; level.set(row, k + 1); return familyEdge(u, k); });
+  for (const u of units) { const row = Y(u.parents[0]), k = level.get(row) || 0; level.set(row, k + 1); u.geom = familyGeometry(u, k); }
+  const horizontals = [...bridges, ...units.filter((u) => u.geom.x0 !== u.geom.x1).map((u) => ({ y: u.geom.ym, x0: u.geom.x0, x1: u.geom.x1, owner: u }))];
+  return units.map((u) => familyPath(u, horizontals));
 }
 
 function legend() {
@@ -132,8 +148,9 @@ function drawSvg(g, layout, opts) {
   const minY = Math.min(...rows) * (H + GY) - 10, maxY = Math.max(...rows) * (H + GY) + H + 10;
   const svg = s("svg", { class: "tree", viewBox: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`, role: "group", "aria-label": t("tree.title") });
   const edges = s("g", { class: "edges" });
-  edges.append(...familyShapes(g, pos, layout.edges));
-  for (const e of layout.edges) if (e.type === "partner") edges.append(...partnerEdges(g, pos, e));
+  const bridges = [];
+  const partners = layout.edges.filter((e) => e.type === "partner").flatMap((e) => partnerEdges(g, pos, e, bridges));
+  edges.append(...familyShapes(g, pos, layout.edges, bridges), ...partners);
   svg.append(edges);
   for (const n of layout.nodes) svg.append(node(g, n, opts));
   svg.bounds = { minX, minY, w: maxX - minX, h: maxY - minY };
