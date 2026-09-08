@@ -46,6 +46,18 @@ function coParents(g, id) {
   return [...out];
 }
 
+function descends(g, id, from, seen = new Set()) {
+  for (const par of g.parents(id)) {
+    if (par === from) return true;
+    if (!seen.has(par)) { seen.add(par); if (descends(g, par, from, seen)) return true; }
+  }
+  return false;
+}
+// A partner or co-parent who is also an ancestor or descendant is a data error that two clicks in
+// the editor can make. The parent link wins and the same-row rule yields, or the rows would be
+// pushed apart until the guard trips and people land on top of each other.
+const lineal = (g, a, b) => descends(g, a, b) || descends(g, b, a);
+
 // Roots sit in row 0; everyone else one below their deepest parent. Partners share a row, and so
 // do two people who share a child. Parents sit just above their shallowest child, so an in-law's
 // parents are not stranded rows above them.
@@ -57,8 +69,8 @@ export function generations(g) {
     for (const p of g.people) {
       let want = gen.get(p.id);
       for (const par of g.parents(p.id)) want = Math.max(want, gen.get(par) + 1);
-      for (const q of g.partners(p.id)) want = Math.max(want, gen.get(q.id));
-      for (const q of coParents(g, p.id)) want = Math.max(want, gen.get(q));
+      for (const q of g.partners(p.id)) if (!lineal(g, p.id, q.id)) want = Math.max(want, gen.get(q.id));
+      for (const q of coParents(g, p.id)) if (!lineal(g, p.id, q)) want = Math.max(want, gen.get(q));
       const kids = g.children(p.id);
       if (kids.length) want = Math.max(want, Math.min(...kids.map((c) => gen.get(c))) - 1);
       if (want > gen.get(p.id)) { gen.set(p.id, want); changed = true; }
@@ -76,8 +88,10 @@ export function familyLayout(g) {
   const cmp = byBirth(g);
   const col = new Map();
   const unit = new Map();
+  // A child of that error sits under the nearer parent alone; the link to the other is still drawn.
+  const nearest = (id) => { const ps = g.parents(id); return ps.filter((a) => !ps.some((b) => b !== a && descends(g, b, a))); };
   for (const p of g.people) {
-    const key = g.parents(p.id).slice().sort().join("|");
+    const key = nearest(p.id).slice().sort().join("|");
     if (key) unit.set(key, [...(unit.get(key) || []), p.id]);
   }
   const kids = (...parents) => (unit.get(parents.slice().sort().join("|")) || []).filter((c) => !col.has(c)).sort(cmp);
@@ -85,8 +99,8 @@ export function familyLayout(g) {
   // that by the birth of the first shared child, so the earliest ties sit closest.
   const spouses = (id) => {
     const when = new Map();
-    for (const q of g.partners(id)) when.set(q.id, Math.min(when.get(q.id) ?? 9999, q.start_year ?? 9999));
-    for (const c of g.children(id)) for (const o of g.parents(c)) if (o !== id) when.set(o, Math.min(when.get(o) ?? 9999, yearOf(g.byId.get(c).birth_date) ?? 9999));
+    for (const q of g.partners(id)) if (!lineal(g, id, q.id)) when.set(q.id, Math.min(when.get(q.id) ?? 9999, q.start_year ?? 9999));
+    for (const c of g.children(id)) for (const o of nearest(c)) if (o !== id) when.set(o, Math.min(when.get(o) ?? 9999, yearOf(g.byId.get(c).birth_date) ?? 9999));
     return [...when.keys()].sort((a, b) => when.get(a) - when.get(b) || cmp(a, b));
   };
   // The row a person shares with their spouses: first spouse to the right, next to the left, and

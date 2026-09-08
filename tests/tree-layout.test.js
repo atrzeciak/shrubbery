@@ -146,6 +146,24 @@ describe("familyLayout", () => {
     const cyc = buildGraph({ people: [{ id: "a", display_name: "a" }, { id: "b", display_name: "b" }], parents: [{ parent_id: "a", child_id: "b" }, { parent_id: "b", child_id: "a" }], partners: [], links: [], avatars: [] });
     expect(familyLayout(cyc).nodes).toHaveLength(2);
   });
+  it("lets the parent link win over a partner or co-parent who is also an ancestor", () => {
+    // A father wrongly recorded as co-parent of his son's child: two clicks in the editor can do
+    // it. The same-row rule for co-parents must yield, or every row is pushed until the guard trips
+    // and people land on top of each other. The wrong link is still drawn, so it can be seen and removed.
+    const bad = buildGraph({
+      people: [P("al"), P("s"), P("m"), P("y"), P("jan"), P("z")],
+      parents: [...kids(["al"], ["s"]), ...kids(["al", "s"], ["y"]), ...kids(["m", "s"], ["jan"]), ...kids(["jan"], ["z"])],
+      partners: [pair("m", "s"), pair("jan", "z")],
+      links: [], avatars: [],
+    });
+    const gen = generations(bad);
+    expect(["al", "s", "m", "y", "jan", "z"].map((id) => gen.get(id))).toEqual([0, 1, 1, 2, 2, 3]);
+    const { nodes, edges } = familyLayout(bad);
+    expect(new Set(nodes.map((n) => `${n.row}:${n.col}`)).size).toBe(6);
+    expect(Math.abs(at(nodes, "m").col - at(nodes, "s").col)).toBe(1);
+    expect(at(nodes, "y").col).not.toBe(at(nodes, "s").col);
+    expect(edges).toContainEqual({ type: "family", parents: ["al", "s"], children: ["y"] });
+  });
   it("keeps every couple adjacent when a person has multiple partners", () => {
     const multi = buildGraph({
       people: [{ id: "a", display_name: "a" }, { id: "b", display_name: "b" }, { id: "c", display_name: "c" }, { id: "d", display_name: "d" }],
