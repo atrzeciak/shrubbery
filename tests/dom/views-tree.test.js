@@ -253,8 +253,10 @@ describe("family mode", () => {
     const x = (name) => Number(qa(".node", svg).find((n) => n.getAttribute("aria-label") === name).getAttribute("transform").match(/translate\(([-\d.]+)/)[1]);
     const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
     expect(ds).toHaveLength(2);
-    // A is pulled down beside C, one row above K; the drop leaves the row's foot, not an avatar
-    expect(ds.some((d) => d.startsWith(`M${(x("A") + x("C")) / 2} ${240 + 126} V`))).toBe(true);
+    // A is pulled down beside C, one row above K. With no line between them, a bracket under both
+    // feet joins them, and the drop leaves the middle of the bracket
+    const foot = 240 + 2 * 32 + 80, mid = (x("A") + x("C")) / 2;
+    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${Math.min(x("A"), x("C"))} ${foot} V${foot + 8} H${Math.max(x("A"), x("C"))} V${foot} M${mid} ${foot + 8} V`)));
   });
 
   it("tells marriage, partnership and divorce apart, bars siblings together, and explains itself", async () => {

@@ -79,22 +79,28 @@ function partnerEdges(g, pos, e, bridges) {
 // drop leaves their line halfway between them, or, when someone else sits between them, from the
 // clear end of their bridge. Parents who were never partners have no line to leave from, so the
 // drop starts below the row.
+// The foot of a node: below the name, the years and the unverified mark.
+const FOOT = 2 * R + 80;
+
 function familyTop(g, pos, parents, children, coupled) {
-  const below = Y(parents[0]) + 2 * R + 62;
+  const below = Y(parents[0]) + FOOT;
   if (parents.length === 1) return { x: X(parents[0]), y: below };
   const [a, b] = parents;
-  if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: coupled ? Y(a) + R : below };
+  // Two parents who were never partners have no line to leave from: a bracket under both
+  // their feet joins them, and the drop leaves its middle.
+  const bracket = coupled ? null : [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
+  if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: coupled ? Y(a) + R : below + 8, bracket };
   const cx = children.reduce((sum, c) => sum + X(c), 0) / children.length;
   const nearer = Math.abs(X(a) - cx) <= Math.abs(X(b) - cx) ? a : b;
   const end = (coupled && clearEnd(g, pos, a, b)) || nearer;
-  return { x: beside(end, end === a ? b : a), y: coupled ? bridgeTop(a, b) : below };
+  return { x: beside(end, end === a ? b : a), y: coupled ? bridgeTop(a, b) : below + 8, bracket };
 }
 
 // Bars of neighbouring families in one row sit at different heights so they cannot merge.
 const LEVELS = [0, -14, 14];
 
 function familyGeometry({ parents, children, top }, level) {
-  const y2 = Y(children[0]) - 4, ym = (Y(parents[0]) + 2 * R + 62 + y2) / 2 + LEVELS[level % LEVELS.length];
+  const y2 = Y(children[0]) - 4, ym = (Y(parents[0]) + FOOT + y2) / 2 + LEVELS[level % LEVELS.length];
   const xs = children.map(X);
   return { top, ym, y2, xs, x0: Math.min(top.x, ...xs), x1: Math.max(top.x, ...xs) };
 }
@@ -108,7 +114,8 @@ function vertical(x, ya, yb, mine, horizontals) {
 
 function familyPath(u, horizontals) {
   const { top, ym, y2, xs, x0, x1 } = u.geom;
-  let d = `M${top.x} ${top.y}` + vertical(top.x, top.y, ym, u, horizontals);
+  let d = top.bracket ? `M${top.bracket[0]} ${top.y - 8} V${top.y} H${top.bracket[1]} V${top.y - 8} ` : "";
+  d += `M${top.x} ${top.y}` + vertical(top.x, top.y, ym, u, horizontals);
   if (x0 !== x1) d += ` M${x0} ${ym} H${x1}`;
   for (const x of xs) d += ` M${x} ${ym}` + vertical(x, ym, y2, u, horizontals);
   return s("path", { d, class: "edge family" });

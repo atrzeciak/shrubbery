@@ -131,6 +131,17 @@ describe("familyLayout", () => {
     expect(Math.abs(at(nodes, "t").col - at(nodes, "j").col)).toBe(1);
     expect(Math.abs(at(nodes, "t").col - at(nodes, "l").col)).toBe(1);
   });
+  it("sits a row over the group with more children, not halfway between groups", () => {
+    // a-alone has one child with a wide block; a-b has two children: the couple straddles the first of those
+    const two = buildGraph({
+      people: [P("a", "1900"), P("b", "1902"), P("s", "1925"), P("sp", "1926"), P("s1", "1950"), P("s2", "1952"), P("s3", "1954"), P("c1", "1928"), P("c2", "1930")],
+      parents: [...kids(["a"], ["s"]), ...kids(["a", "b"], ["c1", "c2"]), ...kids(["s", "sp"], ["s1", "s2", "s3"])],
+      partners: [pair("s", "sp")], links: [], avatars: [],
+    });
+    const { nodes } = familyLayout(two);
+    const c = (id) => at(nodes, id).col;
+    expect((c("a") + c("b")) / 2).toBe(c("c1"));
+  });
   it("survives a cycle without hanging", () => {
     const cyc = buildGraph({ people: [{ id: "a", display_name: "a" }, { id: "b", display_name: "b" }], parents: [{ parent_id: "a", child_id: "b" }, { parent_id: "b", child_id: "a" }], partners: [], links: [], avatars: [] });
     expect(familyLayout(cyc).nodes).toHaveLength(2);

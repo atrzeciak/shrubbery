@@ -136,11 +136,20 @@ export function familyLayout(g) {
       const at = grp.own.map((c) => col.get(c) - x0);
       grp.left = Math.min(...at); grp.right = Math.max(...at); grp.mid = at.reduce((a, b) => a + b, 0) / at.length;
     }
-    // Each couple would like to sit right over its children. It must at least drop between the
-    // neighbouring groups' children, or its bar would reach over them; where the packed groups
-    // leave no such position, they are spread apart until they do.
+    // Each couple would like to sit right over its children; with several groups in one row the
+    // one with more children wins (the weighted median), so a row is never left halfway between
+    // its families. It must at least drop between the neighbouring groups' children, or its bar
+    // would reach over them; where the packed groups leave no such position, they are spread
+    // apart until they do.
     const active = groups.filter((grp) => grp.own.length);
-    let off = active.length ? active.reduce((sum, grp) => sum + grp.mid - grp.at, 0) / active.length : (x - chain.length) / 2;
+    const wants = active.map((grp) => ({ at: grp.mid - grp.at, w: grp.own.length })).sort((p, q) => p.at - q.at);
+    const half = wants.reduce((sum, v) => sum + v.w, 0) / 2;
+    let off = (x - chain.length) / 2, acc = 0;
+    for (let k = 0; k < wants.length; k++) {
+      acc += wants[k].w;
+      if (acc > half) { off = wants[k].at; break; }
+      if (acc === half) { off = (wants[k].at + wants[k + 1].at) / 2; break; }
+    }
     for (let pass = 0; active.length && pass < 2 * active.length + 2; pass++) {
       let lo = -Infinity, hi = Infinity;
       active.forEach((grp, k) => {
