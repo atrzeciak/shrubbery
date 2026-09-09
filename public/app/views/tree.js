@@ -132,6 +132,13 @@ function familyShapes(g, pos, edges, bridges) {
   units.sort((a, b) => a.top.x - b.top.x);
   const level = new Map();
   for (const u of units) { const row = Y(u.parents[0]), k = level.get(row) || 0; level.set(row, k + 1); u.geom = familyGeometry(u, k); }
+  // A parent's own bar leaves their stem before the bar they share with a co-parent, so the two
+  // co-parents' stems end on the shared bar together instead of one running on past it.
+  for (const u of units) {
+    if (u.parents.length !== 1) continue;
+    const v = units.find((w) => w.top.also && Y(w.parents[0]) === Y(u.parents[0]) && drops(w.top).some((t) => t.x === u.top.x));
+    if (v && u.geom.ym > v.geom.ym) [u.geom.ym, v.geom.ym] = [v.geom.ym, u.geom.ym];
+  }
   const horizontals = [...bridges, ...units.filter((u) => u.geom.x0 !== u.geom.x1).map((u) => ({ y: u.geom.ym, x0: u.geom.x0, x1: u.geom.x1, owner: u }))];
   return units.map((u) => familyPath(u, horizontals));
 }
