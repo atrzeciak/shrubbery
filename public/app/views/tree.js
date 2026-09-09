@@ -41,7 +41,7 @@ function node(g, n, { onTap, focus }) {
 }
 
 const X = (n) => n.col * (W + GX), Y = (n) => n.row * (H + GY);
-const KIND = { married: "married", partner: "unmarried", divorced: "divorced" };
+const KIND = { married: "married", partner: "unmarried", divorced: "divorced", coparents: "coparents" };
 
 const adjacent = (a, b) => Math.abs(a.col - b.col) === 1;
 const cell = (pos, row, col) => [...pos.values()].find((n) => n.row === row && n.col === col);
@@ -86,8 +86,8 @@ function familyTop(g, pos, parents, children, coupled) {
   const below = Y(parents[0]) + FOOT;
   if (parents.length === 1) return { x: X(parents[0]), y: below };
   const [a, b] = parents;
-  // Two parents who were never partners have no line to leave from: each drops from their own
-  // feet, and the children's bar is what joins them.
+  // Two parents with no line between them (one descends from the other, a data error the layout
+  // tolerates) each drop from their own feet, and the children's bar is what joins them.
   if (!coupled) return { x: X(a), y: below, also: { x: X(b), y: Y(b) + FOOT } };
   if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: Y(a) + R };
   const cx = children.reduce((sum, c) => sum + X(c), 0) / children.length;
@@ -132,14 +132,6 @@ function familyShapes(g, pos, edges, bridges) {
   units.sort((a, b) => a.top.x - b.top.x);
   const level = new Map();
   for (const u of units) { const row = Y(u.parents[0]), k = level.get(row) || 0; level.set(row, k + 1); u.geom = familyGeometry(u, k); }
-  // A parent who also shares a bar with a co-parent has their own bar leave right under their feet:
-  // both co-parents' stems then end on the shared bar together, and the own family reads as a
-  // branch of its own rather than a jog in the shared bar.
-  for (const u of units) {
-    if (u.parents.length !== 1) continue;
-    const shared = units.some((w) => w.top.also && Y(w.parents[0]) === Y(u.parents[0]) && drops(w.top).some((t) => t.x === u.top.x));
-    if (shared) u.geom.ym = u.top.y + 8;
-  }
   const horizontals = [...bridges, ...units.filter((u) => u.geom.x0 !== u.geom.x1).map((u) => ({ y: u.geom.ym, x0: u.geom.x0, x1: u.geom.x1, owner: u }))];
   return units.map((u) => familyPath(u, horizontals));
 }
@@ -151,6 +143,7 @@ function legend() {
     ["married", sample(line("married"))],
     ["unmarried", sample(line("unmarried"))],
     ["divorced", sample(line("divorced"), s("path", { d: "M11 14 l5 -12 M20 14 l5 -12", class: "edge divorce" }))],
+    ["coparents", sample(line("coparents"))],
     ["children", sample(s("path", { d: "M18 1 V8 M6 8 H30 M6 8 V15 M30 8 V15", class: "edge family" }))],
   ];
   return h("ul", { class: "tree-legend" }, ...items.map(([key, svg]) => h("li", {}, svg, h("span", { text: t(`tree.legend.${key}`) }))));

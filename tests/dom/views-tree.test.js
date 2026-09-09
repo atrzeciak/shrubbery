@@ -241,28 +241,7 @@ describe("family mode", () => {
     expect(Math.abs(mark - xd)).toBe(80);
   });
 
-  it("drops from each co-parent's feet to one shared bar, since they have no line to leave from", async () => {
-    const rows = {
-      people: [{ id: "a", display_name: "A" }, { id: "b", display_name: "B" }, { id: "c", display_name: "C" }, { id: "k", display_name: "K" }],
-      parents: [{ parent_id: "b", child_id: "c" }, { parent_id: "a", child_id: "k" }, { parent_id: "c", child_id: "k" }],
-      partners: [], links: [], avatars: [],
-    };
-    const { root, mode } = await draw(viewCtx(meFixture({ account: { person_id: null } })), "/app/tree", { "GET /api/people": rows });
-    await mode("Whole family");
-    const svg = q(".tree-wrap svg", root);
-    const x = (name) => Number(qa(".node", svg).find((n) => n.getAttribute("aria-label") === name).getAttribute("transform").match(/translate\(([-\d.]+)/)[1]);
-    const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
-    expect(ds).toHaveLength(2);
-    // A is pulled down beside C, one row above K. With no line between them, each drops from their
-    // own feet and the children's bar joins the two drops; there is no bracket under the names
-    const foot = 240 + 2 * 32 + 80;
-    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${x("A")} ${foot} V[\\d.]+ M${x("C")} ${foot} V[\\d.]+ M`)));
-    expect(ds.some((d) => d.includes(`V${foot + 8} H`))).toBe(false);
-  });
-
-  it("branches a co-parent's own family off right under their feet, so both stems end on the shared bar", async () => {
-    // A has S alone and K with C. A's bar to S leaves the stem just below the feet, well above the
-    // bar A shares with C, whichever of the two families the data happens to list first.
+  it("joins two co-parents with a dotted line of their own and drops from between them like a couple", async () => {
     const rows = {
       people: [{ id: "a", display_name: "A" }, { id: "b", display_name: "B" }, { id: "c", display_name: "C" }, { id: "s", display_name: "S" }, { id: "k", display_name: "K" }],
       parents: [{ parent_id: "b", child_id: "c" }, { parent_id: "a", child_id: "k" }, { parent_id: "c", child_id: "k" }, { parent_id: "a", child_id: "s" }],
@@ -272,14 +251,13 @@ describe("family mode", () => {
     await mode("Whole family");
     const svg = q(".tree-wrap svg", root);
     const x = (name) => Number(qa(".node", svg).find((n) => n.getAttribute("aria-label") === name).getAttribute("transform").match(/translate\(([-\d.]+)/)[1]);
+    // A is pulled down beside C, one row above K, and the two are joined the way a couple is
+    expect(Math.abs(x("A") - x("C"))).toBe(120 + 40);
+    expect(qa(".edge.partner.coparents", svg)).toHaveLength(1);
     const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
-    const foot = 240 + 2 * 32 + 80;
-    const bar = (d) => Number(d.match(new RegExp(`^M${x("A")} ${foot} V([\\d.]+)`))[1]);
-    const own = ds.find((d) => d.startsWith(`M${x("A")} ${foot} V`) && !d.includes(`M${x("C")} ${foot}`));
-    const shared = ds.find((d) => d.startsWith(`M${x("A")} ${foot} V`) && d.includes(`M${x("C")} ${foot}`));
-    expect(own && shared).toBeTruthy();
-    expect(bar(own)).toBe(foot + 8);
-    expect(bar(own)).toBeLessThanOrEqual(bar(shared) - 24);
+    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${(x("A") + x("C")) / 2} ${240 + 32} V`)));
+    // A's own child S hangs from A's feet alone, as for any single parent
+    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${x("A")} ${240 + 2 * 32 + 80} V`)));
   });
 
   it("tells marriage, partnership and divorce apart, bars siblings together, and explains itself", async () => {
@@ -311,7 +289,7 @@ describe("family mode", () => {
     // neighbouring families in one row hang their bars at different heights
     const ym = (d) => Number(d.match(/V([-\d.]+)/)[1]);
     expect(ym(bar)).not.toBe(ym(lone));
-    expect(qa(".tree-legend li", root).map((li) => li.textContent)).toEqual(["Married", "Partners", "Divorced", "Children"]);
+    expect(qa(".tree-legend li", root).map((li) => li.textContent)).toEqual(["Married", "Partners", "Divorced", "Children together", "Children"]);
     expect(qa(".tree-legend .edge.divorce", root)).toHaveLength(1);
   });
 });

@@ -179,6 +179,19 @@ describe("familyLayout", () => {
     expect(Math.abs(at(nodes, "m").col - at(nodes, "s").col)).toBe(1);
     expect(at(nodes, "y").col).not.toBe(at(nodes, "s").col);
     expect(edges).toContainEqual({ type: "family", parents: ["al", "s"], children: ["y"] });
+    expect(edges.filter((e) => e.kind === "coparents")).toEqual([]);
+  });
+  it("gives two co-parents a line of their own, unless one is already recorded", () => {
+    const co = buildGraph({
+      people: [P("a"), P("c"), P("k"), P("m"), P("n"), P("o")],
+      parents: [...kids(["a", "c"], ["k"]), ...kids(["m", "n"], ["o"])],
+      partners: [pair("m", "n", "partner")], links: [], avatars: [],
+    });
+    const { edges } = familyLayout(co);
+    expect(edges.filter((e) => e.type === "partner")).toEqual([
+      { from: "m", to: "n", type: "partner", kind: "partner" },
+      { from: "a", to: "c", type: "partner", kind: "coparents" },
+    ]);
   });
   it("keeps every couple adjacent when a person has multiple partners", () => {
     const multi = buildGraph({

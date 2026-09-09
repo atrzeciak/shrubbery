@@ -253,5 +253,14 @@ export function familyLayout(g) {
   const nodes = g.people.map((p) => ({ id: p.id, col: col.get(p.id) - centre, row: gen.get(p.id) }));
   const edges = families(g, new Set(g.people.map((p) => p.id)));
   for (const p of g.people) for (const q of g.partners(p.id)) if (p.id < q.id) edges.push({ from: p.id, to: q.id, type: "partner", kind: q.kind });
+  // Two parents who share a child but have no recorded relationship get a line of their own, so
+  // the drawing treats them as a couple. Not when one descends from the other: the parent link wins.
+  const recorded = new Set(edges.filter((e) => e.type === "partner").map((e) => `${e.from}|${e.to}`));
+  for (const f of edges.filter((e) => e.type === "family" && e.parents.length === 2)) {
+    const [a, b] = f.parents;
+    if (recorded.has(`${a}|${b}`) || lineal(g, a, b)) continue;
+    recorded.add(`${a}|${b}`);
+    edges.push({ from: a, to: b, type: "partner", kind: "coparents" });
+  }
   return { nodes, edges, rows: g.people.length ? Math.max(...gen.values()) + 1 : 0 };
 }
