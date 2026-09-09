@@ -100,7 +100,7 @@ export function familyLayout(g) {
   const spouses = (id) => {
     const when = new Map();
     for (const q of g.partners(id)) if (!lineal(g, id, q.id)) when.set(q.id, Math.min(when.get(q.id) ?? 9999, q.start_year ?? 9999));
-    for (const c of g.children(id)) for (const o of nearest(c)) if (o !== id) when.set(o, Math.min(when.get(o) ?? 9999, yearOf(g.byId.get(c).birth_date) ?? 9999));
+    for (const c of g.children(id)) for (const o of nearest(c)) if (o !== id && !lineal(g, id, o)) when.set(o, Math.min(when.get(o) ?? 9999, yearOf(g.byId.get(c).birth_date) ?? 9999));
     return [...when.keys()].sort((a, b) => when.get(a) - when.get(b) || cmp(a, b));
   };
   // The row a person shares with their spouses: first spouse to the right, next to the left, and

@@ -180,6 +180,25 @@ describe("familyLayout", () => {
     expect(at(nodes, "y").col).not.toBe(at(nodes, "s").col);
     expect(edges).toContainEqual({ type: "family", parents: ["al", "s"], children: ["y"] });
     expect(edges.filter((e) => e.kind === "coparents")).toEqual([]);
+    // Aleksy is not seated beside Sergiusz as if a spouse: he stays above him
+    expect(at(nodes, "al").col).toBe(at(nodes, "s").col);
+  });
+  it("keeps a grandmother recorded as co-parent with her own son above him, not in his row", () => {
+    // Marianna -> Jan; Marianna and Jan both recorded as parents of Leokadia; Jan married Zofia,
+    // with Genia. Jan must stay in his own row beside Zofia with his children under him, and the
+    // whole family stays together instead of Jan's line being flung tens of columns away.
+    const odd = buildGraph({
+      people: [P("mar", "1867"), P("ja", "1909"), P("jaw", "1909"), P("f4"), P("f1", "1931"), P("m", "1899")],
+      parents: [...kids(["mar"], ["ja", "m"]), ...kids(["mar", "ja"], ["f4"]), ...kids(["ja", "jaw"], ["f1"])],
+      partners: [pair("ja", "jaw")], links: [], avatars: [],
+    });
+    const gen = generations(odd);
+    expect(["mar", "ja", "jaw", "f4", "f1", "m"].map((id) => gen.get(id))).toEqual([0, 1, 1, 2, 2, 1]);
+    const { nodes } = familyLayout(odd);
+    expect(Math.abs(at(nodes, "ja").col - at(nodes, "jaw").col)).toBe(1);
+    expect(new Set(nodes.map((n) => `${n.row}:${n.col}`)).size).toBe(6);
+    const cols = nodes.map((n) => n.col);
+    expect(Math.max(...cols) - Math.min(...cols)).toBeLessThan(6);
   });
   it("gives two co-parents a line of their own, unless one is already recorded", () => {
     const co = buildGraph({
