@@ -86,23 +86,24 @@ function familyTop(g, pos, parents, children, coupled) {
   const below = Y(parents[0]) + FOOT;
   if (parents.length === 1) return { x: X(parents[0]), y: below };
   const [a, b] = parents;
-  // Two parents who were never partners have no line to leave from: a bracket under both
-  // their feet joins them, and the drop leaves its middle.
-  const bracket = coupled ? null : [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
-  if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: coupled ? Y(a) + R : below + 8, bracket };
+  // Two parents who were never partners have no line to leave from: each drops from their own
+  // feet, and the children's bar is what joins them.
+  if (!coupled) return { x: X(a), y: below, also: { x: X(b), y: Y(b) + FOOT } };
+  if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: Y(a) + R };
   const cx = children.reduce((sum, c) => sum + X(c), 0) / children.length;
   const nearer = Math.abs(X(a) - cx) <= Math.abs(X(b) - cx) ? a : b;
-  const end = (coupled && clearEnd(g, pos, a, b)) || nearer;
-  return { x: beside(end, end === a ? b : a), y: coupled ? bridgeTop(a, b) : below + 8, bracket };
+  const end = clearEnd(g, pos, a, b) || nearer;
+  return { x: beside(end, end === a ? b : a), y: bridgeTop(a, b) };
 }
+const drops = (top) => (top.also ? [top, top.also] : [top]);
 
 // Bars of neighbouring families in one row sit at different heights so they cannot merge.
 const LEVELS = [0, -14, 14];
 
 function familyGeometry({ parents, children, top }, level) {
-  const y2 = Y(children[0]) - 4, ym = (Y(parents[0]) + FOOT + y2) / 2 + LEVELS[level % LEVELS.length];
-  const xs = children.map(X);
-  return { top, ym, y2, xs, x0: Math.min(top.x, ...xs), x1: Math.max(top.x, ...xs) };
+  const y2 = Y(children[0]) - 4, ym = (Math.max(...parents.map(Y)) + FOOT + y2) / 2 + LEVELS[level % LEVELS.length];
+  const xs = children.map(X), tx = drops(top).map((t) => t.x);
+  return { top, ym, y2, xs, x0: Math.min(...tx, ...xs), x1: Math.max(...tx, ...xs) };
 }
 
 // A stroke straight down from ya to yb. Where it would cut a horizontal of some other line, it
@@ -114,8 +115,7 @@ function vertical(x, ya, yb, mine, horizontals) {
 
 function familyPath(u, horizontals) {
   const { top, ym, y2, xs, x0, x1 } = u.geom;
-  let d = top.bracket ? `M${top.bracket[0]} ${top.y - 8} V${top.y} H${top.bracket[1]} V${top.y - 8} ` : "";
-  d += `M${top.x} ${top.y}` + vertical(top.x, top.y, ym, u, horizontals);
+  let d = drops(top).map((t) => `M${t.x} ${t.y}` + vertical(t.x, t.y, ym, u, horizontals)).join(" ");
   if (x0 !== x1) d += ` M${x0} ${ym} H${x1}`;
   for (const x of xs) d += ` M${x} ${ym}` + vertical(x, ym, y2, u, horizontals);
   return s("path", { d, class: "edge family" });

@@ -241,7 +241,7 @@ describe("family mode", () => {
     expect(Math.abs(mark - xd)).toBe(80);
   });
 
-  it("drops once from between two co-parents, from below the row since they have no line", async () => {
+  it("drops from each co-parent's feet to one shared bar, since they have no line to leave from", async () => {
     const rows = {
       people: [{ id: "a", display_name: "A" }, { id: "b", display_name: "B" }, { id: "c", display_name: "C" }, { id: "k", display_name: "K" }],
       parents: [{ parent_id: "b", child_id: "c" }, { parent_id: "a", child_id: "k" }, { parent_id: "c", child_id: "k" }],
@@ -253,10 +253,11 @@ describe("family mode", () => {
     const x = (name) => Number(qa(".node", svg).find((n) => n.getAttribute("aria-label") === name).getAttribute("transform").match(/translate\(([-\d.]+)/)[1]);
     const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
     expect(ds).toHaveLength(2);
-    // A is pulled down beside C, one row above K. With no line between them, a bracket under both
-    // feet joins them, and the drop leaves the middle of the bracket
-    const foot = 240 + 2 * 32 + 80, mid = (x("A") + x("C")) / 2;
-    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${Math.min(x("A"), x("C"))} ${foot} V${foot + 8} H${Math.max(x("A"), x("C"))} V${foot} M${mid} ${foot + 8} V`)));
+    // A is pulled down beside C, one row above K. With no line between them, each drops from their
+    // own feet and the children's bar joins the two drops; there is no bracket under the names
+    const foot = 240 + 2 * 32 + 80;
+    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${x("A")} ${foot} V[\\d.]+ M${x("C")} ${foot} V[\\d.]+ M`)));
+    expect(ds.some((d) => d.includes(`V${foot + 8} H`))).toBe(false);
   });
 
   it("tells marriage, partnership and divorce apart, bars siblings together, and explains itself", async () => {
