@@ -260,9 +260,9 @@ describe("family mode", () => {
     expect(ds.some((d) => d.includes(`V${foot + 8} H`))).toBe(false);
   });
 
-  it("lets a co-parent's own family branch off above the shared bar, so both stems end on it together", async () => {
-    // A has S alone and K with C. A's bar to S leaves the stem before the bar A shares with C,
-    // whichever of the two families the data happens to list first.
+  it("branches a co-parent's own family off right under their feet, so both stems end on the shared bar", async () => {
+    // A has S alone and K with C. A's bar to S leaves the stem just below the feet, well above the
+    // bar A shares with C, whichever of the two families the data happens to list first.
     const rows = {
       people: [{ id: "a", display_name: "A" }, { id: "b", display_name: "B" }, { id: "c", display_name: "C" }, { id: "s", display_name: "S" }, { id: "k", display_name: "K" }],
       parents: [{ parent_id: "b", child_id: "c" }, { parent_id: "a", child_id: "k" }, { parent_id: "c", child_id: "k" }, { parent_id: "a", child_id: "s" }],
@@ -278,7 +278,8 @@ describe("family mode", () => {
     const own = ds.find((d) => d.startsWith(`M${x("A")} ${foot} V`) && !d.includes(`M${x("C")} ${foot}`));
     const shared = ds.find((d) => d.startsWith(`M${x("A")} ${foot} V`) && d.includes(`M${x("C")} ${foot}`));
     expect(own && shared).toBeTruthy();
-    expect(bar(own)).toBeLessThan(bar(shared));
+    expect(bar(own)).toBe(foot + 8);
+    expect(bar(own)).toBeLessThanOrEqual(bar(shared) - 24);
   });
 
   it("tells marriage, partnership and divorce apart, bars siblings together, and explains itself", async () => {
