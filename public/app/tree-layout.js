@@ -196,11 +196,38 @@ export function familyLayout(g) {
   };
   const roots = g.people.map((p) => p.id).filter((id) => !g.parents(id).length).sort((a, b) => count(b) - count(a) || cmp(a, b));
   const free = (row, xc, gap) => ![...col].some(([id, c]) => gen.get(id) === row && Math.abs(c - xc) < gap);
-  // A row of people whose children are all placed already (an in-law's parents, typically) goes
-  // straight above those children when nothing is in the way, so the link back to them is short.
+  // A block laid out at x0 that lands on somebody already placed is taken back again.
+  const tryBlock = (id, x0) => {
+    const b = block(id, x0);
+    const clash = b.ids.some((p) => [...col].some(([o, oc]) => !b.ids.includes(o) && gen.get(o) === gen.get(p) && Math.abs(oc - col.get(p)) < 1));
+    if (clash) for (const p of b.ids) col.delete(p);
+    return { ok: !clash, ids: b.ids, width: b.width };
+  };
+  // The children of a seated row who are not placed yet (an in-law's siblings) take the nearest
+  // free cells beside the child who is, right first, each with their own block below.
+  const hangBeside = (chain, placedKids) => {
+    const leftover = [...new Set(chain.flatMap((m, i) => [...kids(m), ...chain.slice(i + 1).flatMap((o) => kids(m, o))]))];
+    const right = Math.max(...placedKids.map((c) => col.get(c))), left = Math.min(...placedKids.map((c) => col.get(c)));
+    const hung = [];
+    for (const c of leftover) {
+      let ok = false, width = 1;
+      for (let d = 1; d <= 40 && !ok; d += 0.5) {
+        for (const x0 of [right + d, left - d - (width - 1)]) {
+          const b = tryBlock(c, x0);
+          width = b.width;
+          if (b.ok) { ok = true; hung.push(...b.ids); break; }
+        }
+      }
+      if (!ok) { for (const p of hung) col.delete(p); return false; }
+    }
+    return true;
+  };
+  // A row of people whose children are placed already (an in-law's parents, typically) goes straight
+  // above those children when nothing is in the way, so the link back to them is short; any other
+  // children of theirs hang beside.
   const seatAbove = (chain) => {
     const placedKids = [...new Set(chain.flatMap((m) => g.children(m)))].filter((c) => col.has(c));
-    if (!placedKids.length || chain.some((m) => kids(m).length || chain.some((o) => o !== m && kids(m, o).length))) return false;
+    if (!placedKids.length) return false;
     const row = gen.get(chain[0]), childRow = Math.min(...placedKids.map((c) => gen.get(c)));
     const target = placedKids.reduce((sum, c) => sum + col.get(c), 0) / placedKids.length;
     const centred = target - (chain.length - 1) / 2;
@@ -209,7 +236,10 @@ export function familyLayout(g) {
         const mid = start + (chain.length - 1) / 2;
         let ok = chain.every((m, i) => free(gen.get(m), start + i, 1));
         for (let r = row + 1; ok && r < childRow; r++) ok = free(r, mid, 0.5);
-        if (ok) { chain.forEach((m, i) => col.set(m, start + i)); return true; }
+        if (!ok) continue;
+        chain.forEach((m, i) => col.set(m, start + i));
+        if (hangBeside(chain, placedKids)) return true;
+        chain.forEach((m) => col.delete(m));
       }
     }
     return false;

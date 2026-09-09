@@ -120,6 +120,22 @@ describe("familyLayout", () => {
     const cells = nodes.map((n) => `${n.row}:${n.col}`);
     expect(new Set(cells).size).toBe(cells.length);
   });
+  it("seats an in-law's parent above them even when the parent has other children, hung beside", () => {
+    // Aleksy: father of Sergiusz, who married into the main line, and of Sergiusz's brother, who has
+    // a son. The parent goes straight above the in-law, and the other child takes the free cell next
+    // to them with their own line below, rather than the whole family being sent to the row's end.
+    const inlaw = buildGraph({
+      people: [P("g1", "1860"), P("g2", "1862"), P("a", "1860"), P("z", "1897"), P("m", "1899"), P("s", "1888"), P("b", "1890"), P("k", "1920"), P("j", "1941"), P("z1", "1925"), P("z2", "1927")],
+      parents: [...kids(["g1", "g2"], ["z", "m"]), ...kids(["a"], ["s", "b"]), ...kids(["b"], ["k"]), ...kids(["m", "s"], ["j"]), ...kids(["z"], ["z1", "z2"])],
+      partners: [pair("g1", "g2"), pair("m", "s")], links: [], avatars: [],
+    });
+    const { nodes } = familyLayout(inlaw);
+    expect(at(nodes, "a")).toMatchObject({ row: 0, col: at(nodes, "s").col });
+    expect(at(nodes, "b")).toMatchObject({ row: 1, col: at(nodes, "s").col + 1 });
+    expect(at(nodes, "k")).toMatchObject({ row: 2, col: at(nodes, "b").col });
+    const cells = nodes.map((n) => `${n.row}:${n.col}`);
+    expect(new Set(cells).size).toBe(cells.length);
+  });
   it("seats the spouses they had children with next to them when no year says otherwise", () => {
     // t: a child with j, later a child with l, and a childless partner h; h is the one who can go further off
     const later = buildGraph({
