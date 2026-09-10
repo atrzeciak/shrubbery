@@ -55,6 +55,36 @@ describe("openSheet", () => {
     q(".sheet-close").click();
     expect(q('[role="dialog"]')).toBeNull();
   });
+  it("takes a history entry, so the back button closes it and counts as the user closing it", () => {
+    const onClose = vi.fn();
+    const push = vi.spyOn(history, "pushState");
+    openSheet(h("p"), "Ann", { onClose });
+    expect(push).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(q('[role="dialog"]')).toBeNull();
+    expect(document.body.classList.contains("sheet-open")).toBe(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    push.mockRestore();
+  });
+
+  it("keeps one entry for a sheet that replaces a sheet, and hands it back only when the user closes", () => {
+    const push = vi.spyOn(history, "pushState");
+    const back = vi.spyOn(history, "back").mockImplementation(() => {});
+    openSheet(h("p"), "one");
+    openSheet(h("p"), "two");
+    expect(push).toHaveBeenCalledTimes(1);
+    q(".sheet-close").click();
+    expect(back).toHaveBeenCalledTimes(1);
+
+    // A close the app itself asks for leaves history alone: the router has already moved it on.
+    openSheet(h("p"), "three");
+    closeSheet();
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledTimes(2);
+    push.mockRestore();
+    back.mockRestore();
+  });
+
   it("returns focus to whatever opened it, if that is still on the page", () => {
     const opener = h("button", { text: "open" });
     document.body.append(opener);
