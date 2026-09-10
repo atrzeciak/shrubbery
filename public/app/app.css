@@ -108,6 +108,8 @@ table.members { width: 100%; border-collapse: collapse; }
 table.members th, table.members td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 table.members tbody tr { cursor: pointer; }
 table.members tbody tr:hover, table.members tbody tr:focus { background: var(--bg); outline: none; }
+table.members tbody tr.selected td { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+table.members tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 @media (max-width: 599px) {
   table.members thead { display: none; }
   table.members, table.members tbody, table.members tr, table.members td { display: block; }

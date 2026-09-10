@@ -92,6 +92,30 @@ describe("opening a person", () => {
     qa("tbody tr")[2].click();
     expect(q('[role="dialog"]').getAttribute("aria-label")).toBe("Jan Nowak");
   });
+
+  it("marks the row the card belongs to, and unmarks it when the card is closed", async () => {
+    await start();
+    const marked = () => qa("tbody tr.selected").map((tr) => q("td span span", tr).firstChild.textContent);
+    qa("tbody tr")[2].click();
+    expect(marked()).toEqual(["Jan Nowak"]);
+    expect(qa("tbody tr")[2].getAttribute("aria-current")).toBe("true");
+    qa("tbody tr")[0].click();
+    expect(marked()).toEqual(["Anna Nowak"]);
+    q(".sheet-close").click();
+    expect(marked()).toEqual([]);
+    expect(qa("tbody tr")[0].getAttribute("aria-current")).toBeNull();
+  });
+
+  it("keeps the mark on the right row when the table is sorted or searched under it", async () => {
+    await start();
+    const marked = () => qa("tbody tr.selected").map((tr) => q("td span span", tr).firstChild.textContent);
+    qa("tbody tr")[2].click();
+    header("Ur.").click();
+    expect(names()[0]).toBe("Jan Nowak");
+    expect(marked()).toEqual(["Jan Nowak"]);
+    search("nowak");
+    expect(marked()).toEqual(["Jan Nowak"]);
+  });
 });
 
 describe("as an admin", () => {

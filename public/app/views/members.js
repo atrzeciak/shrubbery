@@ -17,6 +17,18 @@ export async function render(root, ctx) {
   const add = ctx.state.me.account.role === "admin" ? h("button", { class: "btn", type: "button", text: t("admin.people.add") }) : null;
   if (add) add.onclick = () => openPersonEditor(null, ctx, { onDone: () => render(root, ctx) });
   const table = h("table", { class: "members" });
+  // The card opens beside the table, so the row it belongs to stays marked: a reader who is far
+  // down a long list can see which of the rows in front of them the panel is about.
+  let selected = null;
+  const mark = (id) => {
+    selected = id;
+    for (const tr of table.querySelectorAll("tbody tr")) {
+      const on = id != null && tr.dataset.person === String(id);
+      tr.classList.toggle("selected", on);
+      if (on) tr.setAttribute("aria-current", "true"); else tr.removeAttribute("aria-current");
+    }
+  };
+  const onPerson = (id) => { mark(id); openSheet(personCard(g, id, ctx, { onPerson }), g.byId.get(id).display_name, { onClose: () => mark(null) }); };
   const draw = () => {
     clear(table);
     const head = h("tr", {}, ...COLS.map((k) => {
@@ -28,13 +40,12 @@ export async function render(root, ctx) {
     const rows = g.people.filter((p) => !q || [p.display_name, p.nickname, p.maiden_name, p.residence, p.birth_place, p.account_email].some((v) => v && v.toLowerCase().includes(q)))
       .sort((a, b) => { const x = val(a, sortKey), y = val(b, sortKey); return (typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * sortDir; });
     const body = h("tbody", {}, ...rows.map((p) => {
-      const tr = h("tr", { tabindex: "0", role: "button" },
+      const tr = h("tr", { tabindex: "0", role: "button", "data-person": p.id, class: p.id === selected ? "selected" : null, "aria-current": p.id === selected ? "true" : null },
         h("td", { "data-label": t("members.col.name") }, h("span", { class: "row nowrap" }, avatarEl(g, p.id, 32), h("span", {}, p.display_name, p.deceased ? h("span", { class: "badge", text: t("person.gone") }) : p.unverified ? h("span", { class: "badge", text: t("person.unverified") }) : null))),
         h("td", { "data-label": t("members.col.born"), text: p.birth_date || "" }),
         h("td", { "data-label": t("members.col.died"), text: p.deceased ? p.death_date || "†" : "" }),
         h("td", { "data-label": t("members.col.place"), text: p.residence || p.birth_place || "" }),
         h("td", { "data-label": t("members.col.login"), text: p.account_email || "" }));
-      const onPerson = (id) => openSheet(personCard(g, id, ctx, { onPerson }), g.byId.get(id).display_name);
       const open = () => onPerson(p.id);
       tr.onclick = open;
       tr.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
