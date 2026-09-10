@@ -28,6 +28,11 @@ const matches = (s, path) => s.path === path || (s.prefix && path.startsWith(`${
 export const state = { me: null };
 let renderToken = 0;
 let renderedPath = null;
+// The browser cannot put a reader back where they were on a page whose contents arrive after the
+// history entry does, so the app remembers the spot itself: Back and Forward return to it, a redraw
+// of the same view keeps it, and only a move to a different section starts at the top.
+const scrollAt = new Map();
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 const $ = (id) => document.getElementById(id);
 const main = $("main"), side = $("side"), backdrop = $("backdrop"), menuBtn = $("menu-btn"), userBtn = $("user-btn"), toastEl = $("toast");
 
@@ -145,9 +150,11 @@ function opsBanner() {
   return h("div", { class: "banner" }, ...lines);
 }
 
-export async function render() {
+export async function render({ restore = false } = {}) {
   const my = ++renderToken;
   const path = currentPath();
+  const previous = renderedPath;
+  if (previous) scrollAt.set(previous, window.scrollY);
   renderedPath = path;
   const ctx = { state, navigate, refreshMe, toast, errorText };
   openMenu(false);
@@ -169,6 +176,7 @@ export async function render() {
     if (e instanceof ApiError && e.status === 401) { state.me = null; return navigate("/app/login", { replace: true }); }
     root.append(h("p", { class: "error", text: errorText(e) }));
   }
+  window.scrollTo(0, restore || previous === path ? scrollAt.get(path) ?? 0 : 0);
 }
 
 document.addEventListener("click", (ev) => {
@@ -179,7 +187,7 @@ document.addEventListener("click", (ev) => {
 });
 window.addEventListener("popstate", () => {
   // A dialog's own history entry pops with the URL unchanged: close it, don't redraw the page.
-  if (currentPath() !== renderedPath) render();
+  if (currentPath() !== renderedPath) render({ restore: true });
 });
 menuBtn.onclick = () => openMenu(!side.classList.contains("open"));
 backdrop.onclick = () => openMenu(false);

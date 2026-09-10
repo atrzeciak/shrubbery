@@ -120,6 +120,20 @@ describe("navigation", () => {
     expect(calls.length).toBe(before);
   });
 
+  it("returns to the spot the reader left when they come back to a view", async () => {
+    const { app } = await boot({ path: "/app/members", routes: { "GET /api/people": { people: [] } } });
+    window.scrollTo(0, 1800);
+    app.navigate("/app/gathering");
+    await settled();
+    await tick();
+    expect(window.scrollY).toBe(0);              // a section they have not seen starts at the top
+    history.replaceState(null, "", "/app/members");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settled();
+    await tick();
+    expect(window.scrollY).toBe(1800);
+  });
+
   it("keeps only the latest of two overlapping renders", async () => {
     const { app } = await boot();
     app.navigate("/app/gathering");
