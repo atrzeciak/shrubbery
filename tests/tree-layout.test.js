@@ -136,6 +136,41 @@ describe("familyLayout", () => {
     const cells = nodes.map((n) => `${n.row}:${n.col}`);
     expect(new Set(cells).size).toBe(cells.length);
   });
+  it("seats an in-law's grandparents above their parents, generation by generation", () => {
+    // p2 married into the main line. Her parents q1-q2 go above her, and their parents r1-r2 and
+    // t1-t2 above them in turn, rather than being roots of their own laid out as blocks at the end
+    // of the row with a line back across the whole tree.
+    const inlaw = buildGraph({
+      people: [P("r1", "1860"), P("r2", "1862"), P("t1", "1864"), P("t2", "1866"), P("q1", "1890"), P("q2", "1892"), P("g1", "1850"), P("g2", "1852"), P("p1", "1930"), P("p2", "1931"), P("s1", "1933"), P("c1", "1960"), P("d1", "1965")],
+      parents: [...kids(["r1", "r2"], ["q1"]), ...kids(["t1", "t2"], ["q2"]), ...kids(["g1", "g2"], ["p1", "s1"]), ...kids(["q1", "q2"], ["p2"]), ...kids(["p1", "p2"], ["c1"]), ...kids(["s1"], ["d1"])],
+      partners: [pair("r1", "r2"), pair("t1", "t2"), pair("q1", "q2"), pair("g1", "g2"), pair("p1", "p2")], links: [], avatars: [],
+    });
+    const { nodes } = familyLayout(inlaw);
+    expect(at(nodes, "q1").row).toBe(1);
+    expect(Math.abs((at(nodes, "q1").col + at(nodes, "q2").col) / 2 - at(nodes, "p2").col)).toBeLessThanOrEqual(1);
+    expect(at(nodes, "r1").row).toBe(0);
+    expect(Math.abs((at(nodes, "r1").col + at(nodes, "r2").col) / 2 - at(nodes, "q1").col)).toBeLessThanOrEqual(2);
+    expect(Math.abs((at(nodes, "t1").col + at(nodes, "t2").col) / 2 - at(nodes, "q2").col)).toBeLessThanOrEqual(2);
+    const cells = nodes.map((n) => `${n.row}:${n.col}`);
+    expect(new Set(cells).size).toBe(cells.length);
+  });
+  it("hangs an in-law's sibling on the side where the line to their own child crosses nothing", () => {
+    // s married m, the eldest of g1-g2's children, whose siblings' bar reaches far to the right
+    // over k2's and k3's wide blocks. s's father a has another child b with a child of his own.
+    // The free cell right of s is under that bar, so b's line down to bc would cross it there;
+    // left of m it crosses nothing.
+    const five = (k, year) => ["a", "b", "c", "d", "e"].map((x, i) => P(`${k}${x}`, String(year + 2 * i)));
+    const g = buildGraph({
+      people: [P("gg", "1840"), P("g1", "1870"), P("g2", "1872"), P("a", "1860"), P("m", "1899"), P("s", "1897"), P("k2", "1901"), P("k3", "1903"), P("b", "1890"), P("bc", "1920"), ...five("k2", 1925), ...five("k3", 1927)],
+      parents: [...kids(["gg"], ["g1"]), ...kids(["g1", "g2"], ["m", "k2", "k3"]), ...kids(["a"], ["s", "b"]), ...kids(["b"], ["bc"]), ...kids(["k2"], five("k2", 1925).map((p) => p.id)), ...kids(["k3"], five("k3", 1927).map((p) => p.id))],
+      partners: [pair("g1", "g2"), pair("m", "s")], links: [], avatars: [],
+    });
+    const { nodes } = familyLayout(g);
+    expect(at(nodes, "b").col).toBeLessThan(at(nodes, "m").col);
+    expect(at(nodes, "bc").col).toBe(at(nodes, "b").col);
+    const cells = nodes.map((n) => `${n.row}:${n.col}`);
+    expect(new Set(cells).size).toBe(cells.length);
+  });
   it("seats the spouses they had children with next to them when no year says otherwise", () => {
     // t: a child with j, later a child with l, and a childless partner h; h is the one who can go further off
     const later = buildGraph({

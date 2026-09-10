@@ -203,51 +203,134 @@ export function familyLayout(g) {
     if (clash) for (const p of b.ids) col.delete(p);
     return { ok: !clash, ids: b.ids, width: b.width };
   };
-  // The children of a seated row who are not placed yet (an in-law's siblings) take the nearest
-  // free cells beside the child who is, right first, each with their own block below.
+  // The lines the view will draw for every family placed so far, in rows and columns: a drop from
+  // the parents to a bar in the gap above the children, then a vertical down to each child. Two
+  // families' lines cross where a vertical of one passes the bar of the other.
+  const placedUnits = () => {
+    const out = new Map();
+    for (const [id, c] of col) {
+      const ps = nearest(id).filter((p) => col.has(p));
+      if (!ps.length) continue;
+      const key = ps.slice().sort().join("|");
+      if (!out.has(key)) out.set(key, { top: Math.max(...ps.map((p) => gen.get(p))), drop: ps.reduce((sum, p) => sum + col.get(p), 0) / ps.length, kids: [] });
+      out.get(key).kids.push({ x: c, row: gen.get(id) });
+    }
+    for (const u of out.values()) {
+      u.gap = Math.min(...u.kids.map((k) => k.row)) - 0.5;
+      const xs = [u.drop, ...u.kids.map((k) => k.x)];
+      u.x0 = Math.min(...xs); u.x1 = Math.max(...xs);
+    }
+    return [...out.values()];
+  };
+  // The ends count: a vertical at the end of another bar runs along that family's own line.
+  const inside = (x, u) => x > u.x0 - 1e-9 && x < u.x1 + 1e-9;
+  // Bars in one gap are drawn at different heights, and the view puts the one that crosses less on
+  // top, so there the cheaper order counts. A bar in another gap is crossed by whatever passes it.
+  const crossings = (u, v) => {
+    const passes = (a, b) => (b.gap > a.top && b.gap < a.gap && inside(a.drop, b) ? 1 : 0) + a.kids.filter((k) => b.gap > a.gap && b.gap < k.row && inside(k.x, b)).length;
+    if (u.gap !== v.gap) return passes(u, v) + passes(v, u);
+    const above = (a, b) => a.kids.filter((k) => inside(k.x, b)).length + (inside(b.drop, a) ? 1 : 0);
+    return Math.min(above(u, v), above(v, u));
+  };
+  const crossed = () => { const units = placedUnits(); let n = 0; for (let i = 0; i < units.length; i++) for (let j = i + 1; j < units.length; j++) n += crossings(units[i], units[j]); return n; };
+  // The children of a seated row who are not placed yet (an in-law's siblings) take free cells
+  // beside the child who is, each with their own block below: on the side where their lines cross
+  // fewer others, the nearer and then the right one when it makes no difference.
   const hangBeside = (chain, placedKids) => {
     const leftover = [...new Set(chain.flatMap((m, i) => [...kids(m), ...chain.slice(i + 1).flatMap((o) => kids(m, o))]))];
     const right = Math.max(...placedKids.map((c) => col.get(c))), left = Math.min(...placedKids.map((c) => col.get(c)));
     const hung = [];
     for (const c of leftover) {
-      let ok = false, width = 1;
-      for (let d = 1; d <= 40 && !ok; d += 0.5) {
-        for (const x0 of [right + d, left - d - (width - 1)]) {
+      const before = crossed(), options = [];
+      for (const side of [1, -1]) {
+        let width = 1;
+        for (let d = 1; d <= 40; d += 0.5) {
+          const x0 = side > 0 ? right + d : left - d - (width - 1);
           const b = tryBlock(c, x0);
           width = b.width;
-          if (b.ok) { ok = true; hung.push(...b.ids); break; }
+          if (!b.ok) continue;
+          options.push({ x0, d, side, cost: crossed() - before });
+          for (const p of b.ids) col.delete(p);
+          break;
         }
       }
-      if (!ok) { for (const p of hung) col.delete(p); return false; }
+      options.sort((p, q) => (p.cost + p.d / 4) - (q.cost + q.d / 4) || q.side - p.side);
+      if (!options.length) { for (const p of hung) col.delete(p); return false; }
+      hung.push(...tryBlock(c, options[0].x0).ids);
     }
     return true;
   };
-  // A row of people whose children are placed already (an in-law's parents, typically) goes straight
-  // above those children when nothing is in the way, so the link back to them is short; any other
-  // children of theirs hang beside.
-  const seatAbove = (chain) => {
-    const placedKids = [...new Set(chain.flatMap((m) => g.children(m)))].filter((c) => col.has(c));
-    if (!placedKids.length) return false;
+  // A row of people whose children are placed already (an in-law's parents, typically) goes above
+  // those children: straight above when nothing is in the way, otherwise at the free spot whose
+  // lines cross the fewest others, the nearest when several tie. Any other children of theirs hang
+  // beside.
+  const placedKidsOf = (chain) => [...new Set(chain.flatMap((m) => g.children(m)))].filter((c) => col.has(c));
+  // The free spots for a row above its placed children, nearest first: every cell of the row free,
+  // and the way down clear when the children sit more than one row below.
+  const spotsFor = (chain, placedKids) => {
     const row = gen.get(chain[0]), childRow = Math.min(...placedKids.map((c) => gen.get(c)));
     const target = placedKids.reduce((sum, c) => sum + col.get(c), 0) / placedKids.length;
     const centred = target - (chain.length - 1) / 2;
+    const spots = [];
     for (let d = 0; d <= 40; d += 0.5) {
       for (const start of d ? [centred - d, centred + d] : [centred]) {
         const mid = start + (chain.length - 1) / 2;
         let ok = chain.every((m, i) => free(gen.get(m), start + i, 1));
         for (let r = row + 1; ok && r < childRow; r++) ok = free(r, mid, 0.5);
-        if (!ok) continue;
-        chain.forEach((m, i) => col.set(m, start + i));
-        if (hangBeside(chain, placedKids)) return true;
-        chain.forEach((m) => col.delete(m));
+        if (ok) spots.push({ start, d, side: Math.sign(mid - target) });
       }
     }
+    return spots;
+  };
+  // A row of people whose children are placed already (an in-law's parents, typically) goes above
+  // those children: straight above when nothing is in the way, otherwise at the free spot whose
+  // lines cross the fewest others. A crossing is worth four columns of distance: a long bar is the
+  // lesser evil, not a free one. When that leaves a choice, each side of a couple leans outward,
+  // away from the partner, whose own parents belong on the other side. Any other children of
+  // theirs hang beside.
+  const seatAbove = (chain) => {
+    const placedKids = placedKidsOf(chain);
+    if (!placedKids.length) return false;
+    const beside = (c) => g.partners(c).filter((q) => col.has(q.id) && Math.abs(col.get(q.id) - col.get(c)) === 1).map((q) => Math.sign(col.get(c) - col.get(q.id)));
+    const lean = Math.sign(placedKids.flatMap(beside).reduce((sum, s) => sum + s, 0));
+    const before = crossed(), spots = spotsFor(chain, placedKids);
+    for (const spot of spots) {
+      chain.forEach((m, i) => col.set(m, spot.start + i));
+      spot.cost = crossed() - before + spot.d / 4;
+      chain.forEach((m) => col.delete(m));
+    }
+    spots.sort((p, q) => p.cost - q.cost || (q.side === lean) - (p.side === lean));
+    for (const { start } of spots) {
+      chain.forEach((m, i) => col.set(m, start + i));
+      if (hangBeside(chain, placedKids)) return true;
+      chain.forEach((m) => col.delete(m));
+    }
     return false;
+  };
+  // Whoever has a child placed already goes above that child, deepest row first, so an in-law's
+  // parents are seated before their grandparents and each generation lands over the one below.
+  // Within a row, the one with the least room goes first, leaving the choice to whoever has one.
+  // A row that finds no room waits for its turn as a block of its own.
+  const seatAncestors = () => {
+    const tried = new Set();
+    for (;;) {
+      const pending = g.people.map((p) => p.id).filter((id) => !col.has(id) && !tried.has(id) && g.children(id).some((c) => col.has(c)));
+      if (!pending.length) return;
+      const deepest = Math.max(...pending.map((id) => gen.get(id)));
+      const room = new Map(pending.filter((id) => gen.get(id) === deepest).map((id) => { const chain = chainOf(id); return [id, spotsFor(chain, placedKidsOf(chain))[0]?.d ?? 99]; }));
+      const at = (id) => Math.min(...g.children(id).filter((c) => col.has(c)).map((c) => col.get(c)));
+      const next = [...room.keys()].sort((a, b) => room.get(b) - room.get(a) || at(a) - at(b) || cmp(a, b))[0];
+      const chain = chainOf(next);
+      chain.forEach((m) => tried.add(m));
+      seatAbove(chain);
+    }
   };
   let x = 0;
   for (const id of [...roots, ...g.people.map((p) => p.id).sort(cmp)]) {
     if (col.has(id)) continue;
-    if (!seatAbove(chainOf(id))) x += block(id, x).width;
+    // Seated rows can reach past the last block's edge; the next block starts beyond them.
+    if (!seatAbove(chainOf(id))) { x = Math.max(x, ...[...col.values()].map((c) => c + 1)); x += block(id, x).width; }
+    seatAncestors();
   }
   const cols = [...col.values()], centre = (Math.min(...cols) + Math.max(...cols)) / 2;
   const nodes = g.people.map((p) => ({ id: p.id, col: col.get(p.id) - centre, row: gen.get(p.id) }));

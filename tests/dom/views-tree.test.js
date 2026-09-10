@@ -400,4 +400,27 @@ describe("nothing crosses", () => {
       expect([id, crossings(around), piercings(around), hops(around)]).toEqual([id, [], 0, 0]);
     }
   });
+  it("stacks the bars of one row so that no line runs down another family's line", async () => {
+    // Two brothers married two in-laws whose parents both had to go beside, to the right. The
+    // first couple's drop lands on the column of the second in-law: drawn above the second
+    // couple's bar it would run down that in-law's own line. So it goes below, and the only
+    // crossing left is the younger brother's line hopping the first couple's bar.
+    const inlaws = {
+      people: [P("u1", "Ula", "1895"), P("u2", "Urban", "1893"), P("ua", "Ala", "1920"), P("ub", "Bolek", "1922"), P("uc", "Cela", "1924"),
+        P("g1", "Gustaw", "1900"), P("g2", "Gala", "1902"), P("m1", "Marek", "1930"), P("m2", "Michał", "1933"), P("s1", "Sabina", "1931"), P("s2", "Stefa", "1934"),
+        P("p1", "Piotr", "1905"), P("p2", "Paulina", "1907"), P("q1", "Quirin", "1906"), P("q2", "Quita", "1908")],
+      parents: [...kids(["u1", "u2"], ["ua", "ub", "uc"]), ...kids(["g1", "g2"], ["m1", "m2"]), ...kids(["p1", "p2"], ["s1"]), ...kids(["q1", "q2"], ["s2"])],
+      partners: [pair("u1", "u2"), pair("g1", "g2"), pair("m1", "s1"), pair("m2", "s2"), pair("p1", "p2"), pair("q1", "q2")], links: [], avatars: [],
+    };
+    const svg = await clean("Whole family", "/app/tree", { "GET /api/people": inlaws });
+    expect([crossings(svg), piercings(svg), hops(svg)]).toEqual([[], 0, 1]);
+    // no two verticals of different families share a column for any length, not even a few pixels
+    const vs = strokes(svg).filter((t) => t.x1 === t.x2);
+    const along = [];
+    for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) {
+      const a = vs[i], b = vs[j];
+      if (a.owner !== b.owner && a.x1 === b.x1 && Math.min(Math.max(a.y1, a.y2), Math.max(b.y1, b.y2)) > Math.max(Math.min(a.y1, a.y2), Math.min(b.y1, b.y2))) along.push(`${a.owner}/${b.owner} at x=${a.x1}`);
+    }
+    expect(along).toEqual([]);
+  });
 });

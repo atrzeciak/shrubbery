@@ -97,13 +97,42 @@ function familyTop(g, pos, parents, children, coupled) {
 }
 const drops = (top) => (top.also ? [top, top.also] : [top]);
 
-// Bars of neighbouring families in one row sit at different heights so they cannot merge.
-const LEVELS = [0, -14, 14];
-
-function familyGeometry({ parents, children, top }, level) {
-  const y2 = Y(children[0]) - 4, ym = (Math.max(...parents.map(Y)) + FOOT + y2) / 2 + LEVELS[level % LEVELS.length];
+// Bars of neighbouring families in one row sit at different heights so they cannot merge:
+// `height` 0 is the topmost of four, 14px apart around the middle of the gap.
+function familyGeometry({ parents, children, top }, height) {
+  const y2 = Y(children[0]) - 4, ym = (Math.max(...parents.map(Y)) + FOOT + y2) / 2 + 14 * (height - 1);
   const xs = children.map(X), tx = drops(top).map((t) => t.x);
-  return { top, ym, y2, xs, x0: Math.min(...tx, ...xs), x1: Math.max(...tx, ...xs) };
+  return { top, ym, y2, xs, tx, x0: Math.min(...tx, ...xs), x1: Math.max(...tx, ...xs) };
+}
+
+// The order of the bars in one row, top to bottom, chosen so that as few lines as possible have
+// to cross a bar: a bar is crossed by the children's lines of every family above it and by the
+// drop of every family below it. Each family goes in where it adds the fewest crossings. Bars
+// that overlap keep that order; otherwise a bar simply differs from its neighbour's, as before.
+function stack(units) {
+  const geom = units.map((u) => familyGeometry(u, 1));
+  // The ends count too: a line at the end of another bar would run along that family's own line.
+  const within = (x, m) => x >= m.x0 && x <= m.x1;
+  const overlap = (a, b) => geom[a].x0 <= geom[b].x1 && geom[b].x0 <= geom[a].x1;
+  const cost = (a, b) => geom[a].xs.filter((x) => within(x, geom[b])).length + geom[b].tx.filter((x) => within(x, geom[a])).length;
+  const order = [];
+  units.forEach((u, i) => {
+    let at = 0, least = Infinity;
+    for (let k = 0; k <= order.length; k++) {
+      const c = order.slice(0, k).reduce((sum, j) => sum + cost(j, i), 0) + order.slice(k).reduce((sum, j) => sum + cost(i, j), 0);
+      if (c < least) { least = c; at = k; }
+    }
+    order.splice(at, 0, i);
+  });
+  const height = new Map();
+  for (const i of order) {
+    const lo = Math.max(0, ...[...height.keys()].filter((j) => overlap(i, j)).map((j) => height.get(j) + 1));
+    const taken = [height.get(i - 1), height.get(i + 1)];
+    let h = lo;
+    for (let c = lo; c <= 3; c++) if (!taken.includes(c)) { h = c; break; }
+    height.set(i, Math.min(3, h));
+  }
+  return units.map((u, i) => [u, height.get(i)]);
 }
 
 // A stroke straight down from ya to yb. Where it would cut a horizontal of some other line, it
@@ -130,8 +159,9 @@ function familyShapes(g, pos, edges, bridges) {
   }
   for (const u of units) u.top = familyTop(g, pos, u.parents, u.children, u.coupled);
   units.sort((a, b) => a.top.x - b.top.x);
-  const level = new Map();
-  for (const u of units) { const row = Y(u.parents[0]), k = level.get(row) || 0; level.set(row, k + 1); u.geom = familyGeometry(u, k); }
+  const rows = new Map();
+  for (const u of units) { const row = Y(u.parents[0]); rows.set(row, [...(rows.get(row) || []), u]); }
+  for (const group of rows.values()) for (const [u, height] of stack(group)) u.geom = familyGeometry(u, height);
   const horizontals = [...bridges, ...units.filter((u) => u.geom.x0 !== u.geom.x1).map((u) => ({ y: u.geom.ym, x0: u.geom.x0, x1: u.geom.x1, owner: u }))];
   return units.map((u) => familyPath(u, horizontals));
 }
