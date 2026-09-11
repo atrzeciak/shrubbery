@@ -16,5 +16,6 @@ wrangler.toml
 TODO.md
 docs/
 .superpowers/
+temp/
 .claude/
 .mypy_cache/
