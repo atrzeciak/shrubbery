@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeEnv, resetDb, Client } from "./helpers/env.js";
 import { CHECKS_STALE } from "../src/ops/checks.js";
 
@@ -28,9 +28,18 @@ describe("health", () => {
     expect(r.body).toEqual({ ok: true, checks_stale: true });
   });
 
-  it("still calls a check from within the window fresh, right up to the boundary", async () => {
-    await setCheckedAt(now() - CHECKS_STALE);                      // exactly 3 days: not yet stale (> 3 days)
-    expect((await new Client(env).json("/api/health")).body.checks_stale).toBe(false);
+  it("still calls a check from within the window fresh, right up to the boundary, and stale a second past it", async () => {
+    // The route reads the clock for itself. A second ticking between this write and that read
+    // would push an exact boundary one second over and read stale, so the clock is frozen here.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-09-11T12:00:00Z"));
+      const at = now();
+      await setCheckedAt(at - CHECKS_STALE);                       // exactly 3 days: not yet stale (> 3 days)
+      expect((await new Client(env).json("/api/health")).body.checks_stale).toBe(false);
+      await setCheckedAt(at - CHECKS_STALE - 1);
+      expect((await new Client(env).json("/api/health")).body.checks_stale).toBe(true);
+    } finally { vi.useRealTimers(); }
   });
 
   it("reports 500 when the database rejects, which is how D1 really fails", async () => {
