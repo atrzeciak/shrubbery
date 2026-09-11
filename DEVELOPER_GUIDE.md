@@ -69,6 +69,9 @@ MAIL_ECHO=1
 
 Tests pin their own origin and ignore `.dev.vars`.
 
+The tree draws each person as a box. `?style=classic` on any `/app/tree` URL shows the previous
+tall-card drawing; the default is the `STYLE` constant in `public/app/views/tree.js`.
+
 ## Deploying
 
 Pushing to `main` deploys. GitHub Actions verifies, lints, tests, writes `wrangler.toml` from a
