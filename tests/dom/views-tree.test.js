@@ -42,7 +42,7 @@ beforeEach(async () => {
 // Every suite runs under both drawings. A test that measures the picture reads the numbers here
 // rather than assuming the card's.
 const DIMS = {
-  box: { W: 160, H: 52, GX: 24, GY: 80, mid: 26, foot: 52 },
+  box: { W: 160, H: 66, GX: 24, GY: 80, mid: 33, foot: 66 },
   classic: { W: 120, H: 180, GX: 40, GY: 60, mid: 32, foot: 2 * 32 + 80 },
 };
 let style = "box", D = DIMS.box;
@@ -94,11 +94,11 @@ describe("focus mode", () => {
       expect(qa("text.years", long).map((t) => t.textContent)).toEqual(["1985", "?"]);
       expect(q("rect.box", root)).toBeNull();
     } else {
-      // one line, clipped, with the whole name as a tooltip; the years and the mark on the second
+      // the box widens to the longest line, so nothing here is clipped; the mark joins the years
       expect(qa("rect.box", root)).toHaveLength(qa(".node", root).length);
-      expect(q("text.name", long).firstChild.textContent).toBe("Konstantynopoli…");
-      expect(q("text.name title", long).textContent).toBe("Konstantynopolita Kowalska");
-      expect(q("text.name title", node("Jan Nowak"))).toBeNull();
+      expect(qa("text.name", long).map((t) => t.textContent)).toEqual(["Konstantynopolita", "Kowalska"]);
+      expect(q("text.name title", long)).toBeNull();
+      expect(Number(q("rect.box", long).getAttribute("width"))).toBeGreaterThan(160);
       expect(q("text.years", long).textContent).toBe("1985 ?");
       expect(q(".node.is-focus rect.box", root)).not.toBeNull();
     }
@@ -123,8 +123,8 @@ describe("focus mode", () => {
     const { root, mode } = await draw(me(), "/app/tree/p5");
     await mode("Around a person");
     const node = qa(".node", root).find((n) => n.getAttribute("aria-label") === "Zofia Wiśniewska Trzecia");
-    if (st === "classic") expect(qa("text.name", node).map((t) => t.textContent)).toEqual(["Zofia", "Wiśniewska Trze…"]);
-    else expect(q("text.name", node).firstChild.textContent).toBe("Zofia Wiśniewsk…");
+    // the card clips a line at sixteen letters; the box has widened to fit it
+    expect(qa("text.name", node).map((t) => t.textContent)).toEqual(["Zofia", st === "classic" ? "Wiśniewska Trze…" : "Wiśniewska Trzecia"]);
     expect(q("text.initials", node).textContent).toBe("ZW");
   });
 
@@ -455,6 +455,23 @@ describe("nothing crosses", () => {
     expect(along).toEqual([]);
   });
 });
+});
+
+describe("the box", () => {
+  it("stays 160 wide for short names, stops at 200, and clips what still does not fit, whole in a tooltip", async () => {
+    const short = { people: [{ id: "a", display_name: "Jan Kot", first_name: "Jan", last_name: "Kot" }], parents: [], partners: [], links: [], avatars: [] };
+    const { root } = await draw(me(null), "/app/tree?style=box", { "GET /api/people": short });
+    expect(q("rect.box", root).getAttribute("width")).toBe("160");
+    const long = { ...short, people: [...short.people, { id: "b", display_name: "Anna Wiśniewska-Kowalczykówna-Nowakowska", first_name: "Anna", last_name: "Wiśniewska-Kowalczykówna-Nowakowska" }] };
+    const { root: r2 } = await draw(me(null), "/app/tree?style=box", { "GET /api/people": long });
+    const anna = qa(".node", r2).find((n) => n.getAttribute("aria-label").startsWith("Anna"));
+    expect(q("rect.box", anna).getAttribute("width")).toBe("200");
+    const [first, last] = qa("text.name", anna).map((t) => t.firstChild.textContent);
+    expect(first).toBe("Anna");
+    expect(last.endsWith("…") && last.length < "Wiśniewska-Kowalczykówna-Nowakowska".length).toBe(true);
+    expect(q("text.name title", anna).textContent).toBe("Anna Wiśniewska-Kowalczykówna-Nowakowska");
+    expect(q("text.name title", qa(".node", r2).find((n) => n.getAttribute("aria-label") === "Jan Kot"))).toBeNull();
+  });
 });
 
 describe("choosing a style", () => {

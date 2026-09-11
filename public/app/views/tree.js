@@ -231,6 +231,7 @@ export async function render(root, ctx) {
   clear(root);
   style = styleOf();
   const g = await loadGraph();
+  style.fit(g);
   const me = ctx.state.me.account;
   const m = location.pathname.match(/^\/app\/tree\/([A-Za-z0-9_-]+)/);
   const focus = m && g.byId.has(m[1]) ? m[1] : defaultFocus(g, me);
