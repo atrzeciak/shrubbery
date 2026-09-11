@@ -8,7 +8,7 @@ import { personPicker } from "../picker.js";
 import { personCard } from "../person-card.js";
 import { styles } from "../tree-style.js";
 
-const STYLE = "classic";
+const STYLE = "box";                                    // "classic" brings the tall cards back
 // Chosen on every render, so ?style= on any tree URL shows the other drawing without a deploy.
 const styleOf = () => styles[new URLSearchParams(location.search).get("style")] || styles[STYLE];
 let style = styles[STYLE];

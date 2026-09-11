@@ -19,7 +19,7 @@ const graph = {
 const me = (person_id = "p3") => viewCtx(meFixture({ account: { person_id } }));
 
 async function draw(ctx = me(), path = "/app/tree", routes = {}) {
-  history.replaceState(null, "", path);
+  history.replaceState(null, "", path.includes("?") ? path : `${path}?style=${style}`);
   const calls = mockApi({ "GET /api/people": graph, ...routes });
   const root = document.createElement("div");
   document.body.append(root);
@@ -38,6 +38,17 @@ beforeEach(async () => {
   SVGElement.prototype.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 300 });
   Object.defineProperty(SVGElement.prototype, "clientWidth", { get: () => 400, configurable: true });
 });
+
+// Every suite runs under both drawings. A test that measures the picture reads the numbers here
+// rather than assuming the card's.
+const DIMS = {
+  box: { W: 160, H: 52, GX: 24, GY: 80, mid: 26, foot: 52 },
+  classic: { W: 120, H: 180, GX: 40, GY: 60, mid: 32, foot: 2 * 32 + 80 },
+};
+let style = "box", D = DIMS.box;
+
+describe.each(Object.keys(DIMS))("style %s", (st) => {
+beforeEach(() => { style = st; D = DIMS[st]; });
 
 describe("empty and default focus", () => {
   it("says the tree is empty and draws nothing", async () => {
@@ -70,15 +81,27 @@ describe("empty and default focus", () => {
 });
 
 describe("focus mode", () => {
-  it("draws avatars, initials, split names, life spans and the unverified mark", async () => {
+  it("draws avatars, initials, names, life spans and the unverified mark", async () => {
     const { root, mode } = await draw(me(), "/app/tree/p1");
     await mode("Around a person");
     const node = (name) => qa(".node", root).find((n) => n.getAttribute("aria-label") === name);
     expect(q("image", node("Kasia Nowak")).getAttribute("href")).toBe("/api/people/p3/avatar?v=7");
     expect(q("text.initials", node("Anna Nowak")).textContent).toBe("AN");
-    expect(qa("text.name", node("Konstantynopolita Kowalska")).map((t) => t.textContent)).toEqual(["Konstantynopoli…", "Kowalska"]);
-    expect(qa("text.years", node("Konstantynopolita Kowalska")).map((t) => t.textContent)).toEqual(["1985", "?"]);
     expect(q("text.years", node("Jan Nowak")).textContent).toBe("1948–2010");
+    const long = node("Konstantynopolita Kowalska");
+    if (st === "classic") {
+      expect(qa("text.name", long).map((t) => t.textContent)).toEqual(["Konstantynopoli…", "Kowalska"]);
+      expect(qa("text.years", long).map((t) => t.textContent)).toEqual(["1985", "?"]);
+      expect(q("rect.box", root)).toBeNull();
+    } else {
+      // one line, clipped, with the whole name as a tooltip; the years and the mark on the second
+      expect(qa("rect.box", root)).toHaveLength(qa(".node", root).length);
+      expect(q("text.name", long).firstChild.textContent).toBe("Konstantynopoli…");
+      expect(q("text.name title", long).textContent).toBe("Konstantynopolita Kowalska");
+      expect(q("text.name title", node("Jan Nowak"))).toBeNull();
+      expect(q("text.years", long).textContent).toBe("1985 ?");
+      expect(q(".node.is-focus rect.box", root)).not.toBeNull();
+    }
     // one drop per family: Kasia from the middle of her parents' marriage, Konstantynopolita from Anna alone
     const svg = q(".tree-wrap svg", root), married = q("line.edge.partner.married", svg);
     const mid = (Number(married.getAttribute("x1")) + Number(married.getAttribute("x2"))) / 2;
@@ -100,7 +123,8 @@ describe("focus mode", () => {
     const { root, mode } = await draw(me(), "/app/tree/p5");
     await mode("Around a person");
     const node = qa(".node", root).find((n) => n.getAttribute("aria-label") === "Zofia Wiśniewska Trzecia");
-    expect(qa("text.name", node).map((t) => t.textContent)).toEqual(["Zofia", "Wiśniewska Trze…"]);
+    if (st === "classic") expect(qa("text.name", node).map((t) => t.textContent)).toEqual(["Zofia", "Wiśniewska Trze…"]);
+    else expect(q("text.name", node).firstChild.textContent).toBe("Zofia Wiśniewsk…");
     expect(q("text.initials", node).textContent).toBe("ZW");
   });
 
@@ -234,11 +258,11 @@ describe("family mode", () => {
     expect(bridge).toContain(` H${xd} V0`);
     // the drop leaves the bridge beside D: next to A the row is taken by A's marriage
     const [, drop, topY] = q("path.edge.family", svg).getAttribute("d").match(/^M([-\d.]+) ([-\d.]+)/).map(Number);
-    expect(Math.abs(drop - xd)).toBe(80);
+    expect(Math.abs(drop - xd)).toBe((D.W + D.GX) / 2);
     expect(topY).toBeLessThan(0);
     // and so does the strike
     const mark = Number(q("path.edge.divorce", svg).getAttribute("d").match(/^M([-\d.]+)/)[1]) + 7;
-    expect(Math.abs(mark - xd)).toBe(80);
+    expect(Math.abs(mark - xd)).toBe((D.W + D.GX) / 2);
   });
 
   it("joins two co-parents with a dotted line of their own and drops from between them like a couple", async () => {
@@ -252,12 +276,12 @@ describe("family mode", () => {
     const svg = q(".tree-wrap svg", root);
     const x = (name) => Number(qa(".node", svg).find((n) => n.getAttribute("aria-label") === name).getAttribute("transform").match(/translate\(([-\d.]+)/)[1]);
     // A is pulled down beside C, one row above K, and the two are joined the way a couple is
-    expect(Math.abs(x("A") - x("C"))).toBe(120 + 40);
+    expect(Math.abs(x("A") - x("C"))).toBe(D.W + D.GX);
     expect(qa(".edge.partner.coparents", svg)).toHaveLength(1);
     const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
-    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${(x("A") + x("C")) / 2} ${240 + 32} V`)));
+    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${(x("A") + x("C")) / 2} ${D.H + D.GY + D.mid} V`)));
     // A's own child S hangs from A's feet alone, as for any single parent
-    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${x("A")} ${240 + 2 * 32 + 80} V`)));
+    expect(ds).toContainEqual(expect.stringMatching(new RegExp(`^M${x("A")} ${D.H + D.GY + D.foot} V`)));
   });
 
   it("tells marriage, partnership and divorce apart, bars siblings together, and explains itself", async () => {
@@ -276,6 +300,9 @@ describe("family mode", () => {
     const divorced = q("line.edge.partner.divorced", svg);
     const mid = (Number(divorced.getAttribute("x1")) + Number(divorced.getAttribute("x2"))) / 2;
     expect(q("path.edge.divorce", svg).getAttribute("d")).toContain(`M${mid - 7} `);
+    // the couple line meets the boxes at their edges; a card's runs under the portraits
+    const span = Math.abs(Number(divorced.getAttribute("x2")) - Number(divorced.getAttribute("x1")));
+    expect(span).toBe(st === "box" ? D.GX : D.W + D.GX);
     const ds = qa("path.edge.family", svg).map((e) => e.getAttribute("d"));
     expect(ds).toHaveLength(2);
     // Kasia and Konstantynopolita hang from one bar: a drop, the bar, two verticals
@@ -339,16 +366,20 @@ function crossings(svg) {
   return out;
 }
 
-// Strokes that pass through somebody's avatar rather than ending at it.
+// Strokes that pass through somebody's box or portrait rather than ending at it.
 function piercings(svg) {
-  const R = 32;
-  const nodes = qa(".node", svg).map((g) => { const [, x, y] = g.getAttribute("transform").match(/translate\(([-\d.]+) ([-\d.]+)\)/).map(Number); return { cx: x, cy: y + R }; });
+  const nodes = qa(".node", svg).map((g) => {
+    const [, x, y] = g.getAttribute("transform").match(/translate\(([-\d.]+) ([-\d.]+)\)/).map(Number);
+    const box = q("rect.box", g);
+    return box ? { x0: x + +box.getAttribute("x"), x1: x + +box.getAttribute("x") + +box.getAttribute("width"), y0: y, y1: y + +box.getAttribute("height") }
+      : { x0: x - 32, x1: x + 32, y0: y, y1: y + 64 };
+  });
   let n = 0;
-  for (const s of strokes(svg)) for (const { cx, cy } of nodes) {
-    const inside = (x, y) => Math.hypot(x - cx, y - cy) <= R + 1;
+  for (const s of strokes(svg)) for (const b of nodes) {
+    const inside = (x, y) => x >= b.x0 - 1 && x <= b.x1 + 1 && y >= b.y0 - 1 && y <= b.y1 + 1;
     if (inside(s.x1, s.y1) || inside(s.x2, s.y2)) continue;
     const v = s.x1 === s.x2;
-    if ((v ? Math.abs(s.x1 - cx) : Math.abs(s.y1 - cy)) < R && (v ? between(cy, s.y1, s.y2) : between(cx, s.x1, s.x2))) n++;
+    if (v ? (s.x1 > b.x0 && s.x1 < b.x1 && between((b.y0 + b.y1) / 2, s.y1, s.y2)) : (s.y1 > b.y0 && s.y1 < b.y1 && between((b.x0 + b.x1) / 2, s.x1, s.x2))) n++;
   }
   return n;
 }
@@ -422,5 +453,13 @@ describe("nothing crosses", () => {
       if (a.owner !== b.owner && a.x1 === b.x1 && Math.min(Math.max(a.y1, a.y2), Math.max(b.y1, b.y2)) > Math.max(Math.min(a.y1, a.y2), Math.min(b.y1, b.y2))) along.push(`${a.owner}/${b.owner} at x=${a.x1}`);
     }
     expect(along).toEqual([]);
+  });
+});
+});
+
+describe("choosing a style", () => {
+  it("falls back to the box for a style nobody defined", async () => {
+    const { root } = await draw(me(), "/app/tree/p1?style=cards");
+    expect(qa("rect.box", root)).toHaveLength(qa(".node", root).length);
   });
 });

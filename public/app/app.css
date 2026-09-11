@@ -143,6 +143,11 @@ input[type=range] { width: 100%; }
 .tree .initials { fill: var(--muted); font-size: 22px; font-weight: bold; }
 .tree .name { fill: var(--fg); font-size: 15px; }
 .tree .years { fill: var(--muted); font-size: 13px; }
+.tree .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+.tree .node:focus .box, .tree .node.is-focus .box { stroke: var(--accent); stroke-width: 3; }
+.tree .box ~ .name { font-size: 12px; font-weight: 600; }
+.tree .box ~ .years { font-size: 11px; }
+.tree .box ~ .initials { font-size: 14px; }
 .tree .edge { fill: none; stroke: var(--muted); stroke-width: 2; }
 .tree .edge.partner.married { stroke-width: 3; }
 .tree .edge.partner.unmarried { stroke-dasharray: 6 4; }

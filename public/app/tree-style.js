@@ -47,4 +47,25 @@ const classic = {
   },
 };
 
-export const styles = { classic };
+// The wide box: portrait at the left, name and years beside it. A third the height of a card,
+// so a whole family fits on a screen, and the couple line reads as a short link between two
+// boxes rather than a bar under two portraits.
+const BW = 160, BH = 52, BR = 18;
+const box = {
+  W: BW, H: BH, GX: 24, GY: 80,
+  mid: (n) => n.row * (BH + 80) + BH / 2,
+  foot: (n) => n.row * (BH + 80) + BH,
+  side: (n, dir) => n.col * (BW + 24) + dir * BW / 2,
+  node(g, n, opts) {
+    const p = g.byId.get(n.id);
+    const grp = group(n, p, opts, n.col * (this.W + this.GX), n.row * (this.H + this.GY));
+    const cx = -BW / 2 + 8 + BR, tx = cx + BR + 8;
+    grp.append(s("rect", { class: "box", x: -BW / 2, y: 0, width: BW, height: BH, rx: 6 }), ...avatar(g, n, cx, BH / 2, BR, 5));
+    const name = s("text", { x: tx, y: 21, "text-anchor": "start", class: "name", text: clip(p.display_name, 16) });
+    if ((p.display_name || "").length > 16) name.append(s("title", { text: p.display_name }));
+    grp.append(name, s("text", { x: tx, y: 39, "text-anchor": "start", class: "years", text: lifeSpan(p) + (p.unverified ? " ?" : "") }));
+    return grp;
+  },
+};
+
+export const styles = { box, classic };
