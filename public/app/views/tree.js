@@ -1,13 +1,17 @@
 import { h, s, clear } from "../dom.js";
 import { t } from "../i18n.js";
-import { initials, lifeSpan, yearOf } from "../graph.js";
+import { yearOf } from "../graph.js";
 import { focusLayout, familyLayout } from "../tree-layout.js";
-import { loadGraph, avatarUrl } from "../people.js";
+import { loadGraph } from "../people.js";
 import { openSheet } from "../sheet.js";
 import { personPicker } from "../picker.js";
 import { personCard } from "../person-card.js";
+import { styles } from "../tree-style.js";
 
-const W = 120, H = 180, GX = 40, GY = 60, R = 32;
+const STYLE = "classic";
+// Chosen on every render, so ?style= on any tree URL shows the other drawing without a deploy.
+const styleOf = () => styles[new URLSearchParams(location.search).get("style")] || styles[STYLE];
+let style = styles[STYLE];
 let mode = localStorage.getItem("treeMode") || "focus";
 
 function defaultFocus(g, me) {
@@ -17,36 +21,13 @@ function defaultFocus(g, me) {
   return pool.slice().sort((a, b) => (yearOf(a.birth_date) ?? 99999) - (yearOf(b.birth_date) ?? 99999))[0]?.id || null;
 }
 
-function node(g, n, { onTap, focus }) {
-  const p = g.byId.get(n.id);
-  const x = n.col * (W + GX), y = n.row * (H + GY);
-  const url = avatarUrl(g, n.id);
-  const grp = s("g", { class: `node ${n.role || ""}${focus === n.id ? " is-focus" : ""}`, transform: `translate(${x} ${y})`, tabindex: "0", role: "button", "aria-label": p.display_name, onclick: () => onTap(n.id), onkeydown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onTap(n.id); } } });
-  grp.append(s("circle", { cx: 0, cy: R, r: R, class: "avatar-ring" }));
-  if (url) {
-    const clipId = `clip-${n.id}`;
-    const clipRef = `url(#${clipId})`;
-    grp.append(s("clipPath", { id: clipId }, s("circle", { cx: 0, cy: R, r: R - 2 })), s("image", { href: url, x: -R + 2, y: 2, width: 2 * R - 4, height: 2 * R - 4, "clip-path": clipRef, preserveAspectRatio: "xMidYMid slice" }));
-  } else grp.append(s("text", { x: 0, y: R + 6, "text-anchor": "middle", class: "initials", text: initials(p) }));
-  const clip = (str, n) => (str && str.length > n ? `${str.slice(0, n - 1)}…` : str || "");
-  const words = (p.display_name || "").split(" ");
-  const [line1, line2] = p.first_name || p.last_name
-    ? [p.first_name || "", p.last_name || ""]
-    : [words[0] || "", words.slice(1).join(" ")];
-  grp.append(s("text", { x: 0, y: 2 * R + 20, "text-anchor": "middle", class: "name", text: clip(line1, 16) }));
-  if (line2) grp.append(s("text", { x: 0, y: 2 * R + 38, "text-anchor": "middle", class: "name", text: clip(line2, 16) }));
-  grp.append(s("text", { x: 0, y: 2 * R + 56, "text-anchor": "middle", class: "years", text: lifeSpan(p) }));
-  if (p.unverified) grp.append(s("text", { x: 0, y: 2 * R + 72, "text-anchor": "middle", class: "years", text: "?" }));
-  return grp;
-}
-
-const X = (n) => n.col * (W + GX), Y = (n) => n.row * (H + GY);
+const X = (n) => n.col * (style.W + style.GX), Y = (n) => n.row * (style.H + style.GY);
 const KIND = { married: "married", partner: "unmarried", divorced: "divorced", coparents: "coparents" };
 
 const adjacent = (a, b) => Math.abs(a.col - b.col) === 1;
 const cell = (pos, row, col) => [...pos.values()].find((n) => n.row === row && n.col === col);
 // Half a column inside `from`, toward `to`: between two people, never through one.
-const beside = (from, to) => X(from) + Math.sign(X(to) - X(from)) * (W + GX) / 2;
+const beside = (from, to) => X(from) + Math.sign(X(to) - X(from)) * (style.W + style.GX) / 2;
 // A couple with someone between them is joined by a bridge above the row; a longer span rides higher.
 const bridgeTop = (a, b) => Y(a) - 16 - 14 * (Math.abs(a.col - b.col) - 2);
 // The end of a couple's span where the row is not already taken by one of their other partners,
@@ -63,7 +44,7 @@ function clearEnd(g, pos, a, b) {
 function partnerEdges(g, pos, e, bridges) {
   const a = pos.get(e.from), b = pos.get(e.to), cls = `edge partner ${KIND[e.kind] || "married"}`;
   let out, sx, sy;
-  if (adjacent(a, b)) { sy = Y(a) + R; sx = (X(a) + X(b)) / 2; out = [s("line", { x1: X(a), y1: sy, x2: X(b), y2: sy, class: cls })]; }
+  if (adjacent(a, b)) { sy = style.mid(a); sx = (X(a) + X(b)) / 2; const dir = Math.sign(X(b) - X(a)); out = [s("line", { x1: style.side(a, dir), y1: sy, x2: style.side(b, -dir), y2: sy, class: cls })]; }
   else {
     sy = bridgeTop(a, b);
     const end = clearEnd(g, pos, a, b) || a;
@@ -79,17 +60,14 @@ function partnerEdges(g, pos, e, bridges) {
 // drop leaves their line halfway between them, or, when someone else sits between them, from the
 // clear end of their bridge. Parents who were never partners have no line to leave from, so the
 // drop starts below the row.
-// The foot of a node: below the name, the years and the unverified mark.
-const FOOT = 2 * R + 80;
-
 function familyTop(g, pos, parents, children, coupled) {
-  const below = Y(parents[0]) + FOOT;
+  const below = style.foot(parents[0]);
   if (parents.length === 1) return { x: X(parents[0]), y: below };
   const [a, b] = parents;
   // Two parents with no line between them (one descends from the other, a data error the layout
   // tolerates) each drop from their own feet, and the children's bar is what joins them.
-  if (!coupled) return { x: X(a), y: below, also: { x: X(b), y: Y(b) + FOOT } };
-  if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: Y(a) + R };
+  if (!coupled) return { x: X(a), y: below, also: { x: X(b), y: style.foot(b) } };
+  if (adjacent(a, b)) return { x: (X(a) + X(b)) / 2, y: style.mid(a) };
   const cx = children.reduce((sum, c) => sum + X(c), 0) / children.length;
   const nearer = Math.abs(X(a) - cx) <= Math.abs(X(b) - cx) ? a : b;
   const end = clearEnd(g, pos, a, b) || nearer;
@@ -100,7 +78,7 @@ const drops = (top) => (top.also ? [top, top.also] : [top]);
 // Bars of neighbouring families in one row sit at different heights so they cannot merge:
 // `height` 0 is the topmost of four, 14px apart around the middle of the gap.
 function familyGeometry({ parents, children, top }, height) {
-  const y2 = Y(children[0]) - 4, ym = (Math.max(...parents.map(Y)) + FOOT + y2) / 2 + 14 * (height - 1);
+  const y2 = Y(children[0]) - 4, ym = (Math.max(...parents.map(style.foot)) + y2) / 2 + 14 * (height - 1);
   const xs = children.map(X), tx = drops(top).map((t) => t.x);
   return { top, ym, y2, xs, tx, x0: Math.min(...tx, ...xs), x1: Math.max(...tx, ...xs) };
 }
@@ -182,6 +160,7 @@ function legend() {
 function drawSvg(g, layout, opts) {
   const pos = new Map(layout.nodes.map((n) => [n.id, n]));
   const cols = layout.nodes.map((n) => n.col), rows = layout.nodes.map((n) => n.row);
+  const { W, H, GX, GY } = style;
   const minX = Math.min(...cols) * (W + GX) - W / 2 - 10, maxX = Math.max(...cols) * (W + GX) + W / 2 + 10;
   const minY = Math.min(...rows) * (H + GY) - 10, maxY = Math.max(...rows) * (H + GY) + H + 10;
   const svg = s("svg", { class: "tree", viewBox: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`, role: "group", "aria-label": t("tree.title") });
@@ -190,7 +169,7 @@ function drawSvg(g, layout, opts) {
   const partners = layout.edges.filter((e) => e.type === "partner").flatMap((e) => partnerEdges(g, pos, e, bridges));
   edges.append(...familyShapes(g, pos, layout.edges, bridges), ...partners);
   svg.append(edges);
-  for (const n of layout.nodes) svg.append(node(g, n, opts));
+  for (const n of layout.nodes) svg.append(style.node(g, n, opts));
   svg.bounds = { minX, minY, w: maxX - minX, h: maxY - minY };
   svg.pos = pos;
   return svg;
@@ -239,6 +218,7 @@ function panZoom(svg) {
       const n = svg.pos.get(id);
       if (!n) return;
       const r = svg.getBoundingClientRect();
+      const { W, H, GX, GY } = style;
       const w = Math.min(vb.w, 4 * (W + GX)), hgt = w * (r.height / r.width);
       vb = { x: n.col * (W + GX) - w / 2, y: n.row * (H + GY) + H / 2 - hgt / 2, w, h: hgt };
       apply();
@@ -249,6 +229,7 @@ function panZoom(svg) {
 
 export async function render(root, ctx) {
   clear(root);
+  style = styleOf();
   const g = await loadGraph();
   const me = ctx.state.me.account;
   const m = location.pathname.match(/^\/app\/tree\/([A-Za-z0-9_-]+)/);
