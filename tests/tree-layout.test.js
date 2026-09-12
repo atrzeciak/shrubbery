@@ -247,6 +247,17 @@ describe("familyLayout", () => {
       { from: "a", to: "c", type: "partner", kind: "coparents" },
     ]);
   });
+  it("seats a sibling with no birth year first, by the parents' line, not past everybody's descendants", () => {
+    const g = buildGraph({
+      people: [P("m", "1867"), P("a", "1899"), P("s"), P("j", "1909"), P("c", "1925"), P("d", "1928")],
+      parents: [...kids(["m"], ["a", "s", "j"]), ...kids(["a"], ["c", "d"])],
+      partners: [], links: [], avatars: [],
+    });
+    const { nodes } = familyLayout(g);
+    expect(at(nodes, "s").col).toBeLessThan(at(nodes, "a").col);
+    expect(at(nodes, "a").col).toBeLessThan(at(nodes, "j").col);
+  });
+
   it("keeps every couple adjacent when a person has multiple partners", () => {
     const multi = buildGraph({
       people: [{ id: "a", display_name: "a" }, { id: "b", display_name: "b" }, { id: "c", display_name: "c" }, { id: "d", display_name: "d" }],

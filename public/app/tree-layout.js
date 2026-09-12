@@ -94,7 +94,11 @@ export function familyLayout(g) {
     const key = nearest(p.id).slice().sort().join("|");
     if (key) unit.set(key, [...(unit.get(key) || []), p.id]);
   }
-  const kids = (...parents) => (unit.get(parents.slice().sort().join("|")) || []).filter((c) => !col.has(c)).sort(cmp);
+  // Siblings in birth order. One whose birth is unknown goes first, not last: it is usually the
+  // barely-recorded one, and at the left it sits by the parents' line rather than at the far
+  // end of the row past everybody's descendants.
+  const undated = (id) => yearOf(g.byId.get(id).birth_date) == null;
+  const kids = (...parents) => (unit.get(parents.slice().sort().join("|")) || []).filter((c) => !col.has(c)).sort((a, b) => undated(b) - undated(a) || cmp(a, b));
   // Partners and co-parents in the order the relationships came: by the recorded year, failing
   // that by the birth of the first shared child, so the earliest ties sit closest.
   const spouses = (id) => {
