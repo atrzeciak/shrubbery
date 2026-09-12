@@ -77,10 +77,12 @@ const drops = (top) => (top.also ? [top, top.also] : [top]);
 
 // Bars of neighbouring families in one row sit at different heights so they cannot merge:
 // `height` 0 is the topmost of four, 14px apart around the middle of the gap.
+// The bar hangs over the highest child; a child seated deeper, beside a spouse of a later
+// generation, gets a longer line down to its own box.
 function familyGeometry({ parents, children, top }, height) {
-  const y2 = Y(children[0]) - 4, ym = (Math.max(...parents.map(style.foot)) + y2) / 2 + 14 * (height - 1);
+  const ys = children.map((c) => Y(c) - 4), ym = (Math.max(...parents.map(style.foot)) + Math.min(...ys)) / 2 + 14 * (height - 1);
   const xs = children.map(X), tx = drops(top).map((t) => t.x);
-  return { top, ym, y2, xs, tx, x0: Math.min(...tx, ...xs), x1: Math.max(...tx, ...xs) };
+  return { top, ym, ys, xs, tx, x0: Math.min(...tx, ...xs), x1: Math.max(...tx, ...xs) };
 }
 
 // The order of the bars in one row, top to bottom, chosen so that as few lines as possible have
@@ -121,10 +123,10 @@ function vertical(x, ya, yb, mine, horizontals) {
 }
 
 function familyPath(u, horizontals) {
-  const { top, ym, y2, xs, x0, x1 } = u.geom;
+  const { top, ym, ys, xs, x0, x1 } = u.geom;
   let d = drops(top).map((t) => `M${t.x} ${t.y}` + vertical(t.x, t.y, ym, u, horizontals)).join(" ");
   if (x0 !== x1) d += ` M${x0} ${ym} H${x1}`;
-  for (const x of xs) d += ` M${x} ${ym}` + vertical(x, ym, y2, u, horizontals);
+  xs.forEach((x, i) => { d += ` M${x} ${ym}` + vertical(x, ym, ys[i], u, horizontals); });
   return s("path", { d, class: "edge family" });
 }
 

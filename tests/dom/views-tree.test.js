@@ -431,6 +431,23 @@ describe("nothing crosses", () => {
       expect([id, crossings(around), piercings(around), hops(around)]).toEqual([id, [], 0, 0]);
     }
   });
+  it("reaches every child's own box, even one seated a row lower beside a spouse", async () => {
+    // A's sons U and S. U's child K has a partner M, and M was also S's wife, so S is seated in
+    // K's row beside M: two rows under his father, one under his brother.
+    const deep = {
+      people: [P("a", "Aleksy", "1860"), P("u", "Ubald", "1885"), P("s", "Sergiusz", "1888"), P("k", "Kirył", "1910"), P("m", "Małgorzata", "1899")],
+      parents: [...kids(["a"], ["u", "s"]), ...kids(["u"], ["k"])],
+      partners: [pair("k", "m", "partner"), pair("s", "m")], links: [], avatars: [],
+    };
+    const svg = await clean("Whole family", "/app/tree", { "GET /api/people": deep });
+    const at = (name) => qa(".node", svg).find((n) => n.getAttribute("aria-label") === name).getAttribute("transform").match(/translate\(([-\d.]+) ([-\d.]+)\)/).slice(1).map(Number);
+    const [, yu] = at("Ubald"), [xs, ys] = at("Sergiusz");
+    expect(ys).toBeGreaterThan(yu);
+    const verticals = strokes(svg).filter((t) => t.x1 === t.x2);
+    expect(verticals.some((t) => t.x1 === xs && Math.max(t.y1, t.y2) === ys - 4)).toBe(true);
+    expect([crossings(svg), piercings(svg)]).toEqual([[], 0]);
+  });
+
   it("stacks the bars of one row so that no line runs down another family's line", async () => {
     // Two brothers married two in-laws whose parents both had to go beside, to the right. The
     // first couple's drop lands on the column of the second in-law: drawn above the second
