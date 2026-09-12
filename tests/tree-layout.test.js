@@ -258,6 +258,28 @@ describe("familyLayout", () => {
     expect(at(nodes, "a").col).toBeLessThan(at(nodes, "j").col);
   });
 
+  it("opens a gap so both in-laws' parents sit near their child when the row above is packed", () => {
+    // Grandparents with three children: S (married, one child), T (married to J; a son A with two
+    // partners Q and W, and a son H by someone else) and E (one child). Row 1 is packed around T
+    // and J, and Q's and W's parents both belong there. Seated greedily they landed 4.5 and 2.5
+    // cells from their children; a gap opened beside T brings them to 2 and 0.5.
+    const g = buildGraph({
+      people: [P("g1", "1900"), P("g2", "1902"), P("s", "1925"), P("s2", "1926"), P("j", "1930"), P("t", "1928"), P("e", "1932"), P("s1", "1950"), P("h", "1962"),
+        P("q", "1960"), P("a", "1955"), P("w", "1957"), P("e1", "1958"), P("qb", "1930"), P("qm", "1933"), P("wb", "1929"), P("wm", "1931")],
+      parents: [...kids(["g1", "g2"], ["s", "t", "e"]), ...kids(["s", "s2"], ["s1"]), ...kids(["t", "j"], ["a"]), ...kids(["t"], ["h"]), ...kids(["e"], ["e1"]), ...kids(["qb", "qm"], ["q"]), ...kids(["wb", "wm"], ["w"])],
+      partners: [pair("g1", "g2"), pair("s", "s2"), pair("t", "j"), pair("a", "q", "partner"), pair("a", "w"), pair("qb", "qm"), pair("wb", "wm")],
+      links: [], avatars: [],
+    });
+    const { nodes } = familyLayout(g);
+    const c = (id) => at(nodes, id).col;
+    const over = (child, pa, pb) => Math.abs((c(pa) + c(pb)) / 2 - c(child));
+    expect(over("q", "qb", "qm")).toBeLessThanOrEqual(2);
+    expect(over("w", "wb", "wm")).toBeLessThanOrEqual(1);
+    // no couple was parted to make the room, and every child is still under its parents' row
+    for (const [x, y] of [["g1", "g2"], ["s", "s2"], ["t", "j"], ["a", "q"], ["a", "w"], ["qb", "qm"], ["wb", "wm"]]) expect(Math.abs(c(x) - c(y))).toBe(1);
+    for (const [child, parent] of [["s1", "s"], ["a", "t"], ["h", "t"], ["e1", "e"], ["q", "qb"], ["w", "wb"]]) expect(at(nodes, child).row).toBe(at(nodes, parent).row + 1);
+  });
+
   it("keeps every couple adjacent when a person has multiple partners", () => {
     const multi = buildGraph({
       people: [{ id: "a", display_name: "a" }, { id: "b", display_name: "b" }, { id: "c", display_name: "c" }, { id: "d", display_name: "d" }],
