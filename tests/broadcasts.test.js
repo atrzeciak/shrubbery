@@ -36,6 +36,7 @@ describe("sending", () => {
     await seedAccount(env, { id: "a2", email: "kin@x.org", lang: "en" });
     await seedAccount(env, { id: "a3", email: "off@x.org" });
     await env.DB.prepare("UPDATE accounts SET disabled_at = 1 WHERE id = 'a3'").run();
+    await seedPerson(env, { id: "p_off", first_name: "Off", email: "off@x.org" });   // as in the real archive: every account holder is a person too
     const c = await adminWithFreshPasskey();
 
     const r = await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd", body: "Do zobaczenia w lipcu.", groups: ["accounts"] } });
@@ -110,10 +111,12 @@ describe("sending", () => {
 });
 
 describe("who it reaches", () => {
-  // An account, an open invitation, two relatives the tree holds addresses for, and four who must
-  // never be written to: a deceased relative, a revoked invitation, an accepted one and a stale
-  // one. Also an address with both an account and a still-open invitation, which belongs to
-  // accounts alone: it proves the invited-excludes-accounts guard, not just its absence.
+  // An account, an open invitation, two relatives the tree holds addresses for, and five who must
+  // never be written to: a deceased relative, a revoked invitation, an accepted one, a stale one
+  // and a disabled account. Also an address with both an account and a still-open invitation, which
+  // belongs to accounts alone: it proves the invited-excludes-accounts guard, not just its absence.
+  // The revoked invitation and the disabled account both carry a person row, as they do in the real
+  // archive, so "others" has to turn them away rather than never seeing them.
   async function cast() {
     await seedAccount(env, { id: "a2", email: "kin@x.org" });
     await seedAccount(env, { id: "a5", email: "both@x.org" });
@@ -128,6 +131,10 @@ describe("who it reaches", () => {
     await seedPerson(env, { id: "p2", first_name: "Jan", email: "JAN@x.org" });
     await seedPerson(env, { id: "p3", first_name: "Zofia", email: "zofia@x.org", deceased: 1 });
     await seedPerson(env, { id: "p4", first_name: "Kin", email: "kin@x.org" });          // the person behind the account
+    await seedPerson(env, { id: "p5", first_name: "Gone", email: "gone@x.org" });        // the tree still holds the revoked address
+    await seedAccount(env, { id: "a6", email: "off@x.org" });
+    await env.DB.prepare("UPDATE accounts SET disabled_at = 2 WHERE id = 'a6'").run();
+    await seedPerson(env, { id: "p6", first_name: "Off", email: "off@x.org" });          // and the disabled account's
   }
   const send = (c, groups) => c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd", body: "x", groups } });
 
@@ -163,6 +170,42 @@ describe("who it reaches", () => {
     expect(line("asked@x.org")).toBe("Hello,");                         // the invitation says en
     expect(line("kin@x.org")).toBe("Cześć,");                           // the account says pl
     expect(line("maria@x.org")).toBe("Cześć,");                         // a person row has no language
+  });
+
+  it("never writes to an address that was shut out, and never invites it back", async () => {
+    const c = await adminWithFreshPasskey();
+    await cast();
+    // Neither the revoked invitation nor the disabled account is in any group, person row or not.
+    expect((await c.json("/api/admin/broadcasts")).body.counts).toEqual({ accounts: 3, invited: 1, others: 2 });
+
+    expect((await send(c, ["accounts", "invited", "others"])).body.sent).toBe(6);
+    expect(to()).not.toContain("gone@x.org");
+    expect(to()).not.toContain("off@x.org");
+    const back = await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email IN ('gone@x.org', 'off@x.org') AND revoked_at IS NULL").first();
+    expect(back).toEqual({ n: 0 });                                     // no letter quietly handed the door back
+  });
+
+  it("takes the newest invitation as the last word, so a revoked one that was re-issued counts", async () => {
+    const c = await adminWithFreshPasskey();
+    await q.insertInvitation(env.DB, { id: "r1", email: "back@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await env.DB.prepare("UPDATE invitations SET revoked_at = 2 WHERE id = 'r1'").run();
+    await q.insertInvitation(env.DB, { id: "r2", email: "back@x.org", lang: "pl", invitedBy: "adm", createdAt: 3, expiresAt: 4_000_000_000 }).run();
+    expect((await send(c, ["invited"])).body.sent).toBe(1);
+    expect(to()).toEqual(["back@x.org"]);
+  });
+
+  it("does not invite anybody whose letter never left, so sending again still reaches them", async () => {
+    const c = await adminWithFreshPasskey();
+    await seedPerson(env, { id: "p1", first_name: "Maria", email: "maria@x.org" });
+    const real = env.EMAIL.send;
+    env.EMAIL.send = async (msg) => { if (msg.to === "maria@x.org") throw new Error("mailbox full"); return real(msg); };
+    expect((await send(c, ["others"])).body.sent).toBe(0);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email = 'maria@x.org'").first()).toEqual({ n: 0 });
+
+    env.EMAIL.send = real;
+    expect((await send(c, ["others"])).body.sent).toBe(1);              // still an "other", so the retry finds her
+    expect(to()).toEqual(["maria@x.org"]);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email = 'maria@x.org'").first()).toEqual({ n: 1 });
   });
 
   it("carries in anybody who could not otherwise get in, and does not invite them twice", async () => {

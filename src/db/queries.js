@@ -270,3 +270,13 @@ export const accountsWithEmail = (db) =>
   db.prepare("SELECT id, email, lang FROM accounts WHERE disabled_at IS NULL AND email IS NOT NULL AND email != ''");
 export const openInvitationEmails = (db, now) =>
   db.prepare("SELECT email, lang FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > ?").bind(now);
+// Addresses whose way in was taken away on purpose: a disabled account, or an invitation revoked
+// with nothing issued since. Disabling and revoking are the only levers an admin has to shut a
+// door, and a letter must neither knock on it nor hand out a fresh key, so these are subtracted
+// from the groups above. A revoked row sharing its second with a newer one still counts as shut:
+// if the order cannot be told, silence is the safe way to be wrong.
+export const withdrawnEmails = (db) =>
+  db.prepare(`SELECT email FROM accounts WHERE disabled_at IS NOT NULL AND email IS NOT NULL AND email != ''
+              UNION
+              SELECT email FROM invitations i WHERE i.revoked_at IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM invitations j WHERE j.email = i.email AND j.created_at > i.created_at)`);
