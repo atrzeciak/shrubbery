@@ -108,3 +108,64 @@ describe("sending", () => {
     expect((await env.DB.prepare("SELECT sent_count FROM broadcasts").first()).sent_count).toBe(1);
   });
 });
+
+describe("who it reaches", () => {
+  // An account, an open invitation, two relatives the tree holds addresses for, and four who must
+  // never be written to: a deceased relative, a revoked invitation, an accepted one and a stale one.
+  async function cast() {
+    await seedAccount(env, { id: "a2", email: "kin@x.org" });
+    await q.insertInvitation(env.DB, { id: "i1", email: "asked@x.org", lang: "en", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await q.insertInvitation(env.DB, { id: "i2", email: "gone@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await env.DB.prepare("UPDATE invitations SET revoked_at = 2 WHERE id = 'i2'").run();
+    await q.insertInvitation(env.DB, { id: "i3", email: "joined@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await env.DB.prepare("UPDATE invitations SET accepted_at = 2 WHERE id = 'i3'").run();
+    await q.insertInvitation(env.DB, { id: "i4", email: "stale@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 2 }).run();
+    await seedPerson(env, { id: "p1", first_name: "Maria", email: "maria@x.org" });
+    await seedPerson(env, { id: "p2", first_name: "Jan", email: "JAN@x.org" });
+    await seedPerson(env, { id: "p3", first_name: "Zofia", email: "zofia@x.org", deceased: 1 });
+    await seedPerson(env, { id: "p4", first_name: "Kin", email: "kin@x.org" });          // the person behind the account
+  }
+  const send = (c, groups) => c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd", body: "x", groups } });
+
+  it("keeps the three groups apart, so nobody is written to twice", async () => {
+    const c = await adminWithFreshPasskey();
+    await cast();
+    expect((await send(c, ["accounts"])).body.sent).toBe(2);            // the admin and kin
+    expect(to()).toEqual(["adm@x.org", "kin@x.org"]);
+
+    sent.length = 0;
+    expect((await send(c, ["invited"])).body.sent).toBe(1);             // asked@x.org alone
+    expect(to()).toEqual(["asked@x.org"]);
+
+    sent.length = 0;
+    expect((await send(c, ["others"])).body.sent).toBe(2);              // maria and jan, not the deceased, not kin again
+    expect(to()).toEqual(["jan@x.org", "maria@x.org"]);                 // and the address is folded to lower case
+
+    sent.length = 0;
+    expect((await send(c, ["accounts", "invited", "others"])).body.sent).toBe(5);
+    expect(to()).toEqual(["adm@x.org", "asked@x.org", "jan@x.org", "kin@x.org", "maria@x.org"]);
+  });
+
+  it("writes in the language the site knows, and in Polish when it knows none", async () => {
+    const c = await adminWithFreshPasskey();
+    await cast();
+    await send(c, ["accounts", "invited", "others"]);
+    const line = (addr) => letters().find((m) => m.to === addr).text.split("\n")[0];
+    expect(line("asked@x.org")).toBe("Hello,");                         // the invitation says en
+    expect(line("kin@x.org")).toBe("Cześć,");                           // the account says pl
+    expect(line("maria@x.org")).toBe("Cześć,");                         // a person row has no language
+  });
+
+  it("carries in anybody who could not otherwise get in, and does not invite them twice", async () => {
+    const c = await adminWithFreshPasskey();
+    await cast();
+    await send(c, ["accounts", "invited", "others"]);
+    const { results } = await env.DB.prepare("SELECT email, invited_by FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > 4 ORDER BY email").all();
+    expect(results.map((r) => r.email)).toEqual(["asked@x.org", "jan@x.org", "maria@x.org"]);
+    expect(results.find((r) => r.email === "maria@x.org").invited_by).toBe("adm");
+
+    // sending again adds no second invitation for the same people
+    await send(c, ["others"]);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email = 'maria@x.org'").first()).toEqual({ n: 1 });
+  });
+});
