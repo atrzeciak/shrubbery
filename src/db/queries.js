@@ -258,3 +258,14 @@ export const markAnnounced = (db, id, at) => db.prepare("UPDATE gatherings SET a
 export const markNudged = (db, id, at) => db.prepare("UPDATE gatherings SET nudged_at = ? WHERE id = ?").bind(at, id);
 export const nextGathering = (db, today) =>
   db.prepare("SELECT * FROM gatherings WHERE on_date >= ? AND cancelled_at IS NULL ORDER BY on_date LIMIT 1").bind(today);
+
+// broadcasts
+export const insertBroadcast = (db, b) =>
+  db.prepare("INSERT INTO broadcasts (id, subject, body, groups, attachment_media_id, sent_by, sent_at, sent_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(b.id, b.subject, b.body, b.groups, b.attachmentMediaId ?? null, b.sentBy, b.sentAt, b.sentCount);
+export const listBroadcasts = (db) => db.prepare("SELECT * FROM broadcasts ORDER BY sent_at DESC");
+// Who a letter can reach: every account still in use, and every invitation still open.
+export const accountsWithEmail = (db) =>
+  db.prepare("SELECT id, email, lang FROM accounts WHERE disabled_at IS NULL AND email IS NOT NULL AND email != ''");
+export const openInvitationEmails = (db, now) =>
+  db.prepare("SELECT email, lang FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > ?").bind(now);

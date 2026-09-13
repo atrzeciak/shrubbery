@@ -11,10 +11,11 @@ import { routes as mediaRoutes } from "./api/media.js";
 import { routes as backupRoutes } from "./api/backup.js";
 import { routes as healthRoutes } from "./api/health.js";
 import { routes as gatheringRoutes } from "./api/gatherings.js";
+import { routes as broadcastRoutes } from "./api/broadcasts.js";
 import { gatheringReminders, runDaily } from "./events/cron.js";
 import { runOps } from "./ops/daily.js";
 
-export const API = [...authRoutes, ...meRoutes, ...peopleRoutes, ...adminRoutes, ...adminPeopleRoutes, ...newsRoutes, ...joinRoutes, ...mediaRoutes, ...backupRoutes, ...healthRoutes, ...gatheringRoutes];
+export const API = [...authRoutes, ...meRoutes, ...peopleRoutes, ...adminRoutes, ...adminPeopleRoutes, ...newsRoutes, ...joinRoutes, ...mediaRoutes, ...backupRoutes, ...healthRoutes, ...gatheringRoutes, ...broadcastRoutes];
 
 export async function handleApi(request, env, ctx) {
   const url = new URL(request.url);

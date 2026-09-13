@@ -460,3 +460,23 @@ export async function sendGatheringMail(env, to, lang, gathering, kind, signatur
   const { subject, text } = (GATHERINGS[lang] || GATHERINGS.pl)(gathering, kind, signature || familyName(lang));
   await env.EMAIL.send({ to, from: { email: familyFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
 }
+
+// A letter to the whole family, written by an admin. The subject and the body are theirs; only the
+// greeting and the closing line belong to the site, so they are the only part that has a language.
+const BROADCASTS = {
+  pl: (body, signature) => ["Cześć,", "", body, "", "—", signature, "{app}"].join("\n"),
+  en: (body, signature) => ["Hello,", "", body, "", "—", signature, "{app}"].join("\n"),
+};
+
+// inviter: { name, email } of the admin writing; their name signs it and replies go to them.
+// attachment: { filename, content, type } — one document from the archive, or null.
+export async function sendBroadcast(env, to, lang, message, inviter = null, attachment = null) {
+  const name = inviter?.name || familyName(lang);
+  const text = (BROADCASTS[lang] || BROADCASTS.pl)(message.body, name);
+  await env.EMAIL.send({
+    to, from: { email: familyFrom(env), name },
+    subject: fill(env, message.subject), text: fill(env, text),
+    ...(inviter?.email ? { replyTo: inviter.email } : {}),
+    ...(attachment ? { attachments: [{ ...attachment, disposition: "attachment" }] } : {}),
+  });
+}
