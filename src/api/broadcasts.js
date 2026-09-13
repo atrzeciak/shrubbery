@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { ApiError, accountIdentity, readJson, requireAdmin, requireSession } from "./common.js";
+import { ApiError, accountIdentity, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
 import { documentAttachment } from "./attachment.js";
 import { hashIp, historyStmt } from "../history.js";
 import { sendBroadcast } from "../mail.js";
@@ -37,6 +37,18 @@ async function groupsOf(env, now) {
     if (k && !out.accounts.has(k) && !out.invited.has(k)) out.others.set(k, { email: k, lang: "pl" });
   }
   return out;
+}
+
+// Reading the record is administrative rather than destructive, so the admin role is enough here.
+async function listSent(request, env) {
+  const ctx = await requireSession(request, env);
+  requireRole(ctx, "admin");
+  const { results } = await q.listBroadcasts(env.DB).all();
+  const picked = await groupsOf(env, nowSec());
+  return json({
+    broadcasts: results.map((b) => ({ ...b, groups: JSON.parse(b.groups) })),
+    counts: { accounts: picked.accounts.size, invited: picked.invited.size, others: picked.others.size },
+  });
 }
 
 async function sendMessage(request, env) {
@@ -87,5 +99,6 @@ async function sendMessage(request, env) {
 }
 
 export const routes = [
+  ["GET", /^\/api\/admin\/broadcasts$/, listSent],
   ["POST", /^\/api\/admin\/broadcasts$/, sendMessage],
 ];

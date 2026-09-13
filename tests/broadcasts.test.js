@@ -178,3 +178,32 @@ describe("who it reaches", () => {
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email = 'maria@x.org'").first()).toEqual({ n: 1 });
   });
 });
+
+describe("the record", () => {
+  it("lists what was sent, newest first, with the counts the form needs", async () => {
+    const c = await adminWithFreshPasskey();
+    await seedAccount(env, { id: "a2", email: "kin@x.org" });
+    await q.insertInvitation(env.DB, { id: "i1", email: "asked@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await seedPerson(env, { id: "p1", first_name: "Maria", email: "maria@x.org" });
+
+    const empty = await c.json("/api/admin/broadcasts");
+    expect(empty.status).toBe(200);
+    expect(empty.body.broadcasts).toEqual([]);
+    expect(empty.body.counts).toEqual({ accounts: 2, invited: 1, others: 1 });
+
+    await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Pierwszy", body: "a", groups: ["accounts"] } });
+    await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Drugi", body: "b", groups: ["accounts", "others"] } });
+    const r = await c.json("/api/admin/broadcasts");
+    expect(r.body.broadcasts.map((b) => b.subject)).toEqual(["Drugi", "Pierwszy"]);
+    expect(r.body.broadcasts[0]).toMatchObject({ body: "b", groups: ["accounts", "others"], sent_count: 3, attachment_media_id: null });
+    // maria was carried in by the second letter, so she counts as invited now, not as an "other"
+    expect(r.body.counts).toEqual({ accounts: 2, invited: 2, others: 0 });
+  });
+
+  it("is readable by an admin without a fresh passkey, and not by the family", async () => {
+    await seedAccount(env, { id: "f1", email: "f@x.org" });
+    await seedAccount(env, { id: "a9", email: "plain@x.org", role: "admin" });
+    expect((await (await login("f@x.org")).json("/api/admin/broadcasts")).status).toBe(403);
+    expect((await (await login("plain@x.org")).json("/api/admin/broadcasts")).status).toBe(200);
+  });
+});

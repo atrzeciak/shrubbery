@@ -45,7 +45,7 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 | News | `GET /news` |
 | Join | `POST /join/request`, `POST /join/confirm` |
 | Health | `GET /health` — public |
-| Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `backup.js`, `gatherings.js`); `GET /admin/documents` lists the PDFs an invitation may carry |
+| Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `backup.js`, `gatherings.js`); `GET /admin/documents` lists the PDFs an invitation may carry; `GET /admin/broadcasts` lists the letters already sent and the counts the compose form needs, `POST /admin/broadcasts` writes one to the chosen groups |
 
 `GET /api/me` carries `tz` alongside the account: the site's zone, so the browser works out
 "today" exactly as the cron does rather than from whatever zone the reader's laptop is in.
@@ -113,6 +113,7 @@ D1, migrations `0001`–`0011` in `src/db/migrations/`, append-only.
 | `history` | Append-only log; the news feed is a filtered view of it |
 | `ops_status` | One row: what the site last learned about its own survival |
 | `gatherings`, `rsvps` | The gathering, and one answer per **person** |
+| `broadcasts` | A letter sent to the family: subject and body, the groups it went to, the document it carried, who sent it and when, and how many it reached |
 
 Two decisions worth knowing:
 
