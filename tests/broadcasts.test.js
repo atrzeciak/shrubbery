@@ -96,6 +96,19 @@ describe("sending", () => {
     const bad = await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd", body: "x", groups: ["accounts"], attachment: "nope" } });
     expect(bad.body).toEqual({ error: "bad_attachment" });
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM broadcasts").first()).toEqual({ n: 1 });
+
+    // An attachment that is not an id at all is no attachment: the letter goes, nothing reaches D1.
+    const junk = await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd", body: "x", groups: ["accounts"], attachment: { a: 1 } } });
+    expect(junk.status).toBe(200);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM broadcasts WHERE attachment_media_id IS NULL").first()).toEqual({ n: 1 });
+  });
+
+  it("keeps the subject on one line, so it cannot open a header of its own", async () => {
+    const c = await adminWithFreshPasskey();
+    const r = await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd\r\nBcc: obcy@x.org", body: "x", groups: ["accounts"] } });
+    expect(r.status).toBe(200);
+    expect(sent.at(-1).subject).toBe("Zjazd Bcc: obcy@x.org");
+    expect((await env.DB.prepare("SELECT subject FROM broadcasts").first()).subject).toBe("Zjazd Bcc: obcy@x.org");
   });
 
   it("counts only what left when one mailbox refuses, and still records the message", async () => {

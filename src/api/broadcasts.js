@@ -9,6 +9,9 @@ const INVITE_TTL = 14 * 86400;
 const GROUPS = ["accounts", "invited", "others"];
 
 const text = (v, max) => String(v ?? "").trim().slice(0, max) || null;
+// The subject is handed to the mail provider as a header, where a bare CR or LF would end the line
+// and let whatever the admin typed next be read as headers of its own.
+const header = (v, max) => text(String(v ?? "").replace(/[\r\n]+/g, " "), max);
 const key = (email) => String(email ?? "").trim().toLowerCase();
 
 // Writing to the whole family is not a thing to do by accident, so it asks for a fresh passkey,
@@ -62,14 +65,15 @@ async function listSent(request, env) {
 async function sendMessage(request, env) {
   const { account } = await adminCtx(request, env);
   const body = await readJson(request);
-  const subject = text(body.subject, 200);
+  const subject = header(body.subject, 200);
   const message = text(body.body, 5000);
   const groups = Array.isArray(body.groups) ? GROUPS.filter((g) => body.groups.includes(g)) : [];
   if (!subject || !message || !groups.length) throw new ApiError(400, "bad_request");
   const now = nowSec();
+  const attachmentMediaId = typeof body.attachment === "string" && body.attachment ? body.attachment : null;
   // Read the document before anything is mailed: a bad choice is the admin's mistake, not a
   // half-sent letter.
-  const attachment = await documentAttachment(env, body.attachment || null, true);
+  const attachment = await documentAttachment(env, attachmentMediaId, true);
   const picked = await groupsOf(env, now);
   const to = groups.flatMap((g) => [...picked[g].values()]);
   if (!to.length) throw new ApiError(400, "bad_request");
@@ -98,7 +102,7 @@ async function sendMessage(request, env) {
   await env.DB.batch([
     q.insertBroadcast(env.DB, {
       id, subject, body: message, groups: JSON.stringify(groups),
-      attachmentMediaId: body.attachment || null, sentBy: account.id, sentAt: now, sentCount: sent,
+      attachmentMediaId, sentBy: account.id, sentAt: now, sentCount: sent,
     }),
     historyStmt(env.DB, {
       actor: account.id, action: "broadcast_sent", targetType: "broadcast", targetId: id,
