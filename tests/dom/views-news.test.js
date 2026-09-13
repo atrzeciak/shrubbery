@@ -38,6 +38,8 @@ describe("sentence", () => {
     expect(sentence({ action: "login", actor_email: "a@x.org", actor_name: "Anna", details: {} })).toBe("a@x.org (Anna) zalogował(a) się");
     expect(sentence({ action: "login", actor_email: "a@x.org" })).toBe("a@x.org zalogował(a) się");
     expect(sentence({ action: "moon_landing", target_id: "t1" })).toBe("—: moon_landing");
+    // A letter to the family has a line of its own; its target id is no address to put in one.
+    expect(sentence({ action: "broadcast_sent", actor_email: "a@x.org", target_id: "b1", details: { subject: "Zjazd" } })).toBe("a@x.org napisał(a) do rodziny");
   });
   it("links the actor and the person when there is a person to link to", () => {
     const text = (nodes) => nodes.map((n) => n.textContent).join("");

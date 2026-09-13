@@ -188,6 +188,7 @@
   "news.invite_sent": "{actor} invited {email}",
   "news.invite_resent": "{actor} re-sent the invitation to {email}",
   "news.invite_revoked": "{actor} revoked the invitation for {email}",
+  "news.broadcast_sent": "{actor} wrote to the family",
   "news.role_changed": "{actor} changed {email}'s role to {role}",
   "news.account_disabled": "{actor} disabled the account {email}",
   "news.account_enabled": "{actor} enabled the account {email}",

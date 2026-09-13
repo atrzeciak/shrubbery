@@ -98,7 +98,7 @@ repeated run mails nobody twice.
 
 ## 6. Data model
 
-D1, migrations `0001`–`0011` in `src/db/migrations/`, append-only.
+D1, migrations `0001`–`0012` in `src/db/migrations/`, append-only.
 
 | Table | Holds |
 | ----- | ----- |
