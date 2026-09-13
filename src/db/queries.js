@@ -197,6 +197,13 @@ export const setMediaOwner = (db, id, personId) => db.prepare("UPDATE media SET 
 export const setMediaThumb = (db, id) => db.prepare("UPDATE media SET has_thumb = 1 WHERE id = ?").bind(id);
 export const deleteMedia = (db, id) => db.prepare("DELETE FROM media WHERE id = ?").bind(id);
 export const deleteMediaTags = (db, mediaId) => db.prepare("DELETE FROM media_people WHERE media_id = ?").bind(mediaId);
+// A letter that carried this document keeps its own record; the document is going, so the pointer
+// to it goes too, and a re-send simply goes without the file. Without this the reference holds the
+// row and the delete fails.
+export const clearInvitationAttachment = (db, mediaId) =>
+  db.prepare("UPDATE invitations SET attachment_media_id = NULL WHERE attachment_media_id = ?").bind(mediaId);
+export const clearBroadcastAttachment = (db, mediaId) =>
+  db.prepare("UPDATE broadcasts SET attachment_media_id = NULL WHERE attachment_media_id = ?").bind(mediaId);
 // Every listed file's tags in one query: the listing used to run one per file.
 export const tagsForMediaMany = (db, ids) =>
   db.prepare(`SELECT media_id, person_id FROM media_people WHERE media_id IN (${ids.map(() => "?").join(", ")})`).bind(...ids);

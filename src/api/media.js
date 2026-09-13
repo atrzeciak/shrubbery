@@ -151,13 +151,17 @@ async function deleteMediaRoute(request, env, ctx, m) {
   const media = await mediaOr404(env, m[1]);
   if (!canTouch(account, media)) throw new ApiError(403, "forbidden");
   const owner = await q.personById(env.DB, media.owner_person_id).first();
-  await env.MEDIA.delete([keyFor(media), `media/${media.id}.thumb.jpg`]);
   const now = nowSec();
   await env.DB.batch([
+    q.clearInvitationAttachment(env.DB, media.id),
+    q.clearBroadcastAttachment(env.DB, media.id),
     q.deleteMediaTags(env.DB, media.id),
     q.deleteMedia(env.DB, media.id),
     await personHistory(request, env, account.id, "media_removed", media.owner_person_id, { kind: media.kind, caption: media.caption, name: owner ? owner.display_name : "" }, now),
   ]);
+  // Only once the row is gone. The other way round, a batch that fails leaves the archive listing
+  // a file whose bytes it has already destroyed, and no way to try again.
+  await env.MEDIA.delete([keyFor(media), `media/${media.id}.thumb.jpg`]);
   return json({ ok: true });
 }
 

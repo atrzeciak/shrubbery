@@ -107,3 +107,49 @@ describe("delete + news", () => {
     expect(news).not.toContain("media_removed");
   });
 });
+
+describe("deleting a document a letter carried", () => {
+  // A document attached to an invitation is still pointed at by that invitation, and the
+  // published tree is replaced every few days, so this is the ordinary case rather than a corner.
+  async function published(c, id, caption) {
+    const pdf = new Uint8Array([37, 80, 68, 70, 45, 49]);
+    await env.MEDIA.put(`media/${id}.pdf`, pdf, { httpMetadata: { contentType: "application/pdf" } });
+    await q.insertMedia(env.DB, { id, ownerPersonId: "p1", kind: "document", caption, year: 2026, contentType: "application/pdf", size: pdf.length, uploadedBy: "adm", createdAt: 1 }).run();
+  }
+
+  it("lets the old copy go, and leaves the letters that carried it standing", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await seedPerson(env, { id: "p1", first_name: "Doc", last_name: "Owner" });
+    await published(c, "old", "Drzewo — 30.08");
+    expect((await c.json("/api/admin/invitations", { method: "POST", body: { email: "kin@x.org", lang: "pl", attachment: "old" } })).status).toBe(201);
+    await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Drzewo", body: "W załączniku.", groups: ["accounts"], attachment: "old" } });
+
+    expect((await c.json("/api/media/old", { method: "DELETE" })).status).toBe(200);
+    expect((await c.json("/api/admin/documents")).body.documents).toHaveLength(0);
+    // the invitation still stands and can still be re-sent; it simply goes without the document
+    const inv = (await c.json("/api/admin/invitations")).body.invitations;
+    expect(inv).toHaveLength(1);
+    expect(inv[0].attachment_media_id).toBeNull();
+    expect((await c.json(`/api/admin/invitations/${inv[0].id}/resend`, { method: "POST", body: {} })).status).toBe(200);
+    expect(sent[sent.length - 1].attachments).toBeUndefined();
+    // and the record of the letter that went out is untouched but for the document it named
+    const row = await env.DB.prepare("SELECT subject, attachment_media_id FROM broadcasts").first();
+    expect(row).toEqual({ subject: "Drzewo", attachment_media_id: null });
+  });
+
+  it("keeps the file when the database refuses, so a failure never destroys it", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await seedPerson(env, { id: "p1", first_name: "Doc", last_name: "Owner" });
+    await published(c, "doc", "Drzewo");
+    const batch = env.DB.batch.bind(env.DB);
+    env.DB.batch = async () => { throw new Error("constraint"); };
+    try {
+      expect((await c.json("/api/media/doc", { method: "DELETE" })).status).toBe(500);
+    } finally { env.DB.batch = batch; }
+    // the bytes are still there, so the same delete can be tried again once the cause is fixed
+    expect(await env.MEDIA.get("media/doc.pdf")).not.toBeNull();
+    expect((await c.json("/api/admin/documents")).body.documents).toHaveLength(1);
+    expect((await c.json("/api/media/doc", { method: "DELETE" })).status).toBe(200);
+    expect(await env.MEDIA.get("media/doc.pdf")).toBeNull();
+  });
+});
