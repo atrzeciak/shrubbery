@@ -37,10 +37,9 @@ const $ = (id) => document.getElementById(id);
 const main = $("main"), side = $("side"), backdrop = $("backdrop"), menuBtn = $("menu-btn"), userBtn = $("user-btn"), toastEl = $("toast");
 
 // A tab left open for days keeps running the modules it loaded that day. The deploy stamps
-// version.json, so when the reader comes back to the tab we look once and offer them the new one
-// rather than reloading under their hands: they may be halfway through writing something.
-const VERSION_EVERY = 5 * 60 * 1000;
-let booted = null, lookedAt = 0;
+// version.json, so coming back to the tab is when we look, and we offer the new one rather than
+// reloading under their hands: they may be halfway through writing something.
+let booted = null;
 async function versionNow() {
   try {
     const res = await fetch("/app/version.json", { cache: "no-cache" });
@@ -48,20 +47,39 @@ async function versionNow() {
   } catch { return null; }                       // offline, or the dev server has no stamp
 }
 async function checkVersion() {
-  const now = Date.now();
-  if (document.hidden || now - lookedAt < VERSION_EVERY) return;
-  lookedAt = now;
+  if (document.hidden) return;
   const version = await versionNow();
   if (booted === null) { booted = version; return; }
   if (version === null || version === booted) return;
+  offerReload(t("newer.title"));
+}
+
+// One bar, for the two reasons the page can be behind: the site itself has moved on, or the page
+// could not be redrawn because the reader was in the middle of something.
+function offerReload(message) {
   const bar = $("newer");
   if (!bar.hidden) return;
   const reload = h("button", { class: "btn", type: "button", text: t("newer.reload") });
   reload.onclick = () => location.reload();
-  bar.replaceChildren(h("span", { text: t("newer.title") }), reload);
+  bar.replaceChildren(h("span", { text: message }), reload);
   bar.hidden = false;
 }
-document.addEventListener("visibilitychange", checkVersion);
+
+// A page shows what it drew when the reader was last here; coming back to the tab is the moment to
+// draw it again, so a tree left open all day catches up with whoever has been editing it. Not
+// while a card is open or somebody is typing: a redraw would throw away what they were doing.
+const busy = () => document.body.classList.contains("sheet-open")
+  || !!(document.activeElement && (document.activeElement.matches("input, textarea, select") || document.activeElement.isContentEditable));
+
+async function onReturn() {
+  if (document.hidden) return;
+  await checkVersion();
+  // Mid-card or mid-sentence, redrawing would take the page out from under them, so the choice
+  // goes to the reader instead.
+  if (busy()) { offerReload(t("stale.title")); return; }
+  await render({ restore: true });
+}
+document.addEventListener("visibilitychange", onReturn);
 
 // Every button that writes something ends in one of these: what happened, and whether it worked.
 let toastTimer;

@@ -313,19 +313,63 @@ describe("passkeys", () => {
   });
 });
 
+describe("coming back to the tab", () => {
+  // The members table is drawn from /api/people, so changing what that answers and returning to
+  // the tab is the whole question: does the page catch up with whoever has been editing it.
+  let people;
+  const routes = () => ({ "GET /api/people": () => ({ people }), "GET /app/version.json": { version: "v1", at: 1 } });
+  const names = () => qa("#main tbody tr td span span").map((el) => el.firstChild.textContent);
+  const returnToTab = async () => { document.dispatchEvent(new Event("visibilitychange")); await tick(); await tick(); };
+
+  beforeEach(() => { people = [{ id: "p1", display_name: "Anna Nowak", first_name: "Anna", last_name: "Nowak" }]; });
+
+  it("draws the page again, so an edit made elsewhere shows up", async () => {
+    await boot({ path: "/app/members", routes: routes() });
+    await until(() => names().length === 1);
+    people = [...people, { id: "p2", display_name: "Jan Nowak", first_name: "Jan", last_name: "Nowak" }];
+    await returnToTab();
+    await until(() => names().length === 2);
+    expect(names()).toEqual(["Anna Nowak", "Jan Nowak"]);
+  });
+
+  it("offers a reload instead of redrawing while a card is open or somebody is typing", async () => {
+    const { calls } = await boot({ path: "/app/members", routes: { ...routes(), "GET /api/people/p1/media": { media: [], counts: {} } } });
+    await until(() => names().length === 1);
+    const asked = () => calls.filter((c) => c.path === "/api/people").length;
+    const before = asked();
+
+    q("#main tbody tr").click();                        // the person card is open over the table
+    await tick();
+    expect(q(".sheet")).not.toBeNull();
+    await returnToTab();
+    expect(asked()).toBe(before);
+    expect(q("#newer").hidden).toBe(false);
+    expect(q("#newer span").textContent).toBe(pl["stale.title"]);
+
+    q(".sheet-close").click();
+    await tick();
+    q("#members-q").focus();                            // and now somebody is typing in the search
+    await returnToTab();
+    expect(asked()).toBe(before);
+
+    q("#members-q").blur();
+    await returnToTab();
+    await until(() => asked() === before + 1);
+    expect(asked()).toBe(before + 1);
+  });
+});
+
 describe("a newer version", () => {
   // The bar only appears on a later look, so each test boots on one version and serves another.
   const look = async (version) => {
     served = version;
-    vi.setSystemTime(Date.now() + 6 * 60 * 1000);      // past the throttle
     document.dispatchEvent(new Event("visibilitychange"));
     await until(() => !q("#newer").hidden);
   };
   let served;
-  const routes = () => ({ "GET /app/version.json": () => ({ version: served, at: 1 }) });
+  const routes = () => ({ "GET /app/version.json": () => ({ version: served, at: 1 }), "GET /api/people": { people: [] } });
 
-  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); served = "v1"; });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => { served = "v1"; });
 
   it("offers a reload when the deployed version has moved on", async () => {
     await boot({ routes: routes() });
@@ -341,14 +385,10 @@ describe("a newer version", () => {
     expect(reload).toHaveBeenCalled();
   });
 
-  it("says nothing while the version stands, and does not ask twice within five minutes", async () => {
+  it("says nothing while the version stands", async () => {
     const { calls } = await boot({ routes: routes() });
     const asked = () => calls.filter((c) => c.path === "/app/version.json").length;
     expect(asked()).toBe(1);
-    document.dispatchEvent(new Event("visibilitychange"));
-    await tick();
-    expect(asked()).toBe(1);                            // throttled
-    vi.setSystemTime(Date.now() + 6 * 60 * 1000);
     document.dispatchEvent(new Event("visibilitychange"));
     await until(() => asked() === 2);
     for (let i = 0; i < 10; i++) await tick();          // let the answer be read, then look
