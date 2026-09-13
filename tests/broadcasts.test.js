@@ -256,6 +256,18 @@ describe("the record", () => {
     expect(r.body.counts).toEqual({ accounts: 2, invited: 2, others: 0 });
   });
 
+  it("caps the list, so the tab cannot grow without end", async () => {
+    const c = await adminWithFreshPasskey();
+    const rows = [];
+    for (let i = 0; i < 205; i++) {
+      rows.push(q.insertBroadcast(env.DB, { id: `b${i}`, subject: "Zjazd", body: "x", groups: '["accounts"]', sentBy: "adm", sentAt: 1_000_000 + i, sentCount: 1 }));
+    }
+    await env.DB.batch(rows);
+    const r = await c.json("/api/admin/broadcasts");
+    expect(r.body.broadcasts).toHaveLength(200);
+    expect(r.body.broadcasts[0].id).toBe("b204");                       // and it is the newest that survive
+  });
+
   it("is readable by an admin without a fresh passkey, and not by the family", async () => {
     await seedAccount(env, { id: "f1", email: "f@x.org" });
     await seedAccount(env, { id: "a9", email: "plain@x.org", role: "admin" });

@@ -264,7 +264,7 @@ export const insertBroadcast = (db, b) =>
   db.prepare("INSERT INTO broadcasts (id, subject, body, groups, attachment_media_id, sent_by, sent_at, sent_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
     .bind(b.id, b.subject, b.body, b.groups, b.attachmentMediaId ?? null, b.sentBy, b.sentAt, b.sentCount);
 // Two letters can share a sent_at second; rowid breaks the tie so the newest write still sorts first.
-export const listBroadcasts = (db) => db.prepare("SELECT * FROM broadcasts ORDER BY sent_at DESC, rowid DESC");
+export const listBroadcasts = (db) => db.prepare("SELECT * FROM broadcasts ORDER BY sent_at DESC, rowid DESC LIMIT 200");
 // Who a letter can reach: every account still in use, and every invitation still open.
 export const accountsWithEmail = (db) =>
   db.prepare("SELECT id, email, lang FROM accounts WHERE disabled_at IS NULL AND email IS NOT NULL AND email != ''");
