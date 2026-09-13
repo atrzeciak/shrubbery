@@ -111,9 +111,13 @@ describe("sending", () => {
 
 describe("who it reaches", () => {
   // An account, an open invitation, two relatives the tree holds addresses for, and four who must
-  // never be written to: a deceased relative, a revoked invitation, an accepted one and a stale one.
+  // never be written to: a deceased relative, a revoked invitation, an accepted one and a stale
+  // one. Also an address with both an account and a still-open invitation, which belongs to
+  // accounts alone: it proves the invited-excludes-accounts guard, not just its absence.
   async function cast() {
     await seedAccount(env, { id: "a2", email: "kin@x.org" });
+    await seedAccount(env, { id: "a5", email: "both@x.org" });
+    await q.insertInvitation(env.DB, { id: "i0", email: "both@x.org", lang: "en", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
     await q.insertInvitation(env.DB, { id: "i1", email: "asked@x.org", lang: "en", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
     await q.insertInvitation(env.DB, { id: "i2", email: "gone@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
     await env.DB.prepare("UPDATE invitations SET revoked_at = 2 WHERE id = 'i2'").run();
@@ -130,20 +134,25 @@ describe("who it reaches", () => {
   it("keeps the three groups apart, so nobody is written to twice", async () => {
     const c = await adminWithFreshPasskey();
     await cast();
-    expect((await send(c, ["accounts"])).body.sent).toBe(2);            // the admin and kin
-    expect(to()).toEqual(["adm@x.org", "kin@x.org"]);
+    expect((await send(c, ["accounts"])).body.sent).toBe(3);            // the admin, kin, and both (account wins)
+    expect(to()).toEqual(["adm@x.org", "both@x.org", "kin@x.org"]);
 
     sent.length = 0;
-    expect((await send(c, ["invited"])).body.sent).toBe(1);             // asked@x.org alone
+    expect((await send(c, ["invited"])).body.sent).toBe(1);             // asked@x.org alone, not both@x.org
     expect(to()).toEqual(["asked@x.org"]);
+
+    // checked before "others" runs, so maria and jan have not yet been invited into this group
+    sent.length = 0;
+    expect((await send(c, ["accounts", "invited"])).body.sent).toBe(4); // both@x.org written exactly once
+    expect(to()).toEqual(["adm@x.org", "asked@x.org", "both@x.org", "kin@x.org"]);
 
     sent.length = 0;
     expect((await send(c, ["others"])).body.sent).toBe(2);              // maria and jan, not the deceased, not kin again
     expect(to()).toEqual(["jan@x.org", "maria@x.org"]);                 // and the address is folded to lower case
 
     sent.length = 0;
-    expect((await send(c, ["accounts", "invited", "others"])).body.sent).toBe(5);
-    expect(to()).toEqual(["adm@x.org", "asked@x.org", "jan@x.org", "kin@x.org", "maria@x.org"]);
+    expect((await send(c, ["accounts", "invited", "others"])).body.sent).toBe(6);
+    expect(to()).toEqual(["adm@x.org", "asked@x.org", "both@x.org", "jan@x.org", "kin@x.org", "maria@x.org"]);
   });
 
   it("writes in the language the site knows, and in Polish when it knows none", async () => {
@@ -161,7 +170,7 @@ describe("who it reaches", () => {
     await cast();
     await send(c, ["accounts", "invited", "others"]);
     const { results } = await env.DB.prepare("SELECT email, invited_by FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > 4 ORDER BY email").all();
-    expect(results.map((r) => r.email)).toEqual(["asked@x.org", "jan@x.org", "maria@x.org"]);
+    expect(results.map((r) => r.email)).toEqual(["asked@x.org", "both@x.org", "jan@x.org", "maria@x.org"]);
     expect(results.find((r) => r.email === "maria@x.org").invited_by).toBe("adm");
 
     // sending again adds no second invitation for the same people
