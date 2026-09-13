@@ -7,7 +7,7 @@ import { loadGraph } from "../people.js";
 import { openSheet, closeSheet } from "../sheet.js";
 
 let tab = "invitations";
-const TABS = ["invitations", "accounts", "history", "backup"];
+const TABS = ["invitations", "messages", "accounts", "history", "backup"];
 
 export async function render(root, ctx) {
   closeSheet();
@@ -82,6 +82,53 @@ const PANELS = {
       list.append(h("li", { class: "row" }, h("span", {}, h("strong", { text: inv.email }), " ", h("span", { class: "muted", text: meta })), resend, revoke));
     }
     panel.append(form, list);
+  },
+
+  async messages(panel, ctx, redraw) {
+    const run = act(ctx, redraw);
+    const { broadcasts, counts } = await api("/api/admin/broadcasts");
+    const { documents } = await api("/api/admin/documents");
+    const subject = h("input", { type: "text", id: "bc-subject", required: true, maxlength: "200", autocomplete: "off" });
+    const body = h("textarea", { id: "bc-body", required: true, rows: "8", maxlength: "5000" });
+    const boxes = ["accounts", "invited", "others"].map((group) => {
+      const input = h("input", { type: "checkbox" });
+      input.onchange = () => update();
+      return { group, input, label: h("label", { class: "check" }, input, h("span", { text: `${t(`admin.broadcast.to.${group}`)} (${counts[group]})` })) };
+    });
+    const attachment = h("select", { id: "bc-attachment" }, h("option", { value: "", text: t("admin.broadcast.attachment.none") }),
+      ...documents.map((d) => h("option", { value: d.id, text: `${d.caption || d.id}${d.year ? ` (${d.year})` : ""} · ${Math.round(d.size / 1024)} KB` })));
+    const send = h("button", { class: "btn", type: "submit", text: t("admin.broadcast.send") });
+    const chosen = () => boxes.filter((b) => b.input.checked);
+    const total = () => chosen().reduce((n, b) => n + counts[b.group], 0);
+    // The button carries the number it will reach, so nobody writes to the family by reflex.
+    const update = () => {
+      send.disabled = !chosen().length;
+      send.textContent = chosen().length ? t("admin.broadcast.send.n", { n: total() }) : t("admin.broadcast.send");
+    };
+    update();
+    const form = h("form", { class: "card" },
+      h("label", { for: "bc-subject", text: t("admin.broadcast.subject") }), subject,
+      h("label", { for: "bc-body", text: t("admin.broadcast.body") }), body,
+      h("p", { class: "muted", text: t("admin.broadcast.to") }), ...boxes.map((b) => b.label),
+      h("label", { for: "bc-attachment", text: t("admin.broadcast.attachment") }), attachment,
+      h("div", { class: "row" }, send));
+    form.onsubmit = (ev) => {
+      ev.preventDefault();
+      if (!confirm(t("admin.broadcast.confirm", { n: total() }))) return;
+      run(() => api("/api/admin/broadcasts", {
+        method: "POST",
+        body: { subject: subject.value, body: body.value, groups: chosen().map((b) => b.group), attachment: attachment.value || null },
+      }), t("admin.broadcast.sent"));
+    };
+    const list = h("ul", { class: "list card" });
+    if (!broadcasts.length) list.append(h("li", { class: "muted", text: t("admin.broadcast.empty") }));
+    for (const b of broadcasts) {
+      const meta = `${fmtDate(b.sent_at)} · ${t("admin.broadcast.count", { n: b.sent_count })}${b.attachment_media_id ? " · 📎" : ""}`;
+      list.append(h("li", {},
+        h("div", {}, h("strong", { text: b.subject }), " ", h("span", { class: "muted", text: meta })),
+        h("p", { class: "muted", text: b.body })));
+    }
+    panel.append(h("h2", { text: t("admin.tab.messages") }), form, list);
   },
 
   async accounts(panel, ctx, redraw) {

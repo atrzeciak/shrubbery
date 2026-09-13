@@ -21,6 +21,10 @@ const invitations = [
   { id: "i1", email: "new@x.org", lang: "pl", expires_at: 1e9, attachment_media_id: "d1" },
   { id: "i2", email: "other@x.org", lang: "en", expires_at: 1e9, attachment_media_id: null },
 ];
+const broadcasts = [
+  { id: "b1", subject: "Zjazd", body: "Do zobaczenia w lipcu.", groups: ["accounts"], attachment_media_id: "d1", sent_by: "acc1", sent_at: 1e9, sent_count: 12 },
+];
+const counts = { accounts: 6, invited: 2, others: 9 };
 const accounts = [
   { id: "acc1", email: "me@x.org", role: "admin", founder: 1, protected: 0, disabled_at: null, person_id: null, passkeys: 2, last_seen_at: 1e9 },
   { id: "acc2", email: "kasia@x.org", role: "family", founder: 0, protected: 0, disabled_at: null, person_id: "p3", passkeys: 1, last_seen_at: 1e9 },
@@ -35,6 +39,7 @@ const baseRoutes = () => ({
   "GET /api/admin/join-requests": { requests },
   "GET /api/admin/documents": { documents },
   "GET /api/admin/invitations": { invitations },
+  "GET /api/admin/broadcasts": { broadcasts, counts },
   "GET /api/admin/accounts": { accounts },
   "GET /api/admin/history": { items: [], next: null },
   "GET /api/admin/backup/check": { files: 3, media_bytes: 2_500_000, backup_at: null, backup_failed_at: null },
@@ -436,5 +441,48 @@ describe("backup", () => {
     expect(ctx.toast).not.toHaveBeenCalled();
     expect(button.disabled).toBe(false);
     vi.useRealTimers();
+  });
+});
+
+// The literal strings the app writes to the family (confirmation prompt, group labels) are checked
+// in Polish here, since those are the words a sender will actually see and confirm before sending.
+describe("messages", () => {
+  beforeEach(async () => { await lang("pl"); });
+
+  it("offers the three groups with their counts, and will not send until one is ticked", async () => {
+    const { root } = await open("Wiadomości");
+    expect(qa("label.check span", root).map((s) => s.textContent)).toEqual(["Osoby z kontem (6)", "Zaproszeni (2)", "Pozostali z adresem (9)"]);
+    const send = byText("button", "Wyślij", root);
+    expect(send.disabled).toBe(true);
+    qa("label.check input", root)[0].click();
+    qa("label.check input", root)[2].click();
+    expect(send.disabled).toBe(false);
+    expect(send.textContent).toBe("Wyślij do 15");
+  });
+
+  it("sends what was typed, to the groups that were ticked, after asking", async () => {
+    const { root, calls } = await open("Wiadomości", { "POST /api/admin/broadcasts": { sent: 2, id: "b2" } });
+    q("#bc-subject", root).value = "Zjazd";
+    q("#bc-body", root).value = "Do zobaczenia w lipcu.";
+    q("#bc-attachment", root).value = "d1";
+    qa("label.check input", root)[1].click();
+    q("form", root).dispatchEvent(new Event("submit", { cancelable: true }));
+    await tick();
+    expect(confirm).toHaveBeenCalledWith("Wysłać wiadomość do 2 osób? Tego nie da się cofnąć.");
+    expect(calls.find((c) => c.method === "POST" && c.path === "/api/admin/broadcasts").body).toEqual({
+      subject: "Zjazd", body: "Do zobaczenia w lipcu.", groups: ["invited"], attachment: "d1",
+    });
+  });
+
+  it("shows what was sent, and says so when nothing has been", async () => {
+    const { root } = await open("Wiadomości");
+    const li = q("ul.list li", root);
+    expect(q("strong", li).textContent).toBe("Zjazd");
+    expect(li.textContent).toContain("12 odbiorców");
+    expect(li.textContent).toContain("📎");
+    expect(li.textContent).toContain("Do zobaczenia w lipcu.");
+
+    const { root: r2 } = await open("Wiadomości", { "GET /api/admin/broadcasts": { broadcasts: [], counts } });
+    expect(q("ul.list li", r2).textContent).toBe("Nic jeszcze nie wysłano.");
   });
 });
