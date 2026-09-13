@@ -466,6 +466,10 @@ describe("messages", () => {
     q("#bc-body", root).value = "Do zobaczenia w lipcu.";
     q("#bc-attachment", root).value = "d1";
     qa("label.check input", root)[1].click();
+    confirm.mockReturnValueOnce(false);
+    q("form", root).dispatchEvent(new Event("submit", { cancelable: true }));
+    await tick();
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
     q("form", root).dispatchEvent(new Event("submit", { cancelable: true }));
     await tick();
     expect(confirm).toHaveBeenCalledWith("Wysłać wiadomość do 2 osób? Tego nie da się cofnąć.");
