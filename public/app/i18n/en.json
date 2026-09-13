@@ -1,5 +1,7 @@
 {
   "app.title": "Our Roots",
+  "newer.title": "A newer version of the site is available.",
+  "newer.reload": "Reload",
   "app.brand": "Our Roots",
   "nav.news": "News",
   "nav.tree": "Tree",

@@ -36,6 +36,33 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 const $ = (id) => document.getElementById(id);
 const main = $("main"), side = $("side"), backdrop = $("backdrop"), menuBtn = $("menu-btn"), userBtn = $("user-btn"), toastEl = $("toast");
 
+// A tab left open for days keeps running the modules it loaded that day. The deploy stamps
+// version.json, so when the reader comes back to the tab we look once and offer them the new one
+// rather than reloading under their hands: they may be halfway through writing something.
+const VERSION_EVERY = 5 * 60 * 1000;
+let booted = null, lookedAt = 0;
+async function versionNow() {
+  try {
+    const res = await fetch("/app/version.json", { cache: "no-cache" });
+    return res.ok ? (await res.json()).version ?? null : null;
+  } catch { return null; }                       // offline, or the dev server has no stamp
+}
+async function checkVersion() {
+  const now = Date.now();
+  if (document.hidden || now - lookedAt < VERSION_EVERY) return;
+  lookedAt = now;
+  const version = await versionNow();
+  if (booted === null) { booted = version; return; }
+  if (version === null || version === booted) return;
+  const bar = $("newer");
+  if (!bar.hidden) return;
+  const reload = h("button", { class: "btn", type: "button", text: t("newer.reload") });
+  reload.onclick = () => location.reload();
+  bar.replaceChildren(h("span", { text: t("newer.title") }), reload);
+  bar.hidden = false;
+}
+document.addEventListener("visibilitychange", checkVersion);
+
 // Every button that writes something ends in one of these: what happened, and whether it worked.
 let toastTimer;
 export function toast(msg, kind = "ok") {
@@ -201,4 +228,5 @@ onStepUp(async () => {
   await refreshMe();
   document.title = t("app.title");
   render();
+  await checkVersion();
 })();

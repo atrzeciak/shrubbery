@@ -1,5 +1,7 @@
 {
   "app.title": "Nasze Korzenie",
+  "newer.title": "Jest nowsza wersja strony.",
+  "newer.reload": "Odśwież",
   "app.brand": "Nasze Korzenie",
   "nav.news": "Aktualności",
   "nav.tree": "Drzewo",

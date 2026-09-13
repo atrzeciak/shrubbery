@@ -79,6 +79,8 @@ ul.list li:last-child { border-bottom: 0; }
 .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: .6rem 1rem; border-radius: 999px; z-index: 5; max-width: 90vw; }
 .toast::before { margin-right: .5em; font-weight: bold; }
+.newer { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); display: flex; align-items: center; gap: .75rem; background: var(--card); color: var(--fg); border: 1px solid var(--line); padding: .6rem .75rem .6rem 1rem; border-radius: 999px; z-index: 5; max-width: 90vw; box-shadow: 0 2px 16px rgba(0,0,0,.25); }
+.newer .btn { padding: .35rem 1rem; }
 .toast.ok::before { content: "✓"; }
 .toast.error { background: var(--danger); }
 .toast.error::before { content: "✕"; }

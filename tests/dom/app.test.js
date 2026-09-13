@@ -312,3 +312,46 @@ describe("passkeys", () => {
     expect(q("#toast").className).toBe("toast error");
   });
 });
+
+describe("a newer version", () => {
+  // The bar only appears on a later look, so each test boots on one version and serves another.
+  const look = async (version) => {
+    served = version;
+    vi.setSystemTime(Date.now() + 6 * 60 * 1000);      // past the throttle
+    document.dispatchEvent(new Event("visibilitychange"));
+    await until(() => !q("#newer").hidden);
+  };
+  let served;
+  const routes = () => ({ "GET /app/version.json": () => ({ version: served, at: 1 }) });
+
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); served = "v1"; });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("offers a reload when the deployed version has moved on", async () => {
+    await boot({ routes: routes() });
+    expect(q("#newer").hidden).toBe(true);
+    await look("v2");
+    expect(q("#newer").hidden).toBe(false);
+    expect(q("#newer span").textContent).toBe(pl["newer.title"]);
+    const button = q("#newer button");
+    expect(button.textContent).toBe(pl["newer.reload"]);
+    const reload = vi.fn();
+    Object.defineProperty(window.location, "reload", { value: reload, configurable: true });
+    button.click();
+    expect(reload).toHaveBeenCalled();
+  });
+
+  it("says nothing while the version stands, and does not ask twice within five minutes", async () => {
+    const { calls } = await boot({ routes: routes() });
+    const asked = () => calls.filter((c) => c.path === "/app/version.json").length;
+    expect(asked()).toBe(1);
+    document.dispatchEvent(new Event("visibilitychange"));
+    await tick();
+    expect(asked()).toBe(1);                            // throttled
+    vi.setSystemTime(Date.now() + 6 * 60 * 1000);
+    document.dispatchEvent(new Event("visibilitychange"));
+    await until(() => asked() === 2);
+    for (let i = 0; i < 10; i++) await tick();          // let the answer be read, then look
+    expect(q("#newer").hidden).toBe(true);              // same version: nothing to say
+  });
+});
