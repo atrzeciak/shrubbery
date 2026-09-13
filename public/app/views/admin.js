@@ -112,13 +112,17 @@ const PANELS = {
       h("p", { class: "muted", text: t("admin.broadcast.to") }), ...boxes.map((b) => b.label),
       h("label", { for: "bc-attachment", text: t("admin.broadcast.attachment") }), attachment,
       h("div", { class: "row" }, send));
-    form.onsubmit = (ev) => {
+    form.onsubmit = async (ev) => {
       ev.preventDefault();
-      if (!confirm(t("admin.broadcast.confirm", { n: total() }))) return;
-      run(() => api("/api/admin/broadcasts", {
+      // The button is the in-flight flag: a hundred recipients take tens of seconds and none of it
+      // can be taken back, so a second submit while one letter is going must do nothing at all.
+      if (send.disabled || !confirm(t("admin.broadcast.confirm", { n: total() }))) return;
+      send.disabled = true;
+      await run(() => api("/api/admin/broadcasts", {
         method: "POST",
         body: { subject: subject.value, body: body.value, groups: chosen().map((b) => b.group), attachment: attachment.value || null },
       }), t("admin.broadcast.sent"));
+      update();   // a send that went through redrew the panel; a failed one gets its button back
     };
     const list = h("ul", { class: "list card" });
     if (!broadcasts.length) list.append(h("li", { class: "muted", text: t("admin.broadcast.empty") }));
@@ -126,7 +130,7 @@ const PANELS = {
       const meta = `${fmtDate(b.sent_at)} · ${t("admin.broadcast.count", { n: b.sent_count })}${b.attachment_media_id ? " · 📎" : ""}`;
       list.append(h("li", {},
         h("div", {}, h("strong", { text: b.subject }), " ", h("span", { class: "muted", text: meta })),
-        h("p", { class: "muted", text: b.body })));
+        h("p", { class: "muted prewrap", text: b.body })));
     }
     panel.append(h("h2", { text: t("admin.tab.messages") }), form, list);
   },

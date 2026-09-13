@@ -22,7 +22,7 @@ const invitations = [
   { id: "i2", email: "other@x.org", lang: "en", expires_at: 1e9, attachment_media_id: null },
 ];
 const broadcasts = [
-  { id: "b1", subject: "Zjazd", body: "Do zobaczenia w lipcu.", groups: ["accounts"], attachment_media_id: "d1", sent_by: "acc1", sent_at: 1e9, sent_count: 12 },
+  { id: "b1", subject: "Zjazd", body: "Do zobaczenia w lipcu.\n\nPozdrawiamy.", groups: ["accounts"], attachment_media_id: "d1", sent_by: "acc1", sent_at: 1e9, sent_count: 12 },
 ];
 const counts = { accounts: 6, invited: 2, others: 9 };
 const accounts = [
@@ -478,6 +478,38 @@ describe("messages", () => {
     });
   });
 
+  it("sends once however many times the button is pressed", async () => {
+    let release;
+    const inFlight = new Promise((r) => { release = r; });
+    const { root, calls } = await open("Wiadomości", { "POST /api/admin/broadcasts": async () => { await inFlight; return { sent: 2, id: "b2" }; } });
+    q("#bc-subject", root).value = "Zjazd";
+    q("#bc-body", root).value = "Do zobaczenia w lipcu.";
+    qa("label.check input", root)[1].click();
+    const send = byText("button", "Wyślij do 2", root);
+
+    q("form", root).dispatchEvent(new Event("submit", { cancelable: true }));
+    await tick();
+    expect(send.disabled).toBe(true);
+    q("form", root).dispatchEvent(new Event("submit", { cancelable: true }));   // an impatient second press
+    await tick();
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(1);
+    expect(confirm).toHaveBeenCalledTimes(1);
+
+    release();
+    await until(() => byText("button", "Wyślij", root));                        // the panel redrew, form and all
+  });
+
+  it("gives the button back when the send fails, so it can be tried again", async () => {
+    const { root } = await open("Wiadomości", { "POST /api/admin/broadcasts": { status: 500, body: { error: "internal" } } });
+    q("#bc-subject", root).value = "Zjazd";
+    q("#bc-body", root).value = "x";
+    qa("label.check input", root)[1].click();
+    const send = byText("button", "Wyślij do 2", root);
+    q("form", root).dispatchEvent(new Event("submit", { cancelable: true }));
+    await until(() => send.disabled === false);
+    expect(send.disabled).toBe(false);
+  });
+
   it("shows what was sent, and says so when nothing has been", async () => {
     const { root } = await open("Wiadomości");
     const li = q("ul.list li", root);
@@ -485,6 +517,7 @@ describe("messages", () => {
     expect(li.textContent).toContain("12 odbiorców");
     expect(li.textContent).toContain("📎");
     expect(li.textContent).toContain("Do zobaczenia w lipcu.");
+    expect(q("p", li).className).toContain("prewrap");     // the paragraph breaks the admin typed are still there
 
     const { root: r2 } = await open("Wiadomości", { "GET /api/admin/broadcasts": { broadcasts: [], counts } });
     expect(q("ul.list li", r2).textContent).toBe("Nic jeszcze nie wysłano.");
