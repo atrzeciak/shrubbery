@@ -50,11 +50,18 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 `GET /api/me` carries `tz` alongside the account: the site's zone, so the browser works out
 "today" exactly as the cron does rather than from whatever zone the reader's laptop is in.
 
-Photos and the avatar of a person belong to that person. A parent (a direct `parent_of` edge from
-the account's own person) may upload photos for a child and `PUT` the child's avatar for as long as
-the child has no account; the right ends the moment one is linked (`canCurate` in `src/api/common.js`).
-A file may be recaptioned or deleted by whoever uploaded it and by the person it belongs to, so a
-child who joins takes over what was added for them. Tags and ownership stay with admins.
+`PUT /api/people/:id/avatar` takes the JPEG itself as the body, at most 512 px a side and 200 KiB
+(`AVATAR_MAX_SIDE`, `AVATAR_MAX_BYTES` in `src/api/people.js`), from the person or from a parent
+who may still keep their photos (section 4). Anyone else gets `403`; an unknown person, `404`.
+
+```text
+PUT /api/people/p_kid/avatar
+Content-Type: image/jpeg
+```
+
+```json
+{ "ok": true, "updated_at": 1800000000 }
+```
 
 `GET /api/health` is deliberately public and deliberately tiny: `{ok, checks_stale}`. It lets an
 outside watchdog tell "the Worker and its database are alive" from "DNS still resolves", without
@@ -85,6 +92,13 @@ holding a session or learning anything.
   person; otherwise the person in the tree carrying that email (`people.email`) is used, provided
   they have no account yet. The invite form shows which it will be before the mail goes out, and an
   admin can relink from the Accounts tab at any time.
+- **Photos and the avatar of a person belong to that person.** A parent (a direct `parent_of` edge
+  from the account's own person) may upload photos for a child and set the child's avatar for as
+  long as the child has no account (`canCurate` in `src/api/common.js`); the right ends at the
+  first login that links one. A file may be recaptioned or deleted by whoever uploaded it and by
+  the person it belongs to (`canTouch` in `src/api/media.js`), so a child who joins takes over what
+  was added for them. Tags and ownership stay with admins, whose own avatar route still asks for a
+  fresh passkey.
 - IP addresses in the history log are stored hashed (`src/history.js`, `IP_HASH_SECRET`).
 
 ## 5. Scheduled work
