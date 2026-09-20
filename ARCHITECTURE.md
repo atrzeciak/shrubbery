@@ -45,7 +45,7 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 | News | `GET /news` |
 | Join | `POST /join/request`, `POST /join/confirm` |
 | Health | `GET /health` — public |
-| Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `backup.js`, `gatherings.js`); `GET /admin/documents` lists the PDFs an invitation may carry; `GET /admin/broadcasts` lists the letters already sent and the counts the compose form needs, `POST /admin/broadcasts` writes one to the chosen groups, never to an address a disabled account or a revoked invitation has shut |
+| Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `join.js`, `backup.js`, `gatherings.js`); `GET /admin/documents` lists the PDFs an invitation may carry; `GET /admin/broadcasts` lists the letters already sent and the counts the compose form needs, `POST /admin/broadcasts` writes one to the chosen groups, never to an address a disabled account or a revoked invitation has shut |
 
 `GET /api/me` carries `tz` alongside the account: the site's zone, so the browser works out
 "today" exactly as the cron does rather than from whatever zone the reader's laptop is in.

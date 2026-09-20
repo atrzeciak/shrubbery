@@ -89,7 +89,7 @@ screenshots/    images the README embeds; invented families only, never real dat
   and emits a statement per table it finds, so the set cannot be fixed in advance.
 - **The site names no domain.** Mail templates write `{app}` and `{domain}`; interface strings do
   the same. They are filled in from configuration at the point of use.
-- **`pl.json` and `en.json` must have identical keys.** `verify.sh` enforces it.
+- **`pl.json` and `en.json` must have identical keys.** `tests/i18n.test.js` enforces it.
 - **Migrations are append-only**, numbered, and applied by CI before the Worker deploys.
 - **Warnings are recomputed on read, never trusted from storage.** A row that froze when a cron died
   must not keep reading as calm.
