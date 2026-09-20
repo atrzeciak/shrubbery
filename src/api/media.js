@@ -2,11 +2,13 @@ import * as q from "../db/queries.js";
 import { json, nowSec, randomB64url } from "../util.js";
 import { checkDocument, checkPhoto, cleanCaption, cleanYear, MEDIA_CAP, THUMB_MAX_BYTES } from "../media/rules.js";
 import { jpegSize } from "../people/jpeg.js";
-import { ApiError, readJson, requireSession } from "./common.js";
+import { ApiError, canCurate, readJson, requireSession } from "./common.js";
 import { personHistory } from "./people.js";
 
 export const keyFor = (m) => `media/${m.id}.${m.content_type === "application/pdf" ? "pdf" : "jpg"}`;
-export const canTouch = (account, media) => account.role === "admin" || media.uploaded_by === account.id;
+// The owner too, so a child who joins takes over what a parent uploaded for them.
+export const canTouch = (account, media) =>
+  account.role === "admin" || media.uploaded_by === account.id || (Boolean(account.person_id) && media.owner_person_id === account.person_id);
 
 async function mediaOr404(env, id) {
   const m = await q.mediaById(env.DB, id).first();
@@ -19,7 +21,7 @@ async function resolveOwnerAndTags(env, account, url) {
   const ownerId = url.searchParams.get("owner") || "";
   const tags = (url.searchParams.get("tags") || "").split(",").filter(Boolean);
   if (account.role !== "admin") {
-    if (!account.person_id || ownerId !== account.person_id || tags.length) throw new ApiError(403, "forbidden");
+    if (tags.length || !(await canCurate(env, account, ownerId))) throw new ApiError(403, "forbidden");
   }
   const owner = await q.personById(env.DB, ownerId).first();
   if (!owner) throw new ApiError(account.role === "admin" ? 404 : 403, account.role === "admin" ? "not_found" : "forbidden");

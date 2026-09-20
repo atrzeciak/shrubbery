@@ -1,7 +1,9 @@
 import { h } from "./dom.js";
 import { t } from "./i18n.js";
 import { lifeSpan } from "./graph.js";
-import { avatarEl } from "./people.js";
+import { api } from "./api.js";
+import { avatarEl, avatarUrl } from "./people.js";
+import { avatarPicker } from "./person-form.js";
 import { openPersonEditor } from "./person-editor.js";
 import { mediaGallery } from "./media-gallery.js";
 
@@ -15,6 +17,8 @@ export function personCard(g, id, ctx, { onPerson }) {
   const p = g.byId.get(id);
   const me = ctx.state.me.account;
   const canEdit = me.role === "admin" || me.person_id === id;
+  // Mirrors canCurate on the server: a parent keeps a child's photos until the child has an account.
+  const curates = !canEdit && Boolean(me.person_id) && !p.account_id && g.parents(id).includes(me.person_id);
   const row = (label, value) => (value ? h("div", { class: "kv" }, h("span", { class: "muted", text: `${label}: ` }), value) : null);
   const place = (d, pl) => [d, pl].filter(Boolean).join(", ");
   const rel = (label, ids, extra = () => "") => ids.length
@@ -28,7 +32,13 @@ export function personCard(g, id, ctx, { onPerson }) {
     else ctx.navigate("/app/me");
   };
   const gallery = h("div");
-  mediaGallery(id, ctx).then((el) => gallery.append(el));
+  mediaGallery(id, ctx, { editable: curates }).then((el) => gallery.append(el));
+  const picker = curates ? avatarPicker(avatarUrl(g, id), {
+    onSave: async (blob) => {
+      try { await api(`/api/people/${id}/avatar`, { method: "PUT", body: blob }); ctx.toast(t("avatar.saved")); ctx.navigate(location.pathname, { replace: true }); }
+      catch (e) { throw new Error(ctx.errorText(e)); }
+    },
+  }) : null;
   return h("div", { class: "person-card" },
     h("div", { class: "row" }, avatarEl(g, id, 72),
       h("div", {}, h("h2", { text: p.display_name }), p.nickname ? h("div", { class: "muted", text: `„${p.nickname}”` }) : null,
@@ -47,5 +57,6 @@ export function personCard(g, id, ctx, { onPerson }) {
     p.notes ? h("div", { class: "kv notes" }, h("span", { class: "muted", text: `${t("person.notes")}: ` }), h("div", { class: "prewrap", text: p.notes })) : null,
     p.account_email ? row(t("person.login"), p.account_email) : null,
     gallery,
+    picker,
     edit ? h("div", { class: "row" }, edit) : null);
 }

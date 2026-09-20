@@ -3,7 +3,7 @@ import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { cleanPersonInput, displayNameOf } from "../people/fields.js";
 import { jpegSize } from "../people/jpeg.js";
-import { ApiError, readJson, requireSession } from "./common.js";
+import { ApiError, canCurate, readJson, requireSession } from "./common.js";
 
 export const AVATAR_MAX_BYTES = 204800;
 export const AVATAR_MAX_SIDE = 512;
@@ -116,10 +116,20 @@ async function putMyAvatar(request, env) {
   return json({ ok: true, updated_at });
 }
 
+async function putAvatar(request, env, ctx, m) {
+  const { account } = await requireSession(request, env);
+  const person = await personOr404(env, m[1]);
+  if (!(await canCurate(env, account, person.id))) throw new ApiError(403, "forbidden");
+  const who = account.person_id === person.id ? { self: true } : { by_parent: true };
+  const updated_at = await storeAvatar(request, env, account.id, person.id, { ...who, name: person.display_name });
+  return json({ ok: true, updated_at });
+}
+
 export const routes = [
   ["GET", /^\/api\/people$/, listAll],
   ["GET", /^\/api\/people\/([A-Za-z0-9_-]+)$/, getOne],
   ["GET", /^\/api\/people\/([A-Za-z0-9_-]+)\/avatar$/, getAvatar],
+  ["PUT", /^\/api\/people\/([A-Za-z0-9_-]+)\/avatar$/, putAvatar],
   ["GET", /^\/api\/me\/person$/, myPerson],
   ["PATCH", /^\/api\/me\/person$/, patchMyPerson],
   ["PUT", /^\/api\/me\/person\/avatar$/, putMyAvatar],

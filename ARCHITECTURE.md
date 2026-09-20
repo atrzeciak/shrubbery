@@ -38,7 +38,7 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 | ---- | ------ |
 | Auth | `POST /auth/email`, `/auth/code/request`, `/auth/code`, `/auth/logout`, `/auth/passkey/challenge`, `/auth/passkey/login`, `/auth/passkey/step-up` |
 | Self | `GET/PATCH /me`, `GET/POST /me/passkeys`, `PATCH/DELETE /me/passkeys/:id`, `GET /me/sessions`, `DELETE /me/sessions/:id`, `POST /me/sessions/revoke-all`, `GET/PATCH /me/person`, `PUT /me/person/avatar` |
-| People | `GET /people`, `GET /people/:id`, `GET /people/:id/avatar`, `GET /people/:id/media` |
+| People | `GET /people`, `GET /people/:id`, `GET/PUT /people/:id/avatar`, `GET /people/:id/media` |
 | Media | `POST /media`, `GET/PATCH/DELETE /media/:id`, `GET/PUT /media/:id/thumb` |
 | Gathering | `GET /gatherings`, `PUT /gatherings/:id/rsvp` |
 | Gathering (admin) | `POST /admin/gatherings`, `PATCH`/`DELETE /admin/gatherings/:id`, `PUT /admin/gatherings/:id/rsvp/:personId`, `POST /admin/gatherings/:id/announce`, `POST /admin/gatherings/:id/nudge` |
@@ -49,6 +49,12 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 
 `GET /api/me` carries `tz` alongside the account: the site's zone, so the browser works out
 "today" exactly as the cron does rather than from whatever zone the reader's laptop is in.
+
+Photos and the avatar of a person belong to that person. A parent (a direct `parent_of` edge from
+the account's own person) may upload photos for a child and `PUT` the child's avatar for as long as
+the child has no account; the right ends the moment one is linked (`canCurate` in `src/api/common.js`).
+A file may be recaptioned or deleted by whoever uploaded it and by the person it belongs to, so a
+child who joins takes over what was added for them. Tags and ownership stay with admins.
 
 `GET /api/health` is deliberately public and deliberately tiny: `{ok, checks_stale}`. It lets an
 outside watchdog tell "the Worker and its database are alive" from "DNS still resolves", without

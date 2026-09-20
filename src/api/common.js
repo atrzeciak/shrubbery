@@ -38,6 +38,15 @@ export function requireRole({ account }, role) {
   if (account.role !== role) throw new ApiError(403, "forbidden");
 }
 
+// Photos and the avatar of a person: the person, or a parent until the child has an account.
+// Says nothing of admins, whose routes ask for a fresh passkey.
+export async function canCurate(env, account, personId) {
+  if (!account.person_id) return false;
+  if (account.person_id === personId) return true;
+  if (!(await q.parentEdge(env.DB, account.person_id, personId).first())) return false;
+  return !(await q.accountByPerson(env.DB, personId).first());
+}
+
 // Who an invitation comes from: the account's person name to sign it, their address for replies.
 export async function accountIdentity(env, accountId) {
   if (!accountId) return null;

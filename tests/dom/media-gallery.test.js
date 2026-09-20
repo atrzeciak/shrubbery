@@ -56,7 +56,7 @@ describe("mediaGallery", () => {
     const ctx = await mount({ editable: true });
     const dels = qa(".media-actions .danger");
     expect(dels.length).toBe(2);
-    expect(qa(".media-actions .link-btn:not(.danger)").length).toBe(0);
+    expect(qa(".media-actions .link-btn:not(.danger)").length).toBe(2);
     dels[0].click();
     await tick();
     expect(calls.filter((c) => c.method === "DELETE").length).toBe(0);
@@ -66,6 +66,23 @@ describe("mediaGallery", () => {
     expect(calls.map((c) => `${c.method} ${c.path}`)).toContain("DELETE /api/media/m1");
     expect(calls.filter((c) => c.method === "GET").length).toBe(2);
     expect(ctx.toast).toHaveBeenCalledWith("Gotowe.");
+  });
+  it("lets the owner delete what somebody else uploaded for them", async () => {
+    mockApi(gallery(media));
+    await mount({ editable: true }, appCtx({ id: "kid", person_id: "p1" }));
+    expect(qa(".media-actions .danger").length).toBe(4);
+  });
+  it("gives a member a caption and year panel for their files, without owner or tags", async () => {
+    const calls = mockApi({ ...gallery(media), "PATCH /api/media/m2": {} });
+    await mount({ editable: true }, appCtx({ id: "kid", person_id: "p1" }));
+    const panel = qa(".media-file-edit")[1];
+    expect(panel.querySelector("select")).toBeNull();
+    expect(panel.querySelector('input[type="checkbox"]')).toBeNull();
+    panel.querySelector('input[type="text"]').value = "Ja";
+    panel.querySelector('input[type="number"]').value = "2024";
+    panel.querySelector(".btn").click();
+    await tick();
+    expect(calls.find((c) => c.method === "PATCH").body).toEqual({ caption: "Ja", year: 2024 });
   });
   it("toasts when a delete fails", async () => {
     mockApi({ ...gallery(media), "DELETE /api/media/m1": { status: 403, body: { error: "forbidden" } } });

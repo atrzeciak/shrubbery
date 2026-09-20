@@ -10,9 +10,9 @@ const docIcon = () => s("svg", { class: "doc-icon", viewBox: "0 0 24 24", fill: 
 
 const src = (m) => (m.has_thumb ? `/api/media/${m.id}/thumb` : `/api/media/${m.id}`);
 
-// The admin panel behind "Edytuj": caption, year, owner, tags. Its own toggle lives in the actions
-// row, so this is a plain sibling rather than a <details> that would drag the summary out of line.
-function editPanel(m, ctx, { people, reload }) {
+// The panel behind "Edytuj": caption and year, plus owner and tags for an admin. Its own toggle lives in
+// the actions row, so this is a plain sibling rather than a <details> that would drag the summary out of line.
+function editPanel(m, ctx, { admin, people, reload }) {
   const caption = h("input", { type: "text", maxlength: "200", value: m.caption || "", placeholder: t("media.caption"), "aria-label": t("media.caption") });
   const year = h("input", { type: "number", min: "1000", max: "2999", value: m.year || "", placeholder: t("media.year"), "aria-label": t("media.year") });
   const ownerSel = h("select", { "aria-label": t("media.owner") },
@@ -26,20 +26,17 @@ function editPanel(m, ctx, { people, reload }) {
   const save = h("button", { class: "btn secondary", type: "button", text: t("media.save") });
   save.onclick = async () => {
     save.disabled = true;
-    const tags = tagBoxes.map((row) => row.firstChild).filter((cb) => cb.checked).map((cb) => cb.dataset.personId);
+    const body = { caption: caption.value.trim() || null, year: year.value ? Number(year.value) : null };
+    if (admin) Object.assign(body, { owner_person_id: ownerSel.value, tags: tagBoxes.map((row) => row.firstChild).filter((cb) => cb.checked).map((cb) => cb.dataset.personId) });
     try {
-      await api(`/api/media/${m.id}`, {
-        method: "PATCH",
-        body: { caption: caption.value.trim() || null, year: year.value ? Number(year.value) : null, owner_person_id: ownerSel.value, tags },
-      });
+      await api(`/api/media/${m.id}`, { method: "PATCH", body });
       ctx.toast(t("form.saved"));
       await reload();
     } catch (e) { toastApiError(ctx, e); save.disabled = false; }
   };
   return h("div", { class: "media-file-edit", hidden: true },
     h("div", { class: "row" }, caption, year),
-    ownerSel,
-    h("p", { class: "muted", text: t("media.tags") }), ...tagBoxes,
+    ...(admin ? [ownerSel, h("p", { class: "muted", text: t("media.tags") }), ...tagBoxes] : []),
     h("div", { class: "row" }, save));
 }
 
@@ -48,8 +45,11 @@ function editPanel(m, ctx, { people, reload }) {
 function fileControls(m, ctx, { admin, people, reload }) {
   const actions = h("div", { class: "media-actions" });
   const nodes = [actions];
-  if (admin) {
-    const panel = editPanel(m, ctx, { people, reload });
+  const me = ctx.state.me.account;
+  // Mirrors canTouch on the server: the uploader, or the person the file belongs to.
+  const mine = admin || m.uploaded_by === me.id || (Boolean(me.person_id) && m.owner_person_id === me.person_id);
+  if (mine) {
+    const panel = editPanel(m, ctx, { admin, people, reload });
     const toggle = h("button", { class: "link-btn", type: "button", text: t("media.edit"), "aria-expanded": "false" });
     toggle.onclick = () => {
       panel.hidden = !panel.hidden;
@@ -57,8 +57,6 @@ function fileControls(m, ctx, { admin, people, reload }) {
     };
     actions.append(toggle);
     nodes.push(panel);
-  }
-  if (admin || m.uploaded_by === ctx.state.me.account.id) {
     const del = h("button", { class: "link-btn danger", type: "button", text: t("media.delete") });
     del.onclick = async () => {
       if (!confirm(t("confirm"))) return;

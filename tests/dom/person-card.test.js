@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { personCard } from "../../public/app/person-card.js";
 import { buildGraph } from "../../public/app/graph.js";
 import { closeSheet } from "../../public/app/sheet.js";
-import { mockApi, appCtx, lang, q, qa, tick } from "./helpers.js";
+import { mockApi, appCtx, lang, q, qa, tick, byText, stubCanvas, pickFile } from "./helpers.js";
 
 beforeAll(() => lang("pl"));
 afterEach(() => closeSheet());
@@ -103,5 +103,44 @@ describe("personCard", () => {
     expect(q('[role="dialog"]').getAttribute("aria-label")).toBe("Jan Kowal");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(admin.navigate).toHaveBeenCalledWith(location.pathname, { replace: true });
+  });
+  it("gives a parent the upload form and the avatar picker for a child with no account", async () => {
+    stubCanvas();
+    const calls = mockApi({ "GET /api/people/p3/media": { media: [], counts: { used: 0, cap: 6 } }, "PUT /api/people/p3/avatar": {} });
+    const ctx = appCtx({ person_id: "p1" });
+    document.body.append(personCard(g, "p3", ctx, { onPerson: vi.fn() }));
+    await tick();
+    expect(q(".media-upload")).not.toBeNull();
+    expect(q(".person-card > .row .btn")).toBeNull();
+    pickFile(q("#avatar-file"), new File(["x"], "kid.jpg", { type: "image/jpeg" }));
+    await tick();
+    byText("button", "Zapisz zdjęcie").click();
+    await tick();
+    expect(calls.find((c) => c.method === "PUT").path).toBe("/api/people/p3/avatar");
+    expect(ctx.toast).toHaveBeenCalledWith("Zdjęcie zapisane.");
+    expect(ctx.navigate).toHaveBeenCalledWith(location.pathname, { replace: true });
+  });
+  it("shows a refusal to save the child's avatar inside the picker", async () => {
+    stubCanvas();
+    mockApi({ "GET /api/people/p3/media": { media: [], counts: { used: 0, cap: 6 } }, "PUT /api/people/p3/avatar": { status: 403, body: { error: "forbidden" } } });
+    document.body.append(personCard(g, "p3", appCtx({ person_id: "p1" }), { onPerson: vi.fn() }));
+    await tick();
+    pickFile(q("#avatar-file"), new File(["x"], "kid.jpg", { type: "image/jpeg" }));
+    await tick();
+    byText("button", "Zapisz zdjęcie").click();
+    await tick();
+    expect(q(".avatar-picker .error").textContent).toBe("forbidden");
+  });
+  it("gives a parent nothing once the child has an account, and gives nothing to anyone else", async () => {
+    const media = { "GET /api/people/p3/media": { media: [], counts: { used: 0, cap: 6 } } };
+    const joined = buildGraph({ ...data, people: people.map((p) => (p.id === "p3" ? { ...p, account_id: "acc3" } : p)) });
+    for (const [graph, account] of [[joined, { person_id: "p1" }], [g, { person_id: "p5" }], [g, {}], [g, { role: "admin", person_id: "p1" }]]) {
+      document.body.innerHTML = "";
+      mockApi(media);
+      document.body.append(personCard(graph, "p3", appCtx(account), { onPerson: vi.fn() }));
+      await tick();
+      expect(q(".media-upload")).toBeNull();
+      expect(q(".avatar-picker")).toBeNull();
+    }
   });
 });
