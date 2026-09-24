@@ -91,7 +91,10 @@ holding a session or learning anything.
 - **An invited address is linked to its person at first login.** An approved join request names the
   person; otherwise the person in the tree carrying that email (`people.email`) is used, provided
   they have no account yet. The invite form shows which it will be before the mail goes out, and an
-  admin can relink from the Accounts tab at any time.
+  admin can relink from the Accounts tab at any time. A linked person has one address: every link
+  writes the account's e-mail into `people.email`, and the field is dropped from edits while the
+  link lasts (`savePersonPatch` in `src/api/people.js`); the interface shows `account_email` when
+  there is one and the tree's own address otherwise.
 - **Photos and the avatar of a person belong to that person.** A parent (a direct `parent_of` edge
   from the account's own person) may upload photos for a child and set the child's avatar for as
   long as the child has no account (`canCurate` in `src/api/common.js`); the right ends at the
@@ -118,14 +121,14 @@ repeated run mails nobody twice.
 
 ## 6. Data model
 
-D1, migrations `0001`–`0012` in `src/db/migrations/`, append-only.
+D1, migrations `0001`–`0013` in `src/db/migrations/`, append-only.
 
 | Table | Holds |
 | ----- | ----- |
 | `accounts` | Who may sign in; role, language, reminder opt-in, `founder`, `protected` |
 | `sessions`, `passkeys`, `login_codes` | Authentication state |
 | `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:` — what stops a stranger asking for login codes all day |
-| `people` | The tree: names, dates, `deceased`, optional address |
+| `people` | The tree: names, dates, `deceased`, optional address; `email` is the login address once an account is linked |
 | `parent_of`, `partner_of`, `person_links` | Relationships and external links |
 | `avatars` | Portrait JPEGs, stored as blobs in D1 |
 | `media`, `media_people` | Photographs and documents in R2; owner, and tags that are pointers not ownership |

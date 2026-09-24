@@ -26,7 +26,7 @@ const rows = () => Object.fromEntries(qa(".kv").map((r) => [r.firstChild.textCon
 const mediaRoutes = { "GET /api/people/p1/media": { media: [], counts: { used: 0, cap: 6 } }, "GET /api/people/p2/media": { media: [], counts: { used: 0, cap: 6 } } };
 
 describe("personCard", () => {
-  it("shows the living person's details, contacts, relatives, links, notes and login", async () => {
+  it("shows the living person's details, contacts, relatives, links and notes, with the login address as the e-mail", async () => {
     mockApi(mediaRoutes);
     const onPerson = vi.fn();
     document.body.append(personCard(g, "p1", appCtx(), { onPerson }));
@@ -38,7 +38,7 @@ describe("personCard", () => {
     expect(r["Urodzony(a)"].textContent).toContain("1950-03-04, Kraków");
     expect(r["Zmarł(a)"]).toBeUndefined();
     expect(r.Telefon.querySelector("a").getAttribute("href")).toBe("tel:123");
-    expect(r["E-mail"].querySelector("a").getAttribute("href")).toBe("mailto:a@x.org");
+    expect(r["E-mail"].querySelector("a").getAttribute("href")).toBe("mailto:anna@x.org");
     const links = qa("a", r.Profile);
     expect(links.map((a) => a.textContent)).toEqual(["ig", "Strona"]);
     expect(links[0].getAttribute("rel")).toBe("noopener");
@@ -47,7 +47,7 @@ describe("personCard", () => {
     expect(qa("button", r.Dzieci).map((b) => b.textContent)).toEqual(["Ola Kowal", "Ewa Kowal"]);
     expect(r["Rodzeństwo"]).toBeUndefined();
     expect(q(".notes .prewrap").textContent).toBe("line1\nline2");
-    expect(r.Konto.textContent).toContain("anna@x.org");
+    expect(r.Konto).toBeUndefined();
     expect(q(".media-gallery")).not.toBeNull();
     qa("button", r.Dzieci)[1].click();
     expect(onPerson).toHaveBeenCalledWith("p4");

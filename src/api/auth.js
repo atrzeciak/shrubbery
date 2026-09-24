@@ -128,6 +128,8 @@ async function postCode(request, env) {
       q.acceptInvitation(db, inv.id, now),
       historyStmt(db, { actor: account.id, action: "invite_accepted", targetType: "account", targetId: account.id, details: { email }, ipHash }),
     );
+    // A linked person has one address: the one they log in with.
+    if (personId) stmts.push(q.updatePerson(db, personId, { email }, now, account.id));
     joined = true;
   }
   const s = await prepareSession(db, { accountId: account.id, passkeyAt: null, userAgent: request.headers.get("user-agent") || "" }, now);

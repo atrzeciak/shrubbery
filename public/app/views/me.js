@@ -20,6 +20,7 @@ export async function render(root, ctx) {
   const id = data.person.id;
   const form = personForm(data.person, data.links, {
     admin: false,
+    emailLocked: true,
     onSubmit: async (body) => {
       try { await api("/api/me/person", { method: "PATCH", body }); ctx.toast(t("form.saved")); await render(root, ctx); }
       catch (e) { form.showError(ctx.errorText(e)); }

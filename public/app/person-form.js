@@ -8,15 +8,16 @@ const KINDS = ["instagram", "facebook", "linkedin", "other"];
 // Concatenated so the literal scheme string never appears contiguously (verify.sh flags it as an external reference).
 const HTTPS = "https:" + "//";
 
-export function personForm(person, links, { admin, onSubmit }) {
+export function personForm(person, links, { admin, emailLocked = false, onSubmit }) {
   const p = person || {};
   const inputs = {};
   const field = (name) => {
     const id = `pf-${name}`;
+    const locked = name === "email" && emailLocked;
     const input = h("input", { type: name === "email" ? "email" : name === "phone" ? "tel" : "text", id, value: p[name] || "", autocomplete: "off",
-      placeholder: DATE.has(name) ? "RRRR-MM-DD" : null, pattern: DATE.has(name) ? "(~?\\d{4}|\\d{4}-\\d{2}|\\d{4}-\\d{2}-\\d{2})" : null });
+      placeholder: DATE.has(name) ? "RRRR-MM-DD" : null, pattern: DATE.has(name) ? "(~?\\d{4}|\\d{4}-\\d{2}|\\d{4}-\\d{2}-\\d{2})" : null, "aria-describedby": locked ? `${id}-hint` : null });
     inputs[name] = input;
-    return [h("label", { for: id, text: t(`form.${name}`) }), input];
+    return [h("label", { for: id, text: t(`form.${name}`) }), input, locked ? h("p", { id: `${id}-hint`, class: "muted", text: t("form.email.locked") }) : null];
   };
   const sex = h("select", { id: "pf-sex" }, h("option", { value: "", text: "—" }), h("option", { value: "f", text: t("form.sex.f"), selected: p.sex === "f" }), h("option", { value: "m", text: t("form.sex.m"), selected: p.sex === "m" }));
   const deceased = h("input", { type: "checkbox", id: "pf-deceased", checked: !!p.deceased });
@@ -50,7 +51,8 @@ export function personForm(person, links, { admin, onSubmit }) {
   // A deceased person has no death fields to hide and no phone/e-mail to reach; social links stay.
   const syncDeath = () => {
     for (const name of ["death_date", "death_place"]) inputs[name].disabled = !deceased.checked;
-    for (const name of ["email", "phone"]) inputs[name].disabled = deceased.checked;
+    inputs.phone.disabled = deceased.checked;
+    inputs.email.disabled = deceased.checked || emailLocked;
   };
   deceased.onchange = syncDeath;
   syncDeath();

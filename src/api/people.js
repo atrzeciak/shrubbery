@@ -29,6 +29,8 @@ async function personWithLinks(env, id) {
 // Statements for a validated PATCH: update, link replacement and the history row.
 export async function savePersonPatch(env, request, actor, person, body, { admin, now, self }) {
   const { fields, links } = cleanPersonInput(body, { admin });
+  // A linked person's e-mail is their login address; the form still posts it, so it is dropped, not refused.
+  if ("email" in fields && await q.accountByPerson(env.DB, person.id).first()) delete fields.email;
   const changed = Object.keys(fields);
   if (links) changed.push("links");
   if (!changed.length) throw new ApiError(400, "bad_request");

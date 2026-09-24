@@ -18,6 +18,7 @@ export async function openPersonEditor(id, ctx, { onDone = () => {} } = {}) {
   const p = id ? g.byId.get(id) : null;
   const form = personForm(p, id ? g.links(id) : [], {
     admin: true,
+    emailLocked: Boolean(p?.account_id),
     onSubmit: async (body) => {
       try {
         if (id) await api(`/api/admin/people/${id}`, { method: "PATCH", body });

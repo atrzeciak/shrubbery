@@ -7,7 +7,7 @@ beforeAll(() => lang("pl"));
 afterEach(() => { closeSheet(); vi.restoreAllMocks(); delete globalThis.confirm; });
 
 const people = [
-  { id: "p1", first_name: "Anna", last_name: "Kowal", display_name: "Anna Kowal", birth_date: "1950-03-04" },
+  { id: "p1", first_name: "Anna", last_name: "Kowal", display_name: "Anna Kowal", birth_date: "1950-03-04", account_id: "a1" },
   { id: "p2", display_name: "Jan Kowal", birth_date: "1948", deceased: 1 },
   { id: "p3", display_name: "Ola Kowal" },
   { id: "p4", display_name: "Adam Nowak" },
@@ -65,6 +65,7 @@ describe("openPersonEditor", () => {
     await open("p1");
     expect(q('[role="dialog"]').getAttribute("aria-label")).toBe("Anna Kowal");
     expect(q("#pf-first_name").value).toBe("Anna");
+    expect(q("#pf-email").disabled).toBe(true);
     expect(q(".avatar-picker img").getAttribute("src")).toBe("/api/people/p1/avatar?v=5");
     const c = cards();
     expect(qa("li span", c.Rodzice).map((s) => s.textContent)).toEqual(["Jan Kowal"]);

@@ -136,6 +136,7 @@ async function linkAccount(request, env, ctx, m) {
   const now = nowSec();
   await env.DB.batch([
     q.linkAccountPerson(env.DB, target.id, person.id),
+    q.updatePerson(env.DB, person.id, { email: target.email }, now, account.id),
     historyStmt(env.DB, { actor: account.id, action: "account_linked", targetType: "account", targetId: target.id, details: { email: target.email, person_id: person.id, name: person.display_name }, ipHash: await hashIp(env, clientIp(request), now) }, now),
   ]);
   return json({ ok: true });

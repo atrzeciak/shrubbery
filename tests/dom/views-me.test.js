@@ -50,6 +50,7 @@ describe("with a linked person", () => {
     expect(q("img.avatar").getAttribute("src")).toBe("/api/people/p1/avatar?v=77");
     expect(q("#pf-first_name").value).toBe("Anna");
     expect(q("#pf-unverified")).toBeNull();
+    expect(q("#pf-email").disabled).toBe(true);
     const kv = qa(".kv").map((el) => el.textContent);
     expect(kv).toEqual(["Rodzice: Jan Nowak, Maria Nowak", "Partnerzy: Piotr Kowal", "Dzieci: —", "Rodzeństwo: Ola Nowak"]);
     expect(q(".media-gallery")).not.toBeNull();

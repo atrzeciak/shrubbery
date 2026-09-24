@@ -36,6 +36,8 @@ describe("personForm", () => {
   it("disables the death fields for the living and the phone and e-mail for the dead", () => {
     const form = personForm(person, [], { admin: true, onSubmit: vi.fn() });
     document.body.append(form);
+    expect(q("#pf-email-hint")).toBeNull();
+    expect(q("#pf-email").hasAttribute("aria-describedby")).toBe(false);
     expect(q("#pf-death_date").disabled).toBe(true);
     expect(q("#pf-phone").disabled).toBe(false);
     q("#pf-deceased").checked = true;
@@ -44,6 +46,17 @@ describe("personForm", () => {
     expect(q("#pf-death_place").disabled).toBe(false);
     expect(q("#pf-phone").disabled).toBe(true);
     expect(q("#pf-email").disabled).toBe(true);
+  });
+  it("locks the e-mail of a person who logs in with it, dead or alive", () => {
+    const form = personForm(person, [], { admin: true, emailLocked: true, onSubmit: vi.fn() });
+    document.body.append(form);
+    expect(q("#pf-email").disabled).toBe(true);
+    expect(q("#pf-email-hint").textContent).toBe("To adres logowania; zmienia się razem z kontem.");
+    expect(q("#pf-email").getAttribute("aria-describedby")).toBe("pf-email-hint");
+    q("#pf-deceased").click();
+    q("#pf-deceased").click();
+    expect(q("#pf-email").disabled).toBe(true);
+    expect(q("#pf-phone").disabled).toBe(false);
   });
   it("adds and removes link rows", () => {
     const form = personForm(null, [], { admin: true, onSubmit: vi.fn() });

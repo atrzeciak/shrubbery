@@ -15,7 +15,7 @@ async function login(email) {
 }
 
 async function family() {
-  await seedPerson(env, { id: "p_and", first_name: "Jan", last_name: "Nowak", birth_date: "1964-10-04" });
+  await seedPerson(env, { id: "p_and", first_name: "Jan", last_name: "Nowak", birth_date: "1964-10-04", email: "a1@x.org" });
   await seedPerson(env, { id: "p_jan", first_name: "Maria", last_name: "Nowak", birth_date: "1941", deceased: 1 });
   await seedPerson(env, { id: "p_v", first_name: "Ewa", last_name: "Nowak", birth_date: "1997" });
   await q.insertParent(env.DB, "p_jan", "p_and").run();
@@ -65,6 +65,9 @@ describe("own entry", () => {
     expect(hist.results).toHaveLength(1);
     expect(hist.results[0].target_id).toBe("p_and");
     expect(JSON.parse(hist.results[0].details)).toEqual({ fields: ["nickname", "residence", "links"], self: true, name: "Jan Nowak" });
+    // The own entry always has an account, so its e-mail is the login address and not a field to edit.
+    expect((await me.json("/api/me/person", { method: "PATCH", body: { email: "x@x.org", phone: "1" } })).status).toBe(200);
+    expect((await me.json("/api/me/person")).body.person.email).toBe("a1@x.org");
   });
   it("renaming recomputes display_name; a name-less person keeps its label", async () => {
     await family();

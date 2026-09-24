@@ -7,8 +7,9 @@ import { personCard } from "../person-card.js";
 import { openPersonEditor } from "../person-editor.js";
 
 let sortKey = "name", sortDir = 1, query = "";
-const COLS = ["name", "born", "died", "place", "login"];
-const val = (p, k) => k === "name" ? p.display_name : k === "born" ? yearOf(p.birth_date) ?? 99999 : k === "died" ? yearOf(p.death_date) ?? (p.deceased ? 99998 : 99999) : k === "place" ? p.residence || p.birth_place || "" : p.account_email || "";
+const COLS = ["name", "born", "died", "place", "account", "email"];
+const emailOf = (p) => p.account_email || p.email || "";
+const val = (p, k) => k === "name" ? p.display_name : k === "born" ? yearOf(p.birth_date) ?? 99999 : k === "died" ? yearOf(p.death_date) ?? (p.deceased ? 99998 : 99999) : k === "place" ? p.residence || p.birth_place || "" : k === "account" ? (p.account_id ? 0 : 1) : emailOf(p);
 
 export async function render(root, ctx) {
   clear(root);
@@ -37,7 +38,7 @@ export async function render(root, ctx) {
       return h("th", { scope: "col" }, b);
     }));
     const q = query.trim().toLowerCase();
-    const rows = g.people.filter((p) => !q || [p.display_name, p.nickname, p.maiden_name, p.residence, p.birth_place, p.account_email].some((v) => v && v.toLowerCase().includes(q)))
+    const rows = g.people.filter((p) => !q || [p.display_name, p.nickname, p.maiden_name, p.residence, p.birth_place, emailOf(p)].some((v) => v && v.toLowerCase().includes(q)))
       .sort((a, b) => { const x = val(a, sortKey), y = val(b, sortKey); return (typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * sortDir; });
     const body = h("tbody", {}, ...rows.map((p) => {
       const tr = h("tr", { tabindex: "0", role: "button", "data-person": p.id, class: p.id === selected ? "selected" : null, "aria-current": p.id === selected ? "true" : null },
@@ -45,13 +46,14 @@ export async function render(root, ctx) {
         h("td", { "data-label": t("members.col.born"), text: p.birth_date || "" }),
         h("td", { "data-label": t("members.col.died"), text: p.deceased ? p.death_date || "†" : "" }),
         h("td", { "data-label": t("members.col.place"), text: p.residence || p.birth_place || "" }),
-        h("td", { "data-label": t("members.col.login"), text: p.account_email || "" }));
+        h("td", { "data-label": t("members.col.account") }, p.account_id ? h("span", { role: "img", "aria-label": t("members.has_account"), text: "✓" }) : null),
+        h("td", { "data-label": t("members.col.email"), text: emailOf(p) }));
       const open = () => onPerson(p.id);
       tr.onclick = open;
       tr.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
       return tr;
     }));
-    if (!rows.length) body.append(h("tr", {}, h("td", { colspan: "5", class: "muted", text: t("members.empty") })));
+    if (!rows.length) body.append(h("tr", {}, h("td", { colspan: "6", class: "muted", text: t("members.empty") })));
     table.append(h("thead", {}, head), body);
   };
   search.oninput = () => { query = search.value; draw(); };

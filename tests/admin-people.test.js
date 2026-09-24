@@ -94,19 +94,28 @@ describe("admin people", () => {
 
   it("admin avatar upload and account link/unlink", async () => {
     const { c } = await adminWithFreshPasskey();
-    await seedPerson(env, { id: "p1", first_name: "P", last_name: "One" });
+    await seedPerson(env, { id: "p1", first_name: "P", last_name: "One", email: "old@x.org" });
     await seedPerson(env, { id: "p2", first_name: "P", last_name: "Two" });
     await seedAccount(env, { id: "f1", email: "f@x.org" });
     await seedAccount(env, { id: "f2", email: "g@x.org" });
     expect((await c.fetch("/api/admin/people/p1/avatar", { method: "PUT", body: fakeJpeg(64, 64), headers: { "content-type": "image/jpeg" } })).status).toBe(200);
     expect((await c.fetch("/api/people/p1/avatar")).status).toBe(200);
     expect((await c.json("/api/admin/accounts/f1/link", { method: "POST", body: { person_id: "p1" } })).status).toBe(200);
+    // Linking makes the login address the person's address, and it cannot be edited while linked.
+    expect((await q.personById(env.DB, "p1").first()).email).toBe("f@x.org");
+    expect((await c.json("/api/admin/people/p1", { method: "PATCH", body: { email: "else@x.org", nickname: "P" } })).status).toBe(200);
+    expect((await q.personById(env.DB, "p1").first()).email).toBe("f@x.org");
+    expect((await c.json("/api/admin/people/p1", { method: "PATCH", body: { email: "else@x.org" } })).status).toBe(400);
     expect((await c.json("/api/admin/accounts/f1/link", { method: "POST", body: { person_id: "p2" } })).status).toBe(409);
     expect((await c.json("/api/admin/accounts/f2/link", { method: "POST", body: { person_id: "p1" } })).status).toBe(409);
     expect((await c.json("/api/admin/accounts/f2/link", { method: "POST", body: { person_id: "zz" } })).status).toBe(404);
     expect((await c.json("/api/admin/accounts/f2/unlink", { method: "POST", body: {} })).status).toBe(404);
     expect((await c.json("/api/admin/accounts/f1/unlink", { method: "POST", body: {} })).status).toBe(200);
     expect((await env.DB.prepare("SELECT person_id FROM accounts WHERE id = 'f1'").first()).person_id).toBe(null);
+    // Unlinked, the address stays (it is still how to reach them) and is editable again.
+    expect((await q.personById(env.DB, "p1").first()).email).toBe("f@x.org");
+    expect((await c.json("/api/admin/people/p1", { method: "PATCH", body: { email: "else@x.org" } })).status).toBe(200);
+    expect((await q.personById(env.DB, "p1").first()).email).toBe("else@x.org");
     const acts = (await env.DB.prepare("SELECT action FROM history WHERE target_type = 'account' AND target_id = 'f1' ORDER BY id").all()).results.map((r) => r.action);
     expect(acts).toEqual(["account_linked", "account_unlinked"]);
     const accounts = (await c.json("/api/admin/accounts")).body.accounts;

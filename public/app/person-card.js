@@ -26,6 +26,7 @@ export function personCard(g, id, ctx, { onPerson }) {
         ...ids.map((rid, i) => [i ? ", " : null, h("button", { class: "linklike", type: "button", text: `${g.byId.get(rid).display_name}${extra(rid)}`, onclick: () => onPerson(rid) })]))
     : null;
   const partners = g.partners(id);
+  const email = p.account_email || p.email;
   const edit = canEdit ? h("button", { class: "btn secondary", type: "button", text: t("person.edit") }) : null;
   if (edit) edit.onclick = () => {
     if (me.role === "admin" && me.person_id !== id) openPersonEditor(id, ctx, { onDone: () => ctx.navigate(location.pathname, { replace: true }) });
@@ -47,7 +48,7 @@ export function personCard(g, id, ctx, { onPerson }) {
     row(t("person.died"), p.deceased ? place(p.death_date, p.death_place) || "†" : null),
     row(t("person.residence"), p.residence),
     row(t("person.phone"), p.phone && !p.deceased ? h("a", { href: `tel:${p.phone}`, text: p.phone }) : null),
-    row(t("person.email"), p.email && !p.deceased ? h("a", { href: `mailto:${p.email}`, text: p.email }) : null),
+    row(t("person.email"), email && !p.deceased ? h("a", { href: `mailto:${email}`, text: email }) : null),
     g.links(id).length ? h("div", { class: "kv" }, h("span", { class: "muted", text: `${t("person.links")}: ` }),
       ...g.links(id).map((l, i) => [i ? ", " : null, h("a", { href: l.url, target: "_blank", rel: "noopener", text: l.label || t(`person.link.${l.kind}`) })])) : null,
     rel(t("person.parents"), g.parents(id)),
@@ -55,7 +56,6 @@ export function personCard(g, id, ctx, { onPerson }) {
     rel(t("person.children"), g.children(id)),
     rel(t("person.siblings"), g.siblings(id)),
     p.notes ? h("div", { class: "kv notes" }, h("span", { class: "muted", text: `${t("person.notes")}: ` }), h("div", { class: "prewrap", text: p.notes })) : null,
-    p.account_email ? row(t("person.login"), p.account_email) : null,
     gallery,
     picker,
     edit ? h("div", { class: "row" }, edit) : null);

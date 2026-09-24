@@ -5,10 +5,10 @@ import { mockApi, lang, viewCtx, meFixture, tick, q, qa, byText } from "./helper
 
 const root = () => q("#root");
 const people = [
-  { id: "p1", display_name: "Anna Nowak", first_name: "Anna", last_name: "Nowak", nickname: "Ania", birth_date: "1990-06-15", residence: "Kraków", account_email: "anna@x.org", deceased: 0 },
+  { id: "p1", display_name: "Anna Nowak", first_name: "Anna", last_name: "Nowak", nickname: "Ania", birth_date: "1990-06-15", residence: "Kraków", account_id: "a1", account_email: "anna@x.org", email: "stale@x.org", deceased: 0 },
   { id: "p2", display_name: "Jan Nowak", first_name: "Jan", last_name: "Nowak", birth_date: "1950-01-01", death_date: "2000-06-20", birth_place: "Lublin", deceased: 1 },
   { id: "p3", display_name: "Ewa Kowal", first_name: "Ewa", last_name: "Kowal", maiden_name: "Wiśniewska", deceased: 1, unverified: 0 },
-  { id: "p4", display_name: "Ola Kowal", first_name: "Ola", last_name: "Kowal", birth_date: "~1975", unverified: 1, deceased: 0 },
+  { id: "p4", display_name: "Ola Kowal", first_name: "Ola", last_name: "Kowal", birth_date: "~1975", unverified: 1, deceased: 0, email: "ola@x.org" },
 ];
 const media = { media: [], counts: { used: 0, cap: 6 } };
 const base = () => ({ "GET /api/people": { people }, "GET /api/people/p1/media": media, "GET /api/people/p2/media": media });
@@ -30,19 +30,22 @@ async function start(role = "family") {
 beforeEach(async () => { await lang("pl"); closeSheet(); });
 
 describe("the table", () => {
-  it("lists everyone by name with their years, places, logins and badges", async () => {
+  it("lists everyone by name with their years, places, accounts, e-mails and badges", async () => {
     await start();
     expect(q("h1").textContent).toBe("Członkowie rodziny");
     expect(names()).toEqual(["Anna Nowak", "Ewa Kowal", "Jan Nowak", "Ola Kowal"]);
     const cells = (i) => qa("td", qa("tbody tr")[i]).slice(1).map((td) => td.textContent);
-    expect(cells(0)).toEqual(["1990-06-15", "", "Kraków", "anna@x.org"]);
-    expect(cells(1)).toEqual(["", "†", "", ""]);
-    expect(cells(2)).toEqual(["1950-01-01", "2000-06-20", "Lublin", ""]);
+    // The login address is the address; a person without an account shows what the tree holds.
+    expect(cells(0)).toEqual(["1990-06-15", "", "Kraków", "✓", "anna@x.org"]);
+    expect(cells(1)).toEqual(["", "†", "", "", ""]);
+    expect(cells(2)).toEqual(["1950-01-01", "2000-06-20", "Lublin", "", ""]);
+    expect(cells(3)).toEqual(["~1975", "", "", "", "ola@x.org"]);
+    expect(qa('tbody [role="img"]').map((el) => el.getAttribute("aria-label"))).toEqual(["Ma konto"]);
     expect(qa("tbody .badge").map((b) => b.textContent)).toEqual(["Nie ma już wśród nas", "Nie ma już wśród nas", "niepotwierdzone"]);
     expect(byText("button", "Dodaj osobę")).toBeNull();
   });
 
-  it("finds people by nickname, maiden name, place or login, and says when nobody matches", async () => {
+  it("finds people by nickname, maiden name, place or e-mail, and says when nobody matches", async () => {
     await start();
     search("ania");
     expect(names()).toEqual(["Anna Nowak"]);
@@ -50,6 +53,10 @@ describe("the table", () => {
     expect(names()).toEqual(["Ewa Kowal"]);
     search("lublin");
     expect(names()).toEqual(["Jan Nowak"]);
+    search("ola@x");
+    expect(names()).toEqual(["Ola Kowal"]);
+    search("stale");
+    expect(names()).toEqual([]);
     search("nobody");
     expect(names()).toEqual([]);
     expect(q("tbody td").textContent).toBe("Nikogo nie znaleziono.");
@@ -71,8 +78,10 @@ describe("the table", () => {
     expect(names()).toEqual(["Jan Nowak", "Ewa Kowal", "Anna Nowak", "Ola Kowal"]);
     header("Miejsce").click();
     expect(names().slice(2)).toEqual(["Kraków", "Lublin"].map((pl) => people.find((p) => (p.residence || p.birth_place) === pl).display_name));
-    header("Login").click();
-    expect(names().at(-1)).toBe("Anna Nowak");
+    header("E-mail").click();
+    expect(names().slice(2)).toEqual(["Anna Nowak", "Ola Kowal"]);
+    header("Konto").click();
+    expect(names()[0]).toBe("Anna Nowak");
   });
 });
 

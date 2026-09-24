@@ -121,6 +121,7 @@ describe("code step", () => {
     await q.insertInvitation(env.DB, { id: "i1", email: "new@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
     await loginWithCode(new Client(env), "new@x.org");
     expect((await q.accountByEmail(env.DB, "new@x.org").first()).person_id).toBe("p1");
+    expect((await q.personById(env.DB, "p1").first()).email).toBe("new@x.org");
   });
 
   it("first login leaves the account unlinked when that person already has an account", async () => {
@@ -141,6 +142,9 @@ describe("code step", () => {
     await q.insertInvitation(env.DB, { id: "i1", email: "new@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
     await loginWithCode(new Client(env), "new@x.org");
     expect((await q.accountByEmail(env.DB, "new@x.org").first()).person_id).toBe("p_admin");
+    // The login address becomes the person's one address; the other person keeps theirs.
+    expect((await q.personById(env.DB, "p_admin").first()).email).toBe("new@x.org");
+    expect((await q.personById(env.DB, "p_mail").first()).email).toBe("new@x.org");
   });
 
   it("wrong code → invalid_code and login_failed; a browser without the nonce cannot use the code", async () => {

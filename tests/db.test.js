@@ -104,3 +104,19 @@ describe("queries", () => {
     expect((await q.mediaForPerson(env.DB, "tag").all()).results.map((m) => m.id)).toEqual(["m1"]);
   });
 });
+
+describe("migration 0013", () => {
+  it("gives every linked person their login address and leaves the others alone", async () => {
+    await seedPerson(env, { id: "p_linked", first_name: "A", email: "old@x.org" });
+    await seedPerson(env, { id: "p_blank", first_name: "B" });
+    await seedPerson(env, { id: "p_free", first_name: "C", email: "free@x.org" });
+    await seedAccount(env, { id: "a1", email: "a1@x.org" });
+    await seedAccount(env, { id: "a2", email: "a2@x.org" });
+    await q.linkAccountPerson(db, "a1", "p_linked").run();
+    await q.linkAccountPerson(db, "a2", "p_blank").run();
+    const m = env.TEST_MIGRATIONS.find((x) => x.name.startsWith("0013"));
+    await db.batch(m.queries.map((sql) => db.prepare(sql)));
+    const emails = (await db.prepare("SELECT id, email FROM people ORDER BY id").all()).results;
+    expect(emails).toEqual([{ id: "p_blank", email: "a2@x.org" }, { id: "p_free", email: "free@x.org" }, { id: "p_linked", email: "a1@x.org" }]);
+  });
+});
