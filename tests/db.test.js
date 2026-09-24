@@ -2,15 +2,11 @@ import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
 import { historyStmt, historyStmtIfPasskeyGone, record, hashIp } from "../src/history.js";
-import { seedPerson, seedAccount } from "./helpers/env.js";
+import { resetDb, seedPerson, seedAccount } from "./helpers/env.js";
 
 const db = env.DB;
 const T = 1_800_000_000;
-const TABLES = ["history", "rate_limits", "invitations", "login_codes", "sessions", "passkeys", "accounts"];
-
-beforeEach(async () => {
-  await db.batch(TABLES.map((t) => db.prepare(`DELETE FROM ${t}`)));
-});
+beforeEach(() => resetDb(env));
 
 describe("queries", () => {
   it("inserts and finds an account by email (lowercasing is the caller's job)", async () => {
