@@ -111,9 +111,14 @@ export async function backupDownload(request, env, ctx) {
   const { results: media } = await q.listAllMedia(env.DB).all();
 
   async function* entries() {
-    let sql = "";
-    for await (const chunk of dumpSql(env.DB)) sql += chunk;
-    yield { name: "dane.sql", bytes: enc.encode(sql) };
+    // Encoded chunk by chunk: one string of the whole dump plus its encoded copy held it three times over.
+    const parts = [];
+    let size = 0;
+    for await (const chunk of dumpSql(env.DB)) { const b = enc.encode(chunk); parts.push(b); size += b.length; }
+    const sql = new Uint8Array(size);
+    for (let i = 0, at = 0; i < parts.length; at += parts[i].length, i++) sql.set(parts[i], at);
+    parts.length = 0;
+    yield { name: "dane.sql", bytes: sql };
     yield { name: "ODZYSKIWANIE.txt", bytes: enc.encode(restoreNote(env)) };
     const missing = [];
     for (const m of media) {

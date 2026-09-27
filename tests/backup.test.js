@@ -3,6 +3,7 @@ import { makeEnv, resetDb, seedAccount, seedPerson, Client, lastCode } from "./h
 import { createAuthenticator } from "./helpers/authenticator.js";
 import * as q from "../src/db/queries.js";
 import { dumpSql, tableInsertOrder } from "../src/backup/dump.js";
+import { crc32 } from "../src/backup/zip.js";
 
 const { env, sent } = makeEnv();
 beforeEach(() => resetDb(env));
@@ -153,6 +154,21 @@ describe("backup", () => {
     expect(all).toContain("sqlite3 nowa.db < dane.sql");
     expect((await env.DB.prepare("SELECT backup_at FROM ops_status WHERE id = 1").first()).backup_at)
       .toBeGreaterThan(0);
+  });
+
+  it("carries dane.sql whole, Polish letters and all, under a checksum that matches it", async () => {
+    const c = await steppedUpAdmin();
+    await seedPerson(env, { id: "p9", first_name: "Łucja", last_name: "Żółć" });
+    const buf = new Uint8Array(await (await c.raw("/api/admin/backup")).arrayBuffer());
+    const dv = new DataView(buf.buffer);
+    const nameLen = dv.getUint16(26, true);
+    const sql = buf.subarray(30 + nameLen, 30 + nameLen + dv.getUint32(18, true));
+    expect(new TextDecoder().decode(buf.subarray(30, 30 + nameLen))).toBe("dane.sql");
+    expect(dv.getUint32(14, true)).toBe(crc32(sql));
+    const text = new TextDecoder().decode(sql);
+    expect(text).toContain("'Łucja'");
+    expect(text).toContain("'Żółć'");
+    expect(text.trimEnd().endsWith(";")).toBe(true);
   });
 
   it("also archives thumbnails, and counts them in the check", async () => {
