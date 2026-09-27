@@ -243,7 +243,7 @@ const OPS_LETTERS = {
   pl: (s) => {
     const date = (at) => new Intl.DateTimeFormat("pl", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(at * 1000));
     const days = (n) => `${n} ${plural(n, "pl", { one: "dzień", few: "dni", many: "dni", other: "dni" })}`;
-    const left = (at) => Math.floor((at - s.at) / 86400);
+    const left = (at) => Math.floor(at / 86400) - Math.floor(s.at / 86400);   // calendar days (UTC), not 24 h from 05:00
 
     const facts = [];
     if (s.domain_expires_at == null) {
@@ -325,7 +325,7 @@ const OPS_LETTERS = {
   en: (s) => {
     const date = (at) => new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(at * 1000));
     const days = (n) => `${n} ${plural(n, "en", { one: "day", other: "days" })}`;
-    const left = (at) => Math.floor((at - s.at) / 86400);
+    const left = (at) => Math.floor(at / 86400) - Math.floor(s.at / 86400);   // calendar days (UTC), not 24 h from 05:00
 
     const facts = [];
     if (s.domain_expires_at == null) {

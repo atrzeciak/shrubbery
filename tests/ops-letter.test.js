@@ -11,6 +11,12 @@ async function letter(lang, status) {
   return out;
 }
 
+async function sendLetterAt(at, status) {
+  let out;
+  await sendOpsLetter({ APP_ORIGIN: "https://example.org", EMAIL: { async send(m) { out = m; } } }, "adm@x.org", "en", { admins: 2, warnings: [], ...status, at });
+  return out;
+}
+
 const RENEWS = Date.parse("2027-04-02T00:00:00Z") / 1000;      // a renewal date, fixed by this test
 
 const KNOWN = {
@@ -103,8 +109,17 @@ describe("the monthly letter", () => {
   });
 
   it("gives every date in full next to its count, not a bare number", async () => {
-    expect((await letter("pl", KNOWN)).text).toContain("opłacona do 2 kwietnia 2027 — jeszcze przez 212 dni");
-    expect((await letter("en", KNOWN)).text).toContain("paid up until April 2, 2027 — 212 days left");
+    expect((await letter("pl", KNOWN)).text).toContain("opłacona do 2 kwietnia 2027 — jeszcze przez 213 dni");
+    expect((await letter("en", KNOWN)).text).toContain("paid up until April 2, 2027 — 213 days left");
+  });
+
+  // The letter goes out at 05:00 UTC and the dates are midnights: counted in calendar days, the eve of
+  // a renewal has one day left and the day itself is today, not "1 day ago".
+  it("counts calendar days, not 24-hour blocks from the cron's hour", async () => {
+    const eve = Math.floor(Date.parse("2027-04-01T05:00:00Z") / 1000);
+    const on = (at, domain) => sendLetterAt(at, { ...KNOWN, domain_expires_at: domain });
+    expect((await on(eve, RENEWS)).text).toContain("1 day left");
+    expect((await on(eve, RENEWS - DAY)).text).toContain("paid up only until today");
   });
 
   it("says how many admins it reached, and treats one as the warning it is", async () => {
