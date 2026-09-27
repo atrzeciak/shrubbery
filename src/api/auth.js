@@ -1,7 +1,7 @@
 import * as q from "../db/queries.js";
-import { clientIp, cookie, ipPrefix, json, nowSec, randomB64url, readCookie } from "../util.js";
+import { clientIp, cookie, json, nowSec, randomB64url, readCookie } from "../util.js";
 import { hashIp, historyStmt, requestHistory } from "../history.js";
-import { allow } from "../auth/ratelimit.js";
+import { allow, ipKey } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
 import { clearSessionCookie, prepareSession, resolveSession, sessionCookie } from "../auth/sessions.js";
 import { newChallenge, verifyAssertion, WebAuthnError } from "../auth/webauthn.js";
@@ -35,7 +35,7 @@ async function postCodeRequest(request, env, ctx) {
   if (!nonce) throw new ApiError(400, "bad_request");
   const db = env.DB, now = nowSec(), ip = clientIp(request);
   // IP first: a request refused for its IP must not spend the address's budget.
-  if (!(await allow(db, `code:ip:${ipPrefix(ip)}`, CODE_IP_LIMIT, HOUR, now)) || !(await allow(db, `code:email:${email}`, CODE_LIMIT, HOUR, now))) {
+  if (!(await allow(db, await ipKey(env, "code", ip, now), CODE_IP_LIMIT, HOUR, now)) || !(await allow(db, `code:email:${email}`, CODE_LIMIT, HOUR, now))) {
     throw new ApiError(429, "rate_limited");
   }
   const account = await q.accountByEmail(db, email).first();
@@ -60,7 +60,7 @@ async function postCodeRequest(request, env, ctx) {
 }
 
 async function postChallenge(request, env) {
-  if (!(await allow(env.DB, `challenge:ip:${ipPrefix(clientIp(request))}`, CHALLENGE_LIMIT, HOUR))) throw new ApiError(429, "rate_limited");
+  if (!(await allow(env.DB, await ipKey(env, "challenge", clientIp(request)), CHALLENGE_LIMIT, HOUR))) throw new ApiError(429, "rate_limited");
   const challenge = newChallenge(), now = nowSec();
   await env.DB.batch([q.purgeChallenges(env.DB, now), q.insertChallenge(env.DB, challenge, now + CHALLENGE_TTL)]);
   return json({ challenge, rpId: rpIdOf(env) }, 200, { "set-cookie": cookie(CHALLENGE_COOKIE, challenge, CHALLENGE_TTL) });

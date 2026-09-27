@@ -131,6 +131,19 @@ describe("code request step", () => {
   });
 });
 
+// History keeps only the day's hash of an address; the rate-limit rows beside it must not undo that.
+it("keeps no IP address in a rate-limit key", async () => {
+  const c = new Client(env);
+  c.ip = "2001:db8:1:2::7";
+  await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+  await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
+  await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
+  await c.json("/api/join/request", { method: "POST", body: { first_name: "Anna", last_name: "Z", birth_date: "1985", parent_text: "B", email: "new@x.org", message: "", lang: "en" } });
+  const keys = (await env.DB.prepare("SELECT key FROM rate_limits WHERE key LIKE '%:ip:%' ORDER BY key").all()).results.map((r) => r.key);
+  expect(keys).toHaveLength(3);
+  for (const k of keys) expect(k).toMatch(/^(challenge|code|join):ip:[0-9a-f]{64}$/);
+});
+
 // Only a known address used to wait for the mail provider, so timing told members from strangers,
 // and only a known address could turn a provider failure into a 500.
 describe("the mail a code goes out in", () => {

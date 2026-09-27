@@ -111,7 +111,8 @@ holding a session or learning anything.
   was added for them. An admin may delete anyone's file too, but only with a fresh passkey, since
   the bytes go for good. Tags and ownership stay with admins, whose own avatar route still asks for a
   fresh passkey.
-- IP addresses in the history log are stored hashed (`src/history.js`, `IP_HASH_SECRET`).
+- IP addresses are stored only hashed, in the history log and in rate-limit keys alike
+  (`hashIp` in `src/history.js`, `IP_HASH_SECRET`).
 
 ## 5. Scheduled work
 
@@ -141,7 +142,7 @@ D1, migrations `0001`–`0014` in `src/db/migrations/`, append-only.
 | `accounts` | Who may sign in; role, language, reminder opt-in, `founder`, `protected` |
 | `sessions`, `passkeys`, `login_codes` | Authentication state |
 | `webauthn_challenges` | Each passkey challenge handed out, good for one sign-in, step-up or registration within five minutes; expired rows go when the next is issued. The `wa_challenge` cookie only names it |
-| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IPv6 key holds the /64 — what stops a stranger asking for login codes or sending join requests all day. Windows over a day old, and expired login codes, go nightly |
+| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IP key holds the day's hash of the address, of the /64 for IPv6 — what stops a stranger asking for login codes or sending join requests all day. Windows over a day old, and expired login codes, go nightly |
 | `people` | The tree: names, dates, `deceased`, optional address; `email` is the login address once an account is linked |
 | `parent_of`, `partner_of`, `person_links` | Relationships and external links |
 | `avatars` | Portrait JPEGs, stored as blobs in D1 |
