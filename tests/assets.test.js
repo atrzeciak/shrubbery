@@ -9,6 +9,7 @@ describe("static assets", () => {
     const body = await res.text();
     expect(body).toContain('<html lang="pl">');
     expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("content-security-policy")).toContain("img-src 'self'");   // the favicon
   });
 
   it("serves /en/ and /style.css", async () => {
@@ -21,6 +22,7 @@ describe("static assets", () => {
   it("returns 404.html with status 404 for unknown paths", async () => {
     const res = await SELF.fetch("https://example.org/nope");
     expect(res.status).toBe(404);
+    expect(res.headers.get("content-security-policy")).toContain("img-src 'self'");
     expect(await res.text()).toMatch(/not found/i);
   });
 
