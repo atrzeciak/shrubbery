@@ -172,7 +172,8 @@ Bindings: `DB` (D1), `MEDIA` (R2), `ASSETS`, `EMAIL`. Secrets: `IP_HASH_SECRET`,
 ## 8. Backup and recovery
 
 `GET /api/admin/backup` streams the whole archive as one ZIP: the database as plain SQL, every file
-and thumbnail from R2, and restore instructions. It is written by hand in `src/backup/` — no
+and thumbnail from R2, and restore instructions. Sign-in state (`sessions`, `login_codes`,
+`rate_limits`, `webauthn_challenges`) goes as empty tables, so a restore cannot revive a session. It is written by hand in `src/backup/` — no
 dependency, auditable in one sitting.
 
 Three hard-won details:

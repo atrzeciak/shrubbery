@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { dumpSql, sqlValue } from "../src/backup/dump.js";
-import { makeEnv, resetDb, seedPerson } from "./helpers/env.js";
+import * as q from "../src/db/queries.js";
+import { makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
 
 const { env } = makeEnv();
 beforeEach(() => resetDb(env));
@@ -48,6 +49,23 @@ describe("dumpSql", () => {
       .bind("p1", new Uint8Array([0xff, 0xd8, 0xff]), 1_800_000_000).run();
     const sql = await dumpText(env.DB);
     expect(sql).toContain("X'ffd8ff'");
+  });
+
+  it("leaves out sessions, login codes, rate limits and challenges, keeping their tables", async () => {
+    // A restored session would work again on the same domain, even one revoked after the backup.
+    await seedAccount(env, { id: "acc", email: "a@x.org" });
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO sessions (id, account_id, created_at, expires_at, last_seen_at) VALUES ('s1', 'acc', 1, 2, 1)"),
+      q.insertCode(env.DB, { id: "c1", email: "a@x.org", codeHash: "h", sessionNonce: "n", createdAt: 1, expiresAt: 2 }),
+      env.DB.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES ('code:ip:x', 1, 1)"),
+      q.insertChallenge(env.DB, "ch", 2),
+    ]);
+    const sql = await dumpText(env.DB);
+    for (const t of ["sessions", "login_codes", "rate_limits", "webauthn_challenges"]) {
+      expect(sql).toContain(`CREATE TABLE ${t}`);
+      expect(sql).not.toContain(`INSERT INTO "${t}"`);
+    }
+    expect(sql).toContain('INSERT INTO "accounts"');
   });
 
   it("keeps every statement under D1's 100,000-byte limit, even for the largest avatar", async () => {

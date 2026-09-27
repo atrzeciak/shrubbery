@@ -78,6 +78,10 @@ export function tableInsertOrder(tables) {
 // admin with a 0-byte file. Filtered here rather than in the query so it is visible and testable.
 const isInternal = (name) => name.startsWith("sqlite_") || name.startsWith("_cf_");
 
+// Sign-in state: restored, a session would work again on the same domain, even one revoked since.
+// The tables are kept, empty; the restore note already says everyone signs in again.
+const TRANSIENT = new Set(["sessions", "login_codes", "rate_limits", "webauthn_challenges"]);
+
 export async function* dumpSql(db) {
   // No BEGIN/COMMIT: a D1 import refuses both, so the sqlite3 restore runs in autocommit.
   yield "PRAGMA foreign_keys=OFF;\n";
@@ -87,6 +91,7 @@ export async function* dumpSql(db) {
   const objects = all.filter((o) => !isInternal(o.name));
   for (const o of objects) yield `${o.sql};\n`;
   for (const table of tableInsertOrder(objects.filter((o) => o.type === "table"))) {
+    if (TRANSIENT.has(table.name)) continue;
     // Paged by rowid rather than OFFSET: a row deleted mid-dump cannot shift the next page past a live one.
     const page = pageFor(table);
     for (let after = 0; ;) {
