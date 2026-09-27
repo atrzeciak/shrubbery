@@ -74,11 +74,8 @@ async function patchMe(request, env) {
     if (body.notify_events !== 0 && body.notify_events !== 1) throw new ApiError(400, "bad_request");
     stmts.push(q.setNotifyEvents(env.DB, account.id, body.notify_events), await ownHistory(request, env, account, "notify_changed", { on: body.notify_events }, now));
   }
-  if ("news_seen_at" in body) {
-    const at = body.news_seen_at;
-    if (!Number.isSafeInteger(at) || at <= 0 || at > now + 60) throw new ApiError(400, "bad_request");
-    stmts.push(q.setNewsSeenAt(env.DB, account.id, at));
-  }
+  // The feed is marked against server times, so the server's clock stamps it, not the browser's.
+  if ("news_seen_at" in body) stmts.push(q.setNewsSeenAt(env.DB, account.id, now));
   if (!stmts.length) throw new ApiError(400, "bad_request");
   await env.DB.batch(stmts);
   return json({ ok: true });

@@ -163,15 +163,17 @@ describe("notify_events", () => {
     const acts = (await env.DB.prepare("SELECT action FROM history WHERE action IN ('lang_changed','notify_changed') ORDER BY id").all()).results.map((r) => r.action);
     expect(acts).toEqual(["notify_changed", "lang_changed", "notify_changed"]);
   });
-  it("stores news_seen_at without a history row and validates it", async () => {
+  // The feed compares server times with this marker, so it is the server's clock that stamps it: a
+  // browser whose clock runs fast must not be refused, nor one that runs slow leave items lit up.
+  it("stamps news_seen_at with the server's time, whatever the browser's clock says, without a history row", async () => {
     await seedAccount(env, { id: "a2", email: "b@x.org" });
     const c = await login("b@x.org");
     expect((await c.json("/api/me")).body.account.news_seen_at).toBe(null);
-    const seenAt = nowSec() + 30;
-    expect((await c.json("/api/me", { method: "PATCH", body: { news_seen_at: seenAt } })).status).toBe(200);
-    expect((await c.json("/api/me")).body.account.news_seen_at).toBe(seenAt);
-    expect((await c.json("/api/me", { method: "PATCH", body: { news_seen_at: -1 } })).status).toBe(400);
-    expect((await c.json("/api/me", { method: "PATCH", body: { news_seen_at: 9_999_999_999 } })).status).toBe(400);
+    const before = nowSec();
+    expect((await c.json("/api/me", { method: "PATCH", body: { news_seen_at: 9_999_999_999 } })).status).toBe(200);
+    const seen = (await c.json("/api/me")).body.account.news_seen_at;
+    expect(seen).toBeGreaterThanOrEqual(before);
+    expect(seen).toBeLessThanOrEqual(nowSec());
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM history WHERE actor_account_id = 'a2' AND action NOT IN ('login','code_sent')").first()).n).toBe(0);
   });
 });
