@@ -27,3 +27,17 @@ describe("death scope adds ancestors up to two generations and their partners", 
     for (const no of ["aunt", "cousin", "ggm"]) expect(s.inScope(no, "me", "death"), no).toBe(false);
   });
 });
+
+describe("a divorced partner", () => {
+  const d = buildScope([{ parent_id: "ex", child_id: "kid" }, { parent_id: "me", child_id: "kid" }], [{ a_id: "ex", b_id: "me", kind: "divorced" }, { a_id: "me", b_id: "now", kind: "married" }]);
+  it("is out of the other's circle, for birthdays and deaths", () => {
+    for (const type of ["birthday", "death"]) {
+      expect(d.inScope("ex", "me", type), type).toBe(false);
+      expect(d.inScope("me", "ex", type), type).toBe(false);
+    }
+  });
+  it("stays in through a child they share, and a current partner stays in", () => {
+    expect(d.inScope("ex", "kid", "birthday")).toBe(true);
+    expect(d.inScope("now", "me", "birthday")).toBe(true);
+  });
+});

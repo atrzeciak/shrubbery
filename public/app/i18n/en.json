@@ -245,7 +245,7 @@
   "account.lang": "Language",
   "account.notify.title": "Reminders",
   "account.notify": "E-mail me about close family birthdays and death anniversaries (7 days ahead and on the day)",
-  "account.notify.hint": "Covers parents, partners, children and siblings; death anniversaries also grandparents.",
+  "account.notify.hint": "Covers parents, partners (not former ones), children and siblings; death anniversaries also grandparents.",
   "account.notify.unlinked": "An admin must first link your login to a person in the tree.",
   "account.lang.pl": "Polski",
   "account.lang.en": "English",

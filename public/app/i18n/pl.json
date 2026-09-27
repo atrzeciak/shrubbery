@@ -245,7 +245,7 @@
   "account.lang": "Język",
   "account.notify.title": "Przypomnienia",
   "account.notify": "Wysyłaj mi e-mail o urodzinach i rocznicach śmierci bliskich (7 dni wcześniej i w dniu)",
-  "account.notify.hint": "Dotyczy rodziców, partnerów, dzieci i rodzeństwa; rocznice śmierci także dziadków.",
+  "account.notify.hint": "Dotyczy rodziców, partnerów (bez byłych), dzieci i rodzeństwa; rocznice śmierci także dziadków.",
   "account.notify.unlinked": "Najpierw administrator musi połączyć Twoje konto z osobą w drzewie.",
   "account.lang.pl": "Polski",
   "account.lang.en": "English",

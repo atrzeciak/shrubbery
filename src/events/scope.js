@@ -5,7 +5,8 @@ const get = (m, k) => m.get(k) || new Set();
 export function buildScope(parentRows, partnerRows) {
   const parentsOf = new Map(), childrenOf = new Map(), partnersOf = new Map();
   for (const e of parentRows) { add(parentsOf, e.child_id, e.parent_id); add(childrenOf, e.parent_id, e.child_id); }
-  for (const e of partnerRows) { add(partnersOf, e.a_id, e.b_id); add(partnersOf, e.b_id, e.a_id); }
+  // A divorced couple are not each other's partners for reminders; each stays in their children's circle.
+  for (const e of partnerRows) if (e.kind !== "divorced") { add(partnersOf, e.a_id, e.b_id); add(partnersOf, e.b_id, e.a_id); }
 
   function closeCircle(r) {
     const s = new Set([...get(parentsOf, r), ...get(childrenOf, r), ...get(partnersOf, r)]);
