@@ -19,7 +19,7 @@ describe("i18n", () => {
   // reader sees "Something went wrong" for a refusal that has a reason, and History a bare action name.
   it("has a string for every error code the Worker throws and every history action it writes", () => {
     const sources = Object.values(import.meta.glob("../src/**/*.js", { query: "?raw", import: "default", eager: true })).join("\n");
-    const codes = new Set([...sources.matchAll(/new ApiError\(\d+, "([a-z_]+)"/g)].map((m) => `error.${m[1]}`));
+    const codes = new Set([...sources.matchAll(/(?:ApiError\([^,]+,\s*|error:\s*)"([a-z_]+)"/g)].map((m) => `error.${m[1]}`));
     const actions = new Set([...sources.matchAll(/action: "([a-z_]+)"|(?:own|admin|person|join)History\(request[^"\n]*"([a-z_]+)"/g)].map((m) => `news.${m[1] || m[2]}`));
     expect(codes.size).toBeGreaterThan(5);
     expect(actions.size).toBeGreaterThan(10);
