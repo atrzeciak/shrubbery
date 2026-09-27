@@ -117,6 +117,7 @@ def main() -> None:
             w.writerow({k: p[k] for k in COLS})
     out = [f"INSERT INTO people ({', '.join(COLS)}, created_at, updated_at) VALUES ({', '.join(sql(p[k]) for k in COLS)}, {now}, {now});" for p in people.values()]
     seen: set[tuple[str, str]] = set()
+    couples: set[tuple[str, str]] = set()  # unordered, unlike seen's parent/child pairs
     n_par = n_part = 0
     for a, kind, b in edges:
         pa, pb = f"p_{a.lower()}", f"p_{b.lower()}"
@@ -127,8 +128,11 @@ def main() -> None:
             out.append(f"INSERT INTO parent_of (parent_id, child_id) VALUES ({sql(pa)}, {sql(pb)});")
             n_par += 1
         else:
-            k, s, e = partner_kind(labels[a] + labels[b])
             x, y = sorted((pa, pb))
+            if (x, y) in couples:
+                continue
+            couples.add((x, y))
+            k, s, e = partner_kind(labels[a] + labels[b])
             out.append(f"INSERT INTO partner_of (a_id, b_id, kind, start_year, end_year) VALUES ({sql(x)}, {sql(y)}, {sql(k)}, {sql(s)}, {sql(e)});")
             n_part += 1
     args.sql.write_text("\n".join(out) + "\n", encoding="utf-8")
