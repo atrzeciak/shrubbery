@@ -50,6 +50,14 @@ describe("dumpSql", () => {
     expect(sql).toContain("X'ffd8ff'");
   });
 
+  it("keeps every statement under D1's 100,000-byte limit, even for the largest avatar", async () => {
+    await seedPerson(env, { id: "p1", first_name: "Jan" });
+    await env.DB.prepare("INSERT INTO avatars (person_id, jpeg, updated_at) VALUES (?, ?, ?)")
+      .bind("p1", new Uint8Array(204800).fill(0xab), 1_800_000_000).run();
+    const lines = (await dumpText(env.DB)).split("\n");
+    expect(Math.max(...lines.map((l) => new TextEncoder().encode(l).length))).toBeLessThan(100_000);
+  });
+
   // A real D1 carries Cloudflare's own _cf_KV table and answers "not authorized: SQLITE_AUTH" to any
   // read of it — and refuses to let a test create one, so this stands in for the remote database.
   // The dump used to walk into that table, which errored the ZIP on its first read and handed the

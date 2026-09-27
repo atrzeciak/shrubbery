@@ -9,17 +9,42 @@ function hex(bytes) {
   return out;
 }
 
+// D1 returns BLOBs as Uint8Array remotely and as a plain array locally; both mean bytes.
+function asBytes(v) {
+  if (v instanceof ArrayBuffer) return new Uint8Array(v);
+  if (ArrayBuffer.isView(v)) return new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  if (Array.isArray(v)) return Uint8Array.from(v);
+  return null;
+}
+
 export function sqlValue(v) {
   if (v === null || v === undefined) return "NULL";
   if (typeof v === "number") return String(v);
   if (typeof v === "bigint") return v.toString();
   // A raw NUL cuts the line in the sqlite3 shell and the restore loses every table after it.
   if (typeof v === "string") return v.includes("\0") ? `CAST(X'${hex(new TextEncoder().encode(v))}' AS TEXT)` : `'${v.replaceAll("'", "''")}'`;
-  // D1 returns BLOBs as Uint8Array remotely and as a plain array locally; both mean bytes.
-  if (v instanceof ArrayBuffer) return `X'${hex(new Uint8Array(v))}'`;
-  if (ArrayBuffer.isView(v)) return `X'${hex(new Uint8Array(v.buffer, v.byteOffset, v.byteLength))}'`;
-  if (Array.isArray(v)) return `X'${hex(Uint8Array.from(v))}'`;
+  const bytes = asBytes(v);
+  if (bytes) return `X'${hex(bytes)}'`;
   return `'${String(v).replaceAll("'", "''")}'`;
+}
+
+const BLOB_SLICE = 40 * 1024;   // hex doubles it; D1 refuses a statement over 100,000 bytes
+
+// One row as an INSERT, a blob over BLOB_SLICE cut into the INSERT plus one UPDATE per further slice.
+function* rowStatements(table, row) {
+  const { __rowid: rowid, ...fields } = row;
+  const cols = Object.keys(fields);
+  const rest = [];
+  const values = cols.map((c) => {
+    const bytes = asBytes(fields[c]);
+    if (!bytes || bytes.length <= BLOB_SLICE) return sqlValue(fields[c]);
+    for (let i = BLOB_SLICE; i < bytes.length; i += BLOB_SLICE) rest.push([c, bytes.subarray(i, i + BLOB_SLICE)]);
+    return sqlValue(bytes.subarray(0, BLOB_SLICE));
+  });
+  // The UPDATEs find the row by rowid, so it is carried only when there are UPDATEs to follow.
+  const names = (rest.length ? ["rowid", ...cols] : cols).map((c) => `"${c}"`).join(", ");
+  yield `INSERT INTO "${table}" (${names}) VALUES (${rest.length ? `${rowid}, ` : ""}${values.join(", ")});\n`;
+  for (const [c, slice] of rest) yield `UPDATE "${table}" SET "${c}" = CAST("${c}" || ${sqlValue(slice)} AS BLOB) WHERE rowid = ${rowid};\n`;
 }
 
 const PAGE = 20;    // rows per query: avatars rows run up to 204800 bytes, so this stays small on purpose
@@ -60,15 +85,10 @@ export async function* dumpSql(db) {
   for (const o of objects) yield `${o.sql};\n`;
   for (const table of tableInsertOrder(objects.filter((o) => o.type === "table"))) {
     for (let offset = 0; ; offset += PAGE) {
-      const { results } = await db.prepare(`SELECT * FROM "${table.name}" ORDER BY rowid LIMIT ? OFFSET ?`)
+      const { results } = await db.prepare(`SELECT rowid AS "__rowid", * FROM "${table.name}" ORDER BY rowid LIMIT ? OFFSET ?`)
         .bind(PAGE, offset).all();
       if (!results.length) break;
-      for (const row of results) {
-        const cols = Object.keys(row);
-        const names = cols.map((c) => `"${c}"`).join(", ");
-        const values = cols.map((c) => sqlValue(row[c])).join(", ");
-        yield `INSERT INTO "${table.name}" (${names}) VALUES (${values});\n`;
-      }
+      for (const row of results) yield* rowStatements(table.name, row);
       if (results.length < PAGE) break;
     }
   }

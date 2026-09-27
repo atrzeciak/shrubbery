@@ -181,6 +181,8 @@ Two hard-won details:
   admin a 0-byte file. **Local D1 is not a faithful stand-in for remote D1.**
 - `backup_at` is written only in the stream's `flush()`, so it records an archive that finished, not
   one that started. A failure records its time and reason instead, and raises a warning.
+- D1 refuses a statement over 100,000 bytes, and a blob in hex is twice its size. A blob over 40 KiB
+  goes in as its first slice, then one `UPDATE … WHERE rowid = N` appends each further slice.
 
 ## 9. Testing
 
