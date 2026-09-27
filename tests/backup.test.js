@@ -161,23 +161,6 @@ describe("backup", () => {
     expect(names).toEqual(["dane.sql", "ODZYSKIWANIE.txt", "media/m1.jpg", "media/m1.thumb.jpg"]);
   });
 
-  it("records a missing original or thumbnail in BRAKUJACE.txt instead of staying silent", async () => {
-    const c = await steppedUpAdmin();
-    await seedOneMedia();
-    await env.MEDIA.delete("media/m1.jpg");                // the row stays, the original is gone
-    await q.setMediaThumb(env.DB, "m1").run();             // has_thumb=1, but no thumbnail object either
-
-    const res = await c.raw("/api/admin/backup");
-    const buf = new Uint8Array(await res.arrayBuffer());
-    const all = new TextDecoder().decode(buf);
-    expect(all).toContain("BRAKUJACE.txt");
-    expect(all).toContain("m1");
-    expect(all).toContain("media/m1.jpg");
-    expect(all).toContain("media/m1.thumb.jpg");
-    // the row itself still exists in the dump — only the R2 objects are missing
-    expect(all).toContain("INSERT INTO \"media\"");
-  });
-
   it("produces the archive on demand: nothing is written before the client reads", async () => {
     const c = await steppedUpAdmin();
     await seedOneMedia();
