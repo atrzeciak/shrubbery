@@ -21,11 +21,6 @@ export function mockApi(routes) {
 
 export const lang = (l = "pl") => setLang(l);
 
-// A rendering context shaped like app.js hands to views.
-export function ctx(over = {}) {
-  return { me: { id: "acc1", email: "me@x.org", role: "family", lang: "pl", person_id: null }, navigate: vi.fn(), toast: vi.fn(), errorText: (e) => e?.code || String(e), ...over };
-}
-
 export const tick = () => new Promise((r) => { setTimeout(r, 0); });
 export const q = (sel, root = document) => root.querySelector(sel);
 export const qa = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -36,19 +31,16 @@ export const meFixture = ({ account = {}, ...over } = {}) => ({
   person: null, passkeys: 0, session: { passkey_at: null, created_at: 0 }, ops: null, tz: "UTC", ...over,
 });
 
-// A view context with a whole /api/me object under state.me, plus refreshMe.
+// What app.js hands a view: the whole /api/me object under state.me, and the app's callbacks.
 export function viewCtx(me = meFixture(), over = {}) {
-  return { ...ctx(), state: { me }, refreshMe: vi.fn(), ...over };
+  return { state: { me }, navigate: vi.fn(), toast: vi.fn(), refreshMe: vi.fn(), errorText: (e) => e?.code || String(e), ...over };
 }
 
 export const submit = (form) => form.dispatchEvent(new Event("submit", { cancelable: true }));
 export const byText = (sel, text, root = document) => qa(sel, root).find((el) => el.textContent.trim() === text) || null;
 
-// What app.js actually hands a view: the account sits under state.me.
-export function appCtx(account = {}, over = {}) {
-  const me = { id: "acc1", email: "me@x.org", role: "family", lang: "pl", person_id: null, ...account };
-  return { state: { me: { account: me } }, navigate: vi.fn(), toast: vi.fn(), errorText: (e) => e?.code || String(e), ...over };
-}
+// The same, when all a test cares about is the signed-in account.
+export const appCtx = (account = {}) => viewCtx(meFixture({ account }));
 
 // happy-dom has no 2D canvas and cannot decode images; give the crop and upload code fakes it can drive.
 // Returns the mocks so a test can assert on drawImage or make toBlob yield a blob of a chosen size.
