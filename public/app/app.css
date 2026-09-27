@@ -158,8 +158,6 @@ input[type=range] { width: 100%; }
 .tree-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; margin: .5rem 0 0; padding: 0; list-style: none; font-size: .9rem; color: var(--muted); }
 .tree-legend li { display: flex; align-items: center; gap: .4rem; }
 .tree-legend .sample { width: 36px; height: 16px; flex: 0 0 auto; }
-.person-row > span { flex: 1 1 auto; min-width: 0; }
-.person-row > .btn { flex: 0 0 auto; margin-left: auto; min-height: 36px; padding: .25rem 1rem; }
 .sheet.full { inset: 0; width: auto; max-height: none; border: 0; border-radius: 0; padding: 3rem 1rem 2rem; }
 .sheet.full > .editor { max-width: 760px; margin: 0 auto; }
 .upcoming { background: color-mix(in srgb, var(--accent) 10%, var(--card)); border-color: var(--accent); }
