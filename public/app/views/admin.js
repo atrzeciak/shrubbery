@@ -140,6 +140,7 @@ const PANELS = {
     const list = h("ul", { class: "list card" });
     for (const a of accounts) {
       const self = a.id === ctx.state.me.account.id;
+      const who = (a.person_id && g.byId.get(a.person_id)?.display_name) || a.email;
       const iAmFounder = ctx.state.me.account.founder === 1;
       const shielded = !!a.founder || (!!a.protected && !iAmFounder);   // out of this admin's reach
       const granting = a.role !== "admin";
@@ -151,14 +152,12 @@ const PANELS = {
       const enable = h("button", { class: "btn secondary", type: "button", text: t("admin.accounts.enable"), hidden: !a.disabled_at });
       const signout = h("button", { class: "btn secondary", type: "button", text: t("admin.accounts.signout"), hidden: !!a.disabled_at });
       role.onclick = () => {
-        const who = (a.person_id && g.byId.get(a.person_id)?.display_name) || a.email;
         if (!confirm(t(granting ? "admin.accounts.grant_confirm" : "admin.accounts.revoke_confirm", { who }))) return;
         run(() => api(`/api/admin/accounts/${a.id}`, { method: "PATCH", body: { role: granting ? "admin" : "family" } }));
       };
       disable.onclick = () => confirm(t("confirm")) && run(() => api(`/api/admin/accounts/${a.id}/disable`, { method: "POST", body: {} }));
       enable.onclick = () => run(() => api(`/api/admin/accounts/${a.id}/enable`, { method: "POST", body: {} }));
       signout.onclick = () => {
-        const who = (a.person_id && g.byId.get(a.person_id)?.display_name) || a.email;
         if (!confirm(t("admin.accounts.signout_confirm", { who }))) return;
         run(() => api(`/api/admin/accounts/${a.id}/revoke-sessions`, { method: "POST", body: {} }));
       };
@@ -168,7 +167,6 @@ const PANELS = {
         hidden: !iAmFounder || self || !!a.founder || a.role !== "admin" || !!a.disabled_at,
       });
       shield.onclick = () => {
-        const who = (a.person_id && g.byId.get(a.person_id)?.display_name) || a.email;
         const key = a.protected ? "admin.accounts.unprotect_confirm" : "admin.accounts.protect_confirm";
         if (!confirm(t(key, { who }))) return;
         run(() => api(`/api/admin/accounts/${a.id}`, { method: "PATCH", body: { protected: a.protected ? 0 : 1 } }));
@@ -176,7 +174,6 @@ const PANELS = {
       const link = h("button", { class: "btn secondary", type: "button", text: a.person_id ? t("admin.accounts.unlink") : t("admin.accounts.link"), hidden: !!a.disabled_at });
       link.onclick = () => {
         if (a.person_id) {
-          const who = g.byId.get(a.person_id)?.display_name || a.email;
           if (!confirm(t("admin.accounts.unlink_confirm", { who }))) return;
           return run(() => api(`/api/admin/accounts/${a.id}/unlink`, { method: "POST", body: {} }));
         }
