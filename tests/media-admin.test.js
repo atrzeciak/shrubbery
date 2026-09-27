@@ -117,6 +117,16 @@ describe("upload size", () => {
 });
 
 describe("a person's gallery", () => {
+  it("counts the owned files from the listing it already has, not with another query", async () => {
+    const c = await linkedMember();
+    expect((await upload(c, "kind=photo&owner=p_me", fakeJpeg(40, 40))).status).toBe(201);
+    const real = env.DB, seen = [];
+    c.env = { ...env, DB: { prepare: (sql) => { seen.push(sql); return real.prepare(sql); }, batch: (s) => real.batch(s) } };
+    const r = await c.json("/api/people/p_me/media");
+    expect(r.body.counts).toEqual({ used: 1, cap: 6 });
+    expect(seen.filter((sql) => sql.includes("COUNT(*) AS n FROM media"))).toEqual([]);
+  });
+
   it("lists every file a person is tagged in, past D1's 100 bound parameters, with its tags", async () => {
     const c = await linkedMember();
     const stmts = [];

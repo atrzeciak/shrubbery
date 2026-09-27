@@ -77,8 +77,7 @@ async function listForPerson(request, env, ctx, m) {
   const { results: tags } = await q.tagsForPersonMedia(env.DB, m[1]).all();
   for (const tag of tags) byMedia.get(tag.media_id)?.push(tag.person_id);
   const media = results.map((row) => ({ ...row, people: byMedia.get(row.id) }));
-  const { n } = await q.countOwnedMedia(env.DB, m[1]).first();
-  return json({ media, counts: { used: n, cap: MEDIA_CAP } });
+  return json({ media, counts: { used: results.filter((r) => r.owned).length, cap: MEDIA_CAP } });
 }
 
 async function streamObject(env, media, key, contentType, request) {
