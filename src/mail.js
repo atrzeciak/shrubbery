@@ -27,11 +27,18 @@ const MESSAGES = {
   }),
 };
 
+const oneLine = (s) => String(s).replace(/[\r\n]+/g, " ");
+
 // The only place that talks to a mail provider. Swap the body of this function to change vendor.
+// Header values are made single-line here: the names in them are typed by relatives and strangers.
+async function deliver(env, msg) {
+  await env.EMAIL.send({ ...msg, from: { ...msg.from, name: oneLine(msg.from.name) }, subject: oneLine(fill(env, msg.subject)), text: fill(env, msg.text) });
+}
+
 export async function sendCode(env, to, code, lang) {
   const { subject, text } = (MESSAGES[lang] || MESSAGES.pl)(code);
   if (env.MAIL_ECHO === "1") console.log(`[mail-echo] to=${to} code=${code}`);
-  await env.EMAIL.send({ to, from: { email: loginFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
+  await deliver(env, { to, from: { email: loginFrom(env), name: familyName(lang) }, subject, text });
 }
 
 // The first-person story is the founder's own — his mother left him the Drzewo Genealogiczne. Any
@@ -99,8 +106,8 @@ const INVITES = {
 export async function sendInvitation(env, to, lang, inviter = null, bcc = [], attachment = null) {
   const { subject, text } = (INVITES[lang] || INVITES.pl)(inviter?.name || null, to, Boolean(inviter?.founder));
   const from = { email: familyFrom(env), name: inviter?.name || familyName(lang) };
-  await env.EMAIL.send({
-    to, from, subject: fill(env, subject), text: fill(env, text),
+  await deliver(env, {
+    to, from, subject, text,
     ...(inviter?.email ? { replyTo: inviter.email } : {}),
     ...(bcc.length ? { bcc } : {}),
     ...(attachment ? { attachments: [{ ...attachment, disposition: "attachment" }] } : {}),
@@ -124,7 +131,7 @@ const JOIN_NOTICES = {
 
 export async function sendJoinNotice(env, to, lang, name, auto = false) {
   const { subject, text } = (JOIN_NOTICES[lang] || JOIN_NOTICES.pl)(name, auto);
-  await env.EMAIL.send({ to, from: { email: familyFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
+  await deliver(env, { to, from: { email: familyFrom(env), name: familyName(lang) }, subject, text });
 }
 
 const ADMIN_GRANTED = {
@@ -160,7 +167,7 @@ const ADMIN_GRANTED = {
 
 export async function sendAdminGranted(env, to, lang) {
   const { subject, text } = (ADMIN_GRANTED[lang] || ADMIN_GRANTED.pl)();
-  await env.EMAIL.send({ to, from: { email: familyFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
+  await deliver(env, { to, from: { email: familyFrom(env), name: familyName(lang) }, subject, text });
 }
 
 const JOINED_NOTICES = {
@@ -177,7 +184,7 @@ const JOINED_NOTICES = {
 // Admins learn by mail when an invitation turns into a real member; never blocks that first login.
 export async function sendJoinedNotice(env, to, lang, name, email) {
   const { subject, text } = (JOINED_NOTICES[lang] || JOINED_NOTICES.pl)(name, email);
-  await env.EMAIL.send({ to, from: { email: familyFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
+  await deliver(env, { to, from: { email: familyFrom(env), name: familyName(lang) }, subject, text });
 }
 
 const EVENT_NOTICES = {
@@ -195,7 +202,7 @@ const EVENT_NOTICES = {
 
 export async function sendEventNotice(env, to, lang, notice) {
   const { subject, text } = (EVENT_NOTICES[lang] || EVENT_NOTICES.pl)(notice);
-  await env.EMAIL.send({ to, from: { email: familyFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
+  await deliver(env, { to, from: { email: familyFrom(env), name: familyName(lang) }, subject, text });
 }
 
 // The monthly letter to the admins. Two rules run through all of it.
@@ -398,7 +405,7 @@ const OPS_LETTERS = {
 
 export async function sendOpsLetter(env, to, lang, status) {
   const { subject, text } = (OPS_LETTERS[lang] || OPS_LETTERS.pl)(status);
-  await env.EMAIL.send({ to, from: { email: familyFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
+  await deliver(env, { to, from: { email: familyFrom(env), name: familyName(lang) }, subject, text });
 }
 
 // A gathering speaks for the family, not for whoever pressed the button: it is the family's event,
@@ -458,7 +465,7 @@ const GATHERINGS = {
 
 export async function sendGatheringMail(env, to, lang, gathering, kind, signature = null) {
   const { subject, text } = (GATHERINGS[lang] || GATHERINGS.pl)(gathering, kind, signature || familyName(lang));
-  await env.EMAIL.send({ to, from: { email: familyFrom(env), name: familyName(lang) }, subject: fill(env, subject), text: fill(env, text) });
+  await deliver(env, { to, from: { email: familyFrom(env), name: familyName(lang) }, subject, text });
 }
 
 // A letter to the whole family, written by an admin. The subject and the body are theirs; only the
@@ -473,9 +480,9 @@ const BROADCASTS = {
 export async function sendBroadcast(env, to, lang, message, inviter = null, attachment = null) {
   const name = inviter?.name || familyName(lang);
   const text = (BROADCASTS[lang] || BROADCASTS.pl)(message.body, name);
-  await env.EMAIL.send({
+  await deliver(env, {
     to, from: { email: familyFrom(env), name },
-    subject: fill(env, message.subject), text: fill(env, text),
+    subject: message.subject, text,
     ...(inviter?.email ? { replyTo: inviter.email } : {}),
     ...(attachment ? { attachments: [{ ...attachment, disposition: "attachment" }] } : {}),
   });

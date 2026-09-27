@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sendAdminGranted, sendGatheringMail, sendJoinedNotice, sendOpsLetter } from "../src/mail.js";
+import { sendAdminGranted, sendEventNotice, sendGatheringMail, sendInvitation, sendJoinNotice, sendJoinedNotice, sendOpsLetter } from "../src/mail.js";
 
 // Every letter has a Polish and an English version; the English one is read by the relatives
 // abroad and must say the same things, with the site's own name and address filled in.
@@ -58,5 +58,28 @@ describe("the English letters", () => {
     expect(subjects).toEqual({ announce: "Family gathering — 2027-06-12", nudge: "Will you be coming?", week: "The family gathering is in a week", day: "The family gathering is today" });
     const bare = await captured((env) => sendGatheringMail(env, "a@x.org", "en", { on_date: "2027-06-12", place: null, note: null }, "announce"));
     expect(bare.text).not.toContain("Where:");
+  });
+});
+
+// A name is typed by a stranger on the join form or by any member in the tree, and trimmed but not
+// otherwise cleaned. A line break inside it must not reach a header, where it could start another.
+describe("header values", () => {
+  const evil = "Jan\r\nBcc: x@y.org";
+  it("keeps line breaks in a name out of every subject", async () => {
+    for (const send of [
+      (env) => sendJoinNotice(env, "a@x.org", "pl", evil),
+      (env) => sendJoinedNotice(env, "a@x.org", "en", evil, "j@x.org"),
+      (env) => sendEventNotice(env, "a@x.org", "pl", { type: "birthday", name: evil, years: 30, inDays: 0 }),
+    ]) {
+      const m = await captured(send);
+      expect(m.subject).not.toMatch(/[\r\n]/);
+      expect(m.subject).toContain("Jan Bcc: x@y.org");
+    }
+  });
+
+  it("keeps line breaks in an inviter's name out of the sender's name", async () => {
+    const m = await captured((env) => sendInvitation(env, "a@x.org", "pl", { name: evil, email: "i@x.org" }));
+    expect(m.from.name).not.toMatch(/[\r\n]/);
+    expect(m.subject).not.toMatch(/[\r\n]/);
   });
 });
