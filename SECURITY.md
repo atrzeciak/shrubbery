@@ -44,10 +44,14 @@ These are decisions, not oversights. A report that describes one of them will be
 
 ## Running your own copy
 
-If you stand one up, two things are on you rather than on this code:
+If you stand one up, three things are on you rather than on this code:
 
 - **`IP_HASH_SECRET` must be set and must be random.** It salts the hashed IP addresses in the
-  history log. Unset or guessable, the hashes are reversible by anyone who can read the table.
+  history log and in the rate-limit keys. Unset or guessable, the hashes are reversible by anyone
+  who can read the table.
+- **Turn on HTTPS enforcement at the zone.** The code sends no `Strict-Transport-Security`, so that
+  a copy never commits a domain to HTTPS for a year by accident. Enable *Always Use HTTPS* and HSTS
+  under SSL/TLS → Edge Certificates in the Cloudflare dashboard.
 - **Keep `CF_BILLING_TOKEN` minimal** — Account→Billing:Read and User→User Details:Read, nothing
   more. Cloudflare's "read everything" preset includes D1, R2 and Secrets Store, which is far more
   blast radius than a billing check needs.
