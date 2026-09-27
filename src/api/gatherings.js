@@ -147,7 +147,7 @@ async function mailOut(request, env, m, { mark, recipients, kind }) {
   const now = nowSec();
   // Claimed before the first mail, not marked after the last: a second press, tab or admin that
   // arrives while the loop runs finds it taken. A run that dies partway stays sent rather than repeating.
-  if (!(await q[mark](env.DB, m[1], now).run()).meta.changes) throw new ApiError(409, "already_sent");
+  if (!(await mark(env.DB, m[1], now).run()).meta.changes) throw new ApiError(409, "already_sent");
   const identity = await accountIdentity(env, account.id);
   const { results } = await recipients(env, gathering).all();
   // The tree still holds the address of anybody an admin shut out; broadcasts.js draws the same line.
@@ -184,10 +184,10 @@ async function mailOut(request, env, m, { mark, recipients, kind }) {
 }
 
 const announce = (request, env, ctx, m) => mailOut(request, env, m,
-  { mark: "markAnnounced", kind: "announce", recipients: (env) => q.livingWithEmail(env.DB) });
+  { mark: q.markAnnounced, kind: "announce", recipients: (env) => q.livingWithEmail(env.DB) });
 
 const nudge = (request, env, ctx, m) => mailOut(request, env, m,
-  { mark: "markNudged", kind: "nudge", recipients: (env, g) => q.unansweredWithEmail(env.DB, g.id) });
+  { mark: q.markNudged, kind: "nudge", recipients: (env, g) => q.unansweredWithEmail(env.DB, g.id) });
 
 async function ownRsvp(request, env, ctx, m) {
   const { account } = await requireSession(request, env);
