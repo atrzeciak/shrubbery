@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sendOpsLetter } from "../src/mail.js";
+import { warningsFor } from "../src/ops/checks.js";
 
 const AT = Math.floor(Date.parse("2026-09-01T05:00:00Z") / 1000);
 const DAY = 86400;
@@ -27,13 +28,19 @@ const KNOWN = {
 };
 
 describe("the monthly letter", () => {
-  it("never shows a reader a raw warning key", async () => {
-    const warnings = ["checks_stale", "domain_unknown", "domain_soon", "card_soon", "backup_never", "backup_stale", "check_failing"];
+  it("never shows a reader a raw warning key, and gives every warning its own sentence", async () => {
+    // Every key the checks can produce, taken from the checks themselves so a rename there shows up here.
+    const warnings = [...new Set([
+      ...warningsFor({}, AT),
+      ...warningsFor({ checked_at: AT - 4 * DAY, domain_expires_at: AT + DAY, card_expires_at: AT + DAY,
+        backup_at: AT - 61 * DAY, backup_failed_at: AT - DAY, error_since: AT - 8 * DAY }, AT),
+    ])];
+    expect(warnings).toHaveLength(9);
+    const lines = (text) => text.split("\n").filter((l) => l.trim()).length;
     for (const lang of ["pl", "en"]) {
       const { text } = await letter(lang, { ...KNOWN, warnings });
       for (const w of warnings) expect(text, `${lang}/${w}`).not.toContain(w);
-      // and every one of them still put a sentence in front of the reader
-      expect(text.split("\n").filter((l) => l.trim()).length).toBeGreaterThan(warnings.length);
+      expect(lines(text), lang).toBe(lines((await letter(lang, KNOWN)).text) + warnings.length);
     }
   });
 
