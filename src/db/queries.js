@@ -247,8 +247,7 @@ export const gatheringById = (db, id) => db.prepare("SELECT * FROM gatherings WH
 export const currentGathering = (db, today) =>
   db.prepare("SELECT * FROM gatherings WHERE on_date >= ? ORDER BY on_date LIMIT 1").bind(today);
 export const updateGathering = (db, id, g) =>
-  db.prepare(`UPDATE gatherings SET on_date = COALESCE(?2, on_date), place = COALESCE(?3, place),
-              note = COALESCE(?4, note), cancelled_at = ?5 WHERE id = ?1`)
+  db.prepare("UPDATE gatherings SET on_date = ?2, place = ?3, note = ?4, cancelled_at = ?5 WHERE id = ?1")
     .bind(id, g.onDate, g.place, g.note, g.cancelledAt);
 export const setRsvp = (db, r) =>
   db.prepare(`INSERT INTO rsvps (gathering_id, person_id, coming, headcount, answered_by, answered_at)

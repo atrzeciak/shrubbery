@@ -54,6 +54,19 @@ describe("gatherings", () => {
     expect((await new Client(env).json("/api/gatherings")).status).toBe(401);
   });
 
+  it("an edit can empty the place and the note; a field left out keeps its value", async () => {
+    await family();
+    const adm = await admin();
+    const id = await makeGathering(adm);
+    const row = () => env.DB.prepare("SELECT on_date, place, note, cancelled_at FROM gatherings WHERE id = ?").bind(id).first();
+    expect((await adm.json(`/api/admin/gatherings/${id}`, { method: "PATCH", body: { on_date: "2027-06-13", place: "", note: "" } })).status).toBe(200);
+    expect(await row()).toMatchObject({ on_date: "2027-06-13", place: null, note: null });
+    await adm.json(`/api/admin/gatherings/${id}`, { method: "PATCH", body: { place: "Dom" } });
+    await adm.json(`/api/admin/gatherings/${id}`, { method: "PATCH", body: { cancelled: 1 } });
+    expect(await row()).toMatchObject({ on_date: "2027-06-13", place: "Dom", note: null });
+    expect((await row()).cancelled_at).toBeGreaterThan(0);
+  });
+
   it("only an admin may create or change one", async () => {
     await family();
     const adm = await admin();
