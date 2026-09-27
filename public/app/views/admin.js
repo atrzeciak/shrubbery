@@ -32,8 +32,9 @@ const act = (ctx, redraw) => async (fn, done = t("done")) => {
 const PANELS = {
   async invitations(panel, ctx, redraw) {
     const run = act(ctx, redraw);
-    const { requests } = await api("/api/admin/join-requests");
-    const g = await loadGraph();
+    // None of these reads needs another's answer: asked together, the tab waits for the slowest only.
+    const [{ requests }, g, { documents }, { invitations }] = await Promise.all([
+      api("/api/admin/join-requests"), loadGraph(), api("/api/admin/documents"), api("/api/admin/invitations")]);
     const reqList = h("ul", { class: "list card" });
     const open = requests.filter((r) => r.status === "pending");
     if (!open.length) reqList.append(h("li", { class: "muted", text: t("admin.requests.empty") }));
@@ -61,7 +62,6 @@ const PANELS = {
       match.textContent = !e ? "" : !p ? t("admin.invite.match.none") : p.account_id ? t("admin.invite.match.taken", { name: p.display_name }) : t("admin.invite.match", { name: p.display_name });
     };
     const lang = h("select", { id: "inv-lang" }, h("option", { value: "pl", text: "Polski" }), h("option", { value: "en", text: "English" }));
-    const { documents } = await api("/api/admin/documents");
     const attachment = h("select", { id: "inv-attachment" }, h("option", { value: "", text: t("admin.invite.attachment.none") }),
       ...documents.map((d) => h("option", { value: d.id, text: `${d.caption || d.id}${d.year ? ` (${d.year})` : ""} · ${Math.round(d.size / 1024)} KB` })));
     const send = h("button", { class: "btn", type: "submit", text: t("admin.invite.send") });
@@ -72,7 +72,6 @@ const PANELS = {
       h("div", { class: "row" }, send));
     form.onsubmit = (ev) => { ev.preventDefault(); run(() => api("/api/admin/invitations", { method: "POST", body: { email: email.value, lang: lang.value, attachment: attachment.value || null } }), t("admin.invite.sent")); };
     const list = h("ul", { class: "list card" });
-    const { invitations } = await api("/api/admin/invitations");
     if (!invitations.length) list.append(h("li", { class: "muted", text: t("admin.invite.empty") }));
     for (const inv of invitations) {
       const resend = h("button", { class: "btn secondary", type: "button", text: t("admin.invite.resend") });
@@ -88,8 +87,7 @@ const PANELS = {
 
   async messages(panel, ctx, redraw) {
     const run = act(ctx, redraw);
-    const { broadcasts, counts } = await api("/api/admin/broadcasts");
-    const { documents } = await api("/api/admin/documents");
+    const [{ broadcasts, counts }, { documents }] = await Promise.all([api("/api/admin/broadcasts"), api("/api/admin/documents")]);
     const subject = h("input", { type: "text", id: "bc-subject", required: true, maxlength: "200", autocomplete: "off" });
     const body = h("textarea", { id: "bc-body", required: true, rows: "8", maxlength: "5000" });
     const boxes = ["accounts", "invited", "others"].map((group) => {
@@ -139,8 +137,7 @@ const PANELS = {
 
   async accounts(panel, ctx, redraw) {
     const run = act(ctx, redraw);
-    const { accounts } = await api("/api/admin/accounts");
-    const g = await loadGraph();
+    const [{ accounts }, g] = await Promise.all([api("/api/admin/accounts"), loadGraph()]);
     const list = h("ul", { class: "list card" });
     for (const a of accounts) {
       const self = a.id === ctx.state.me.account.id;

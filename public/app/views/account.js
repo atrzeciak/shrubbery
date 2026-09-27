@@ -5,18 +5,20 @@ import { h, clear, fmtDate, fmtAgo } from "../dom.js";
 export async function render(root, ctx) {
   const me = ctx.state.me;
   const redraw = () => render(root, ctx);
+  // Passkeys, sessions and the version are independent reads: asked together, not one after another.
+  const [keys, list, version] = await Promise.all([passkeys(ctx, redraw), sessions(ctx, redraw), about()]);
   clear(root);
   root.append(
     h("h1", { text: t("account.title") }),
     h("div", { class: "card" },
       h("div", {}, h("span", { class: "muted", text: `${t("account.email")}: ` }), me.account.email),
       h("div", {}, h("span", { class: "muted", text: `${t("account.role")}: ` }), t(`account.role.${me.account.role}`))),
-    h("h2", { text: t("account.passkeys") }), await passkeys(ctx, redraw),
-    h("h2", { text: t("account.sessions") }), await sessions(ctx, redraw),
+    h("h2", { text: t("account.passkeys") }), keys,
+    h("h2", { text: t("account.sessions") }), list,
     h("h2", { text: t("account.lang") }), language(ctx),
     h("h2", { text: t("account.notify.title") }), reminders(ctx),
     h("div", { class: "row" }, signOut(ctx)),
-    h("h2", { text: t("about.title") }), await about(),
+    h("h2", { text: t("about.title") }), version,
   );
 }
 

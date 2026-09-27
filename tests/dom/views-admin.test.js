@@ -408,6 +408,17 @@ describe("history", () => {
   });
 });
 
+describe("loading a tab", () => {
+  // None of a tab's reads needs another's answer: on a phone, one after another is four waits for one.
+  it("asks for everything the Invitations tab needs at once", async () => {
+    const { root } = await open("Accounts");
+    const calls = mockApi({ ...baseRoutes(), "GET /api/admin/join-requests": () => new Promise(() => {}) });
+    byText("[role=tab]", "Invitations", root).click();
+    await tick();
+    expect(calls.map((c) => c.path).sort()).toEqual(["/api/admin/documents", "/api/admin/invitations", "/api/admin/join-requests", "/api/people"]);
+  });
+});
+
 describe("switching tabs", () => {
   // The redraw a tab click starts is not drawn through the router, which catches a failing view:
   // the tab has to say so itself, or the panel stays empty with nothing on the page.
