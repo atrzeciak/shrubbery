@@ -50,11 +50,6 @@ async function listAll(request, env) {
   return json({ people: people.results, parents: parents.results, partners: partners.results, links: links.results, avatars: avatars.results });
 }
 
-async function getOne(request, env, ctx, m) {
-  await requireSession(request, env);
-  return json(await personWithLinks(env, m[1]));
-}
-
 // D1 hands BLOB columns back as ArrayBuffer, a Uint8Array, or (locally, via .first()) a plain
 // array of byte values — normalize to a Uint8Array so Response() gets real bytes either way.
 function blobBytes(blob) {
@@ -127,7 +122,6 @@ async function putAvatar(request, env, ctx, m) {
 
 export const routes = [
   ["GET", /^\/api\/people$/, listAll],
-  ["GET", /^\/api\/people\/([A-Za-z0-9_-]+)$/, getOne],
   ["GET", /^\/api\/people\/([A-Za-z0-9_-]+)\/avatar$/, getAvatar],
   ["PUT", /^\/api\/people\/([A-Za-z0-9_-]+)\/avatar$/, putAvatar],
   ["GET", /^\/api\/me\/person$/, myPerson],

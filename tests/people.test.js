@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
-import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs, personIn } from "./helpers/env.js";
 import { fakeJpeg } from "./helpers/jpeg.js";
 
 let env, sent;
@@ -32,10 +32,9 @@ describe("GET /api/people", () => {
     expect(body.partners).toEqual([]);
     expect(body.links).toEqual([]);
     expect(body.avatars).toEqual([]);
-    const one = await c.json("/api/people/p_v");
-    expect(one.status).toBe(200);
-    expect(one.body.person.display_name).toBe("Ewa Nowak");
-    expect((await c.json("/api/people/nope")).status).toBe(404);
+    expect(body.people.find((p) => p.id === "p_v").display_name).toBe("Ewa Nowak");
+    // The app reads everybody at once; there is no route for one person.
+    expect((await c.json("/api/people/p_v")).status).toBe(404);
   });
 });
 
@@ -68,8 +67,8 @@ describe("own entry", () => {
     await seedPerson(env, { id: "p_u", display_name: "Unknown parents" });
     const me = await login("a1@x.org");
     await me.json("/api/me/person", { method: "PATCH", body: { maiden_name: "Kowalski" } });
-    expect((await me.json("/api/people/p_and")).body.person.display_name).toBe("Jan Nowak (Kowalski)");
-    expect((await me.json("/api/people/p_u")).body.person.display_name).toBe("Unknown parents");
+    expect((await personIn(me, "p_and")).person.display_name).toBe("Jan Nowak (Kowalski)");
+    expect((await personIn(me, "p_u")).person.display_name).toBe("Unknown parents");
   });
 });
 

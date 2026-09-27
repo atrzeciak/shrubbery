@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
-import { makeEnv, resetDb, seedAccount, seedPerson, loginAs, adminAs } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, loginAs, adminAs, personIn } from "./helpers/env.js";
 import { fakeJpeg } from "./helpers/jpeg.js";
 
 let env, sent;
@@ -21,12 +21,12 @@ describe("admin people", () => {
     const created = await c.json("/api/admin/people", { method: "POST", body: { first_name: "Marek", last_name: "Nowak", birth_date: "1938-03-21", unverified: 1, links: [{ kind: "other", label: "wiki", url: "https://example.org/t" }] } });
     expect(created.status).toBe(201);
     const id = created.body.id;
-    const got = (await c.json(`/api/people/${id}`)).body;
+    const got = await personIn(c, id);
     expect(got.person.display_name).toBe("Marek Nowak");
     expect(got.person.unverified).toBe(1);
     expect(got.links).toHaveLength(1);
     expect((await c.json(`/api/admin/people/${id}`, { method: "PATCH", body: { unverified: 0, notes: "ok" } })).status).toBe(200);
-    expect((await c.json(`/api/people/${id}`)).body.person.unverified).toBe(0);
+    expect((await personIn(c, id)).person.unverified).toBe(0);
     await seedPerson(env, { id: "kid", first_name: "K", last_name: "T" });
     expect((await c.json(`/api/admin/people/kid/parents/${id}`, { method: "POST", body: {} })).status).toBe(201);
     expect((await c.json(`/api/admin/people/${id}`, { method: "DELETE" })).status).toBe(409);
@@ -36,7 +36,7 @@ describe("admin people", () => {
     const avatarRes = await c.fetch(`/api/people/${id}/avatar`);
     expect(new Uint8Array(await avatarRes.arrayBuffer())).toEqual(avatarBytes);
     expect((await c.json(`/api/admin/people/${id}`, { method: "DELETE" })).status).toBe(200);
-    expect((await c.json(`/api/people/${id}`)).status).toBe(404);
+    expect(await personIn(c, id)).toBeUndefined();
     expect((await c.fetch(`/api/people/${id}/avatar`)).status).toBe(404);
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM person_links WHERE person_id = ?").bind(id).first()).n).toBe(0);
     const actions = (await env.DB.prepare("SELECT action FROM history WHERE target_type = 'person' ORDER BY id").all()).results.map((r) => r.action);

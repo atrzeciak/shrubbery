@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
-import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client, loginAs, adminAs } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client, loginAs, adminAs, personIn } from "./helpers/env.js";
 import { capturingErrors } from "./helpers/logging.js";
 
 let env, sent;
@@ -228,7 +228,7 @@ describe("admin review", () => {
     const id = (await c.json("/api/admin/join-requests")).body.requests[0].id;
     const ap = await c.json(`/api/admin/join-requests/${id}/approve`, { method: "POST", body: { create: true } });
     expect(ap.status).toBe(200);
-    const p = (await c.json(`/api/people/${ap.body.person_id}`)).body.person;
+    const p = (await personIn(c, ap.body.person_id)).person;
     expect(p).toMatchObject({ first_name: "Anna", last_name: "Zielińska", birth_date: "1985", email: "ola@x.org", unverified: 1 });
     expect(p.notes).toBe("Barbara");            // the message was written for the admin, not the family
     await pending();

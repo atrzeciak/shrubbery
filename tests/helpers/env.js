@@ -66,6 +66,13 @@ export class Client {
   }
 }
 
+// One person as the app sees them, read from the whole graph, with their links; undefined once gone.
+export async function personIn(c, id) {
+  const { people, links } = (await c.json("/api/people")).body;
+  const person = people.find((p) => p.id === id);
+  return person && { person, links: links.filter((l) => l.person_id === id) };
+}
+
 // Signed in the way a person does it: address, code request, the code from the last mail.
 export async function loginAs(env, sent, email) {
   const c = new Client(env);
