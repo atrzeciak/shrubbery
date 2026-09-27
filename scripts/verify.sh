@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 
 readonly PUBLIC=public
 readonly PAGES=("$PUBLIC/index.html" "$PUBLIC/en/index.html")
+# Assets nothing imports. A missing module fails the test suite at import, so modules are not listed.
 readonly REQUIRED=(
   "$PUBLIC/index.html"
   "$PUBLIC/en/index.html"
@@ -14,34 +15,11 @@ readonly REQUIRED=(
   "$PUBLIC/robots.txt"
   "$PUBLIC/404.html"
   "$PUBLIC/_headers"
+  "$PUBLIC/favicon.svg"
   "$PUBLIC/app/index.html"
   "$PUBLIC/app/app.css"
-  "$PUBLIC/app/app.js"
-  "$PUBLIC/app/api.js"
-  "$PUBLIC/app/i18n.js"
-  "$PUBLIC/app/dom.js"
-  "$PUBLIC/app/crop.js"
   "$PUBLIC/app/i18n/pl.json"
   "$PUBLIC/app/i18n/en.json"
-  "$PUBLIC/app/views/login.js"
-  "$PUBLIC/app/views/join.js"
-  "$PUBLIC/app/views/news.js"
-  "$PUBLIC/app/views/account.js"
-  "$PUBLIC/app/views/admin.js"
-  "$PUBLIC/app/graph.js"
-  "$PUBLIC/app/tree-layout.js"
-  "$PUBLIC/app/people.js"
-  "$PUBLIC/app/sheet.js"
-  "$PUBLIC/app/person-card.js"
-  "$PUBLIC/app/person-editor.js"
-  "$PUBLIC/app/views/members.js"
-  "$PUBLIC/app/person-form.js"
-  "$PUBLIC/app/views/me.js"
-  "$PUBLIC/app/views/tree.js"
-  "$PUBLIC/app/views/gathering.js"
-  "$PUBLIC/app/events.js"
-  "$PUBLIC/app/media-gallery.js"
-  "$PUBLIC/app/viewer.js"
 )
 failures=0
 
