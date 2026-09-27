@@ -28,8 +28,10 @@ function defaultFocus(g, me) {
 const X = (n) => n.col * (style.W + style.GX), Y = (n) => n.row * (style.H + style.GY);
 const KIND = { married: "married", partner: "unmarried", divorced: "divorced", coparents: "coparents" };
 
-const adjacent = (a, b) => Math.abs(a.col - b.col) === 1;
-const cell = (pos, row, col) => [...pos.values()].find((n) => n.row === row && n.col === col);
+// Columns are often thirds (a row centres over its children's mean), so compare them with a tolerance.
+const same = (x, y) => Math.abs(x - y) < 1e-6;
+const adjacent = (a, b) => same(Math.abs(a.col - b.col), 1);
+const cell = (pos, row, col) => [...pos.values()].find((n) => n.row === row && same(n.col, col));
 // Half a column inside `from`, toward `to`: between two people, never through one.
 const beside = (from, to) => X(from) + Math.sign(X(to) - X(from)) * (style.W + style.GX) / 2;
 // A couple with someone between them is joined by a bridge above the row; a longer span rides higher.

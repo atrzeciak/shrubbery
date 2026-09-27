@@ -529,6 +529,26 @@ describe("the box", () => {
   });
 });
 
+describe("a couple side by side", () => {
+  // familyLayout centres parents over their children's mean, so columns come out in thirds and a
+  // neighbouring pair can sit 0.9999999999999991 apart. They are still next to each other.
+  it("is joined by a plain line, not a bridge, when their columns are fractions", async () => {
+    const P = (id) => ({ id, first_name: id, last_name: "T", display_name: `${id} T`, birth_date: null });
+    const par = (p, c) => ({ parent_id: p, child_id: c });
+    const family = {
+      people: ["a", "b", "k0", "k1", "k2", "s"].map(P),
+      parents: ["k0", "k1", "k2"].flatMap((k) => [par("a", k), par("b", k)]),
+      partners: [{ a_id: "a", b_id: "b", kind: "married" }, { a_id: "k0", b_id: "s", kind: "married" }],
+      links: [], avatars: [],
+    };
+    const { root, mode } = await draw(viewCtx(meFixture({ account: { person_id: "a" } })), "/app/tree/a", { "GET /api/people": family });
+    await mode("Whole family");
+    const svg = q(".tree-wrap svg", root);
+    expect(qa("path.edge.partner", svg)).toHaveLength(0);
+    expect(qa("line.edge.partner.married", svg)).toHaveLength(2);
+  });
+});
+
 describe("choosing a style", () => {
   it("falls back to the box for a style nobody defined", async () => {
     const { root } = await draw(me(), "/app/tree/p1?style=cards");
