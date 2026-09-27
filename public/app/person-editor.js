@@ -1,6 +1,6 @@
 import { api } from "./api.js";
 import { t } from "./i18n.js";
-import { h, clear } from "./dom.js";
+import { h } from "./dom.js";
 import { lifeSpan } from "./graph.js";
 import { loadGraph, avatarUrl } from "./people.js";
 import { personForm, avatarPicker } from "./person-form.js";
@@ -13,7 +13,6 @@ export async function openPersonEditor(id, ctx, { onDone = () => {} } = {}) {
   const redraw = () => openPersonEditor(id, ctx, { onDone });
   const options = (exclude) => g.people.filter((p) => p.id !== exclude).sort((a, b) => a.display_name.localeCompare(b.display_name)).map((p) => h("option", { value: p.id, text: `${p.display_name} ${lifeSpan(p)}`.trim() }));
 
-  clear(editor);
   const p = id ? g.byId.get(id) : null;
   const form = personForm(p, id ? g.links(id) : [], {
     admin: true,
