@@ -43,7 +43,13 @@ async function joinHistory(request, env, action, id, details, now, actor = null)
 
 async function notifyAdmins(env, name, auto) {
   const { results } = await q.listAdmins(env.DB).all();
-  for (const a of results) await sendJoinNotice(env, a.email, a.lang, name, auto);
+  for (const a of results) {
+    try {
+      await sendJoinNotice(env, a.email, a.lang, name, auto);
+    } catch (e) {
+      console.error(e);           // the request is stored; one dead mailbox must not silence the rest
+    }
+  }
 }
 
 async function firstAdminId(env) {
