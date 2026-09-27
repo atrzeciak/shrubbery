@@ -212,11 +212,16 @@ const PANELS = {
     const more = h("button", { class: "btn secondary", type: "button", text: t("admin.history.more"), hidden: true });
     let next = null;
     const run = (p) => p.catch((e) => ctx.toast(ctx.errorText(e), "error"));
+    // Only the latest request draws: a page still arriving when the filter changes, or a second tap,
+    // must not land in the list.
+    let seq = 0;
     async function load(before) {
+      const my = ++seq;
       const qs = new URLSearchParams();
       if (before) qs.set("before", before);
       if (filter.value) qs.set("account", filter.value);
       const page = await api(`/api/admin/history${qs.toString() ? `?${qs}` : ""}`);
+      if (my !== seq) return;
       for (const item of page.items) list.append(h("li", {}, h("div", { text: sentence(item) }), h("div", { class: "muted", text: `${fmtDate(item.at)} · ${item.action}` })));
       next = page.next;
       more.hidden = !next;

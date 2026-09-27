@@ -79,8 +79,12 @@ export async function render(root, ctx) {
   root.append(list, more);
   let next = null;
   const run = (p) => p.catch((e) => ctx.toast(ctx.errorText(e), "error"));
+  // Only the latest request draws: a double tap would otherwise append the same page twice.
+  let seq = 0;
   async function load(before) {
+    const my = ++seq;
     const page = await api(`/api/news${before ? `?before=${before}` : ""}`);
+    if (my !== seq) return;
     for (const item of page.items) {
       list.append(h("li", { class: item.at > seenAt ? "fresh" : null }, h("div", {}, ...sentenceNodes(item)), h("div", { class: "muted", text: fmtAgo(item.at) })));
     }

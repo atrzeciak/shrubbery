@@ -87,6 +87,15 @@ describe("the feed", () => {
     expect(feed()[0].textContent).toBe("Quiet for now. New entries will appear here.");
   });
 
+  it("adds an older page once however fast Show older is tapped", async () => {
+    await start({ ...base(), "GET /api/news": (body, path) => (path.includes("before=") ? { items: [items[3]], next: null } : { items: items.slice(0, 1), next: 40 }) });
+    const more = q("button.btn");
+    more.click();
+    more.click();
+    for (let i = 0; i < 4; i++) await tick();
+    expect(feed()).toHaveLength(2);
+  });
+
   it("offers older entries page by page and toasts when a page fails", async () => {
     const { calls, ctx } = await start({ ...base(), "GET /api/news": (body, path) => (path.includes("before=") ? { items: [items[3]], next: null } : { items: items.slice(0, 1), next: 40 }) });
     const more = q("button.btn");

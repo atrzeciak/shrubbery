@@ -384,6 +384,21 @@ describe("history", () => {
     expect(root.textContent).toContain("The history is empty.");
   });
 
+  // A page still on its way when the filter changes must not land in the new list.
+  it("shows only the filtered entries when the filter changes while an older page is loading", async () => {
+    const { root } = await open("History", { "GET /api/admin/history": (body, path) => (
+      path.includes("account=acc2") ? { items: [item(9, "person_created")], next: null }
+        : path.includes("before=") ? { items: [item(1, "made_up_action")], next: null }
+          : { items: [item(3, "person_created")], next: 2 }) });
+    byText("button", "Show older", root).click();
+    const filter = q("select", root);
+    filter.value = "acc2";
+    filter.dispatchEvent(new Event("change"));
+    for (let i = 0; i < 4; i++) await tick();
+    expect(qa("ul.list li", root)).toHaveLength(1);
+    expect(root.textContent).not.toContain("made_up_action");
+  });
+
   it("toasts when a page cannot be loaded", async () => {
     const { root, ctx } = await open("History", { "GET /api/admin/history": { items: [], next: 1 } });
     mockApi({ "GET /api/admin/history": { status: 500, body: { error: "internal" } } });
