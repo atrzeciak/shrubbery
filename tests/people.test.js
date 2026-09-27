@@ -100,6 +100,7 @@ describe("avatars", () => {
     expect((await me.fetch("/api/people/p_and/avatar", { headers: { "if-none-match": etag } })).status).toBe(304);
     me.env = env;
     expect(seen.filter((sql) => sql.includes("SELECT jpeg"))).toEqual([]);
+    expect((await me.fetch("/api/people/nobody/avatar", { headers: { "if-none-match": etag } })).status).toBe(404);
     const res2 = await me.fetch("/api/people/p_and/avatar");
     expect(res2.status).toBe(200);
     const bodyBytes2 = new Uint8Array(await res2.arrayBuffer());
