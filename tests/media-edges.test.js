@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as q from "../src/db/queries.js";
-import { Client, lastCode, makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, loginAs, adminAs } from "./helpers/env.js";
 import { fakeJpeg } from "./helpers/jpeg.js";
-import { createAuthenticator } from "./helpers/authenticator.js";
 import { checkDocument, cleanCaption } from "../src/media/rules.js";
 
 let env, sent;
@@ -12,27 +11,10 @@ async function linkedMember() {
   await seedPerson(env, { id: "p_me", first_name: "Ja", last_name: "T" });
   await seedAccount(env, { id: "a1", email: "a@x.org" });
   await q.linkAccountPerson(env.DB, "a1", "p_me").run();
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
-  await c.json("/api/auth/code", { method: "POST", body: { email: "a@x.org", code: lastCode(sent) } });
-  return c;
+  return loginAs(env, sent, "a@x.org");
 }
 
-async function admin() {
-  await seedAccount(env, { id: "adm", email: "adm@x.org", role: "family" });
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email: "adm@x.org" } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email: "adm@x.org" } });
-  await c.json("/api/auth/code", { method: "POST", body: { email: "adm@x.org", code: lastCode(sent) } });
-  const auth = await createAuthenticator();
-  let ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  await c.json("/api/me/passkeys", { method: "POST", body: { name: "key", credential: await auth.create(ch.body.challenge) } });
-  await q.setRole(env.DB, "adm", "admin").run();
-  ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  await c.json("/api/auth/passkey/step-up", { method: "POST", body: { credential: await auth.get(ch.body.challenge) } });
-  return c;
-}
+const admin = async () => (await adminAs(env, sent)).c;
 
 const post = (c, qs) => c.json(`/api/media?${qs}`, { method: "POST", body: fakeJpeg(50, 50), headers: { "content-type": "image/jpeg" } });
 const upload = (c) => c.json("/api/media?kind=photo&owner=p_me", { method: "POST", body: fakeJpeg(50, 50), headers: { "content-type": "image/jpeg" } });

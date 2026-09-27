@@ -1,19 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
-import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs } from "./helpers/env.js";
 import { gatheringReminders } from "../src/events/cron.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
-async function login(email) {
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-  expect((await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } })).status).toBe(200);
-  return c;
-}
+const login = (email) => loginAs(env, sent, email);
 
 async function admin(email = "adm@x.org") {
   await seedAccount(env, { id: "adm", email, role: "family" });

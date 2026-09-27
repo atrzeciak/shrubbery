@@ -1,30 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as q from "../src/db/queries.js";
-import { createAuthenticator } from "./helpers/authenticator.js";
-import { Client, lastCode, makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, adminAs } from "./helpers/env.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
-async function login(email) {
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-  await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } });
-  return c;
-}
-
-async function adminWithFreshPasskey() {
-  await seedAccount(env, { id: "adm", email: "adm@x.org", role: "family" });
-  const c = await login("adm@x.org");
-  const auth = await createAuthenticator();
-  let ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  await c.json("/api/me/passkeys", { method: "POST", body: { name: "key", credential: await auth.create(ch.body.challenge) } });
-  await q.setRole(env.DB, "adm", "admin").run();
-  ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  await c.json("/api/auth/passkey/step-up", { method: "POST", body: { credential: await auth.get(ch.body.challenge) } });
-  return c;
-}
+const adminWithFreshPasskey = async (email) => (await adminAs(env, sent, email)).c;
 
 describe("invitations", () => {
   it("must name a language the site speaks", async () => {

@@ -4,8 +4,7 @@ import * as q from "../src/db/queries.js";
 import { gatheringReminders, runDaily } from "../src/events/cron.js";
 import { runOps } from "../src/ops/daily.js";
 import { billingFacts } from "../src/ops/checks.js";
-import { Client, lastCode, makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
-import { createAuthenticator } from "./helpers/authenticator.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, adminAs } from "./helpers/env.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
@@ -76,25 +75,10 @@ describe("runDaily", () => {
 });
 
 describe("announcing a gathering", () => {
-  async function login(email) {
-    const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email } });
-    await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-    await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } });
-    return c;
-  }
-
   it("reaches everyone else when one relative's mailbox is dead, and counts only them", async () => {
     await seedPerson(env, { id: "p1", first_name: "Jan", email: "one@x.org" });
     await seedPerson(env, { id: "p2", first_name: "Anna", email: "two@x.org" });
-    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "family" });
-    const c = await login("adm@x.org");
-    const auth = await createAuthenticator();
-    let ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-    await c.json("/api/me/passkeys", { method: "POST", body: { name: "key", credential: await auth.create(ch.body.challenge) } });
-    await q.setRole(env.DB, "adm", "admin").run();
-    ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-    await c.json("/api/auth/passkey/step-up", { method: "POST", body: { credential: await auth.get(ch.body.challenge) } });
+    const { c } = await adminAs(env, sent);
     const { body } = await c.json("/api/admin/gatherings", { method: "POST", body: { on_date: "2027-06-12" } });
     sent.length = 0;
     env.EMAIL = failingFor("one@x.org");

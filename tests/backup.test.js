@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { makeEnv, resetDb, seedAccount, seedPerson, Client, lastCode } from "./helpers/env.js";
-import { createAuthenticator } from "./helpers/authenticator.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs, adminAs } from "./helpers/env.js";
 import * as q from "../src/db/queries.js";
 import { dumpSql, tableInsertOrder } from "../src/backup/dump.js";
 import { crc32 } from "../src/backup/zip.js";
@@ -8,25 +7,9 @@ import { crc32 } from "../src/backup/zip.js";
 const { env, sent } = makeEnv();
 beforeEach(() => resetDb(env));
 
-async function login(email) {
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-  await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } });
-  return c;
-}
+const login = (email) => loginAs(env, sent, email);
 
-async function steppedUpAdmin() {
-  await seedAccount(env, { id: "adm", email: "adm@x.org", role: "family" });
-  const c = await login("adm@x.org");
-  const auth = await createAuthenticator();
-  let ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  await c.json("/api/me/passkeys", { method: "POST", body: { name: "key", credential: await auth.create(ch.body.challenge) } });
-  await q.setRole(env.DB, "adm", "admin").run();
-  ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  await c.json("/api/auth/passkey/step-up", { method: "POST", body: { credential: await auth.get(ch.body.challenge) } });
-  return c;
-}
+const steppedUpAdmin = async (email) => (await adminAs(env, sent, email)).c;
 
 async function seedOneMedia(bytes = new Uint8Array([1, 2, 3, 4])) {
   await seedPerson(env, { id: "p1", first_name: "Jan", last_name: "Kowalski" });

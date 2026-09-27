@@ -3,18 +3,12 @@ import { capturingErrors } from "./helpers/logging.js";
 import * as q from "../src/db/queries.js";
 import { nowSec } from "../src/util.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
-import { Client, lastCode, makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, loginAs } from "./helpers/env.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
-async function login(email) {
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-  expect((await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } })).status).toBe(200);
-  return c;
-}
+const login = (email) => loginAs(env, sent, email);
 
 async function addPasskey(c, name = "phone") {
   const auth = await createAuthenticator();

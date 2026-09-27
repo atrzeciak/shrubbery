@@ -1,6 +1,8 @@
 import { env as baseEnv, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import worker from "../../src/worker.js";
+import { expect } from "vitest";
 import * as q from "../../src/db/queries.js";
+import { createAuthenticator } from "./authenticator.js";
 
 const TABLES = ["webauthn_challenges", "broadcasts", "rsvps", "gatherings", "ops_status", "history", "rate_limits", "media_people", "invitations", "media", "join_requests", "avatars", "person_links", "parent_of", "partner_of", "login_codes", "sessions", "passkeys", "accounts", "people"];
 
@@ -62,4 +64,26 @@ export class Client {
   async raw(path, opts) {
     return this.fetch(path, opts);
   }
+}
+
+// Signed in the way a person does it: address, code request, the code from the last mail.
+export async function loginAs(env, sent, email) {
+  const c = new Client(env);
+  await c.json("/api/auth/email", { method: "POST", body: { email } });
+  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
+  expect((await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } })).status).toBe(200);
+  return c;
+}
+
+// An admin the way production makes one: family, passkey, promoted, then a fresh step-up.
+export async function adminAs(env, sent, email = "adm@x.org") {
+  await seedAccount(env, { id: "adm", email, role: "family" });
+  const c = await loginAs(env, sent, email);
+  const auth = await createAuthenticator();
+  let ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
+  expect((await c.json("/api/me/passkeys", { method: "POST", body: { name: "key", credential: await auth.create(ch.body.challenge) } })).status).toBe(201);
+  await q.setRole(env.DB, "adm", "admin").run();
+  ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
+  expect((await c.json("/api/auth/passkey/step-up", { method: "POST", body: { credential: await auth.get(ch.body.challenge) } })).status).toBe(200);
+  return { c, auth };
 }

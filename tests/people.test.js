@@ -1,18 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
-import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs } from "./helpers/env.js";
 import { fakeJpeg } from "./helpers/jpeg.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
-async function login(email) {
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-  expect((await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } })).status).toBe(200);
-  return c;
-}
+const login = (email) => loginAs(env, sent, email);
 
 async function family() {
   await seedPerson(env, { id: "p_and", first_name: "Jan", last_name: "Nowak", birth_date: "1964-10-04", email: "a1@x.org" });

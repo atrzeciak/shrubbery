@@ -1,19 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as q from "../src/db/queries.js";
 import { cleanPersonInput } from "../src/people/fields.js";
-import { Client, lastCode, makeEnv, resetDb, seedAccount, seedPerson } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, loginAs } from "./helpers/env.js";
 import { fakeJpeg } from "./helpers/jpeg.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
-async function login(email) {
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-  await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } });
-  return c;
-}
+const login = (email) => loginAs(env, sent, email);
 
 const bad = (body, admin = false) => expect(() => cleanPersonInput(body, { admin })).toThrow(expect.objectContaining({ status: 400 }));
 

@@ -1,31 +1,15 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
-import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs, adminAs } from "./helpers/env.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
-async function login(email) {
-  const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
-  await c.json("/api/auth/code/request", { method: "POST", body: { email } });
-  expect((await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } })).status).toBe(200);
-  return c;
-}
+const login = (email) => loginAs(env, sent, email);
 
 // Seeds an admin the way production is bootstrapped: family → passkey → promoted → step-up.
-async function adminWithFreshPasskey(email = "adm@x.org") {
-  await seedAccount(env, { id: "adm", email, role: "family" });
-  const c = await login(email);
-  const auth = await createAuthenticator();
-  let ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  expect((await c.json("/api/me/passkeys", { method: "POST", body: { name: "key", credential: await auth.create(ch.body.challenge) } })).status).toBe(201);
-  await q.setRole(env.DB, "adm", "admin").run();
-  ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  expect((await c.json("/api/auth/passkey/step-up", { method: "POST", body: { credential: await auth.get(ch.body.challenge) } })).status).toBe(200);
-  return { c, auth };
-}
+const adminWithFreshPasskey = (email) => adminAs(env, sent, email);
 
 describe("authorization", () => {
   it("family is forbidden; admin without fresh passkey may read but not write", async () => {
