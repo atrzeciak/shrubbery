@@ -204,7 +204,7 @@ function opsBanner() {
 
 let wanted = null;          // the page a signed-out visitor asked for
 
-export async function render({ restore = false } = {}) {
+async function render({ restore = false } = {}) {
   dirty = false;
   const my = ++renderToken;
   const path = currentPath();
