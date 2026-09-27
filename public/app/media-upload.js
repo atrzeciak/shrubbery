@@ -3,6 +3,10 @@ import { h, s } from "./dom.js";
 import { t } from "./i18n.js";
 import { pickKind, formatSize } from "./upload-rules.js";
 
+export const docIcon = () => s("svg", { class: "doc-icon", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linejoin": "round", "aria-hidden": "true" },
+  s("path", { d: "M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z" }),
+  s("path", { d: "M13.75 2.5V8.25h5.75" }));
+
 // 409-with-person conflict gets its own message; everything else goes through errorText.
 export function toastApiError(ctx, e) {
   if (e && e.code === "conflict" && e.detail && e.detail.person) ctx.toast(t("media.full", { person: e.detail.person }), "error");
@@ -76,9 +80,7 @@ export function uploadForm(personId, ctx, reload) {
       thumb.append(h("img", { src: previewUrl, alt: "" }));
     } else {
       thumb.classList.add("doc");
-      thumb.append(s("svg", { class: "doc-icon", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linejoin": "round", "aria-hidden": "true" },
-        s("path", { d: "M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z" }),
-        s("path", { d: "M13.75 2.5V8.25h5.75" })));
+      thumb.append(docIcon());
     }
     zone.hidden = true;
     card.hidden = false;

@@ -1,12 +1,8 @@
 import { api } from "./api.js";
-import { h, s, clear } from "./dom.js";
+import { h, clear } from "./dom.js";
 import { t } from "./i18n.js";
 import { openViewer } from "./viewer.js";
-import { uploadForm, toastApiError } from "./media-upload.js";
-
-const docIcon = () => s("svg", { class: "doc-icon", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.5", "stroke-linejoin": "round", "aria-hidden": "true" },
-  s("path", { d: "M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z" }),
-  s("path", { d: "M13.75 2.5V8.25h5.75" }));
+import { uploadForm, toastApiError, docIcon } from "./media-upload.js";
 
 const src = (m) => (m.has_thumb ? `/api/media/${m.id}/thumb` : `/api/media/${m.id}`);
 
