@@ -38,7 +38,8 @@ export function readCookie(request, name) {
   const header = request.headers.get("cookie") || "";
   for (const part of header.split(";")) {
     const [k, ...v] = part.trim().split("=");
-    if (k === name) return decodeURIComponent(v.join("="));
+    // A value no browser of ours would set is no cookie at all, not a 500.
+    if (k === name) { try { return decodeURIComponent(v.join("=")); } catch { return null; } }
   }
   return null;
 }

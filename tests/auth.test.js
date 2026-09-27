@@ -211,6 +211,15 @@ describe("code step", () => {
     expect(c.cookies.has("session")).toBe(false);
     expect((await c.json("/api/me")).status).toBe(401);
   });
+
+  it("a cookie that is not valid percent-encoding reads as no session, not a crash", async () => {
+    const c = new Client(env);
+    const headers = { cookie: "session=%" };
+    expect((await c.json("/api/me", { headers })).status).toBe(401);
+    const out = await c.json("/api/auth/logout", { method: "POST", body: {}, headers });
+    expect(out.status).toBe(200);
+    expect(out.res.headers.getSetCookie().some((sc) => sc.startsWith("session=;") && sc.includes("Max-Age=0"))).toBe(true);
+  });
 });
 
 describe("passkey step", () => {
