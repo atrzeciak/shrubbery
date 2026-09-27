@@ -137,7 +137,7 @@ async function postCode(request, env) {
     stmts.push(
       q.insertAccount(db, account),
       q.acceptInvitation(db, inv.id, now),
-      historyStmt(db, { actor: account.id, action: "invite_accepted", targetType: "account", targetId: account.id, details: { email }, ipHash }),
+      historyStmt(db, { actor: account.id, action: "invite_accepted", targetType: "account", targetId: account.id, details: { email, ...(personId ? { person_id: personId } : {}) }, ipHash }),
     );
     // A linked person has one address: the one they log in with.
     if (personId) stmts.push(q.updatePerson(db, personId, { email }, now, account.id));

@@ -135,6 +135,8 @@ describe("code step", () => {
     await loginWithCode(new Client(env), "new@x.org");
     expect((await q.accountByEmail(env.DB, "new@x.org").first()).person_id).toBe("p1");
     expect((await q.personById(env.DB, "p1").first()).email).toBe("new@x.org");
+    const row = await env.DB.prepare("SELECT details FROM history WHERE action = 'invite_accepted'").first();
+    expect(JSON.parse(row.details)).toEqual({ email: "new@x.org", person_id: "p1" });   // the link is on record
   });
 
   it("first login leaves the account unlinked when that person already has an account", async () => {
