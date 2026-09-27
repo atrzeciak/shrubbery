@@ -241,6 +241,14 @@ describe("banners", () => {
     expect(q("#main .banner")).toBeNull();
   });
 
+  // A card good through April expires at 23:59:59 UTC on the 30th; in Warsaw that instant is already
+  // 1 May. The banner names the day, as the monthly letter does, not the reader's clock at that instant.
+  it("names the day a date warning is about, in UTC and without a time", async () => {
+    const ops = { warnings: ["card_soon"], card_expires_at: Date.UTC(2027, 4, 0, 23, 59, 59) / 1000, checked_at: null };
+    await boot({ me: meFixture({ account: { role: "admin" }, ops }) });
+    expect(q("#main .banner p").textContent).toBe(pl["ops.warning.card_soon"].replace("{when}", "30 kwi 2027"));
+  });
+
   it("offers a passkey only to a browser that can make one and an account without", async () => {
     vi.stubGlobal("PublicKeyCredential", undefined);
     await boot();

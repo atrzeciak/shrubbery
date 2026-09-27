@@ -183,6 +183,9 @@ const WARNING_DATE = {
   domain_soon: (ops) => ops.domain_expires_at,
   card_soon: (ops) => ops.card_expires_at,
 };
+// Those dates are days, stored as UTC instants: named as the UTC day, as the monthly letter names them,
+// not as whatever the reader's clock showed at that instant.
+const fmtDay = (sec) => new Date(sec * 1000).toLocaleDateString(document.documentElement.lang, { dateStyle: "medium", timeZone: "UTC" });
 
 // The site's own warnings about whether it will still be here next month. /api/me carries them for
 // admins, so they sit above every view rather than behind a tab behind a passkey step-up.
@@ -192,7 +195,7 @@ function opsBanner() {
   const lines = ops.warnings.map((w) => {
     const date = WARNING_DATE[w];
     // The site names its own domain rather than carrying one in its strings.
-    const vars = { domain: location.hostname, ...(date ? { when: fmtDate(date(ops)) } : {}) };
+    const vars = { domain: location.hostname, ...(date ? { when: fmtDay(date(ops)) } : {}) };
     return h("p", { text: t(`ops.warning.${w}`, vars) });
   });
   if (ops.checked_at) lines.push(h("p", { class: "muted", text: t("ops.checked", { when: fmtDate(ops.checked_at) }) }));
