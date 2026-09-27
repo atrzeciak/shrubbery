@@ -258,13 +258,14 @@ const PANELS = {
       // signal the download actually completed — poll for it instead of trusting location.href.
       lastLine.textContent = t("admin.backup.pending");
       // The archive can be tens of megabytes and streams at the pace the browser reads it, so a slow
-      // download is not a failed one. Either outcome is written down by the server, so this waits for
-      // one of them rather than guessing from a timeout.
+      // download is not a failed one: this waits for the outcome the server writes down, for up to ten
+      // minutes, since a download cancelled in the browser records nothing at all. It stops once the
+      // panel is gone, and never asks for a passkey: a prompt every five seconds would be the only news.
       let heard = false;
-      for (let i = 0; i < 24 && !heard; i++) {
+      for (let i = 0; i < 120 && !heard && lastLine.isConnected; i++) {
         await sleep(5000);
         try {
-          const check = await api("/api/admin/backup/check");
+          const check = await api("/api/admin/backup/check", {}, false);
           if (check.backup_at !== lastAt || check.backup_failed_at !== failedAt) {
             lastAt = check.backup_at;
             failedAt = check.backup_failed_at;

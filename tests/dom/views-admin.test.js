@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "../../public/app/views/admin.js";
+import { onStepUp } from "../../public/app/api.js";
 import { mockApi, lang, viewCtx, meFixture, tick, q, qa, byText } from "./helpers.js";
 
 const people = [
@@ -462,13 +463,43 @@ describe("backup", () => {
     vi.useRealTimers();
   });
 
-  it("gives up after two minutes without word from the server", async () => {
+  // The archive streams at the pace the browser reads it: a slow connection can take minutes.
+  it("still announces a download that takes several minutes", async () => {
+    const { root, ctx } = await open("Backup");
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    let polls = 0;
+    mockApi({ "GET /api/admin/backup/check": () => (++polls > 36 ? { backup_at: 3e9, backup_failed_at: null } : { backup_at: null, backup_failed_at: null }) });
+    byText("button", "Download the backup", root).click();
+    await vi.advanceTimersByTimeAsync(40 * 5000);
+    expect(ctx.toast).toHaveBeenCalledWith(expect.stringContaining("Last backup"), "ok");
+    vi.useRealTimers();
+  });
+
+  it("never asks for a passkey while it waits, and stops once the panel is gone", async () => {
+    const { root } = await open("Backup");
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    const handler = vi.fn(async () => false);
+    onStepUp(handler);
+    let polls = 0;
+    mockApi({ "GET /api/admin/backup/check": () => (++polls === 1 ? { backup_at: null, backup_failed_at: null } : { status: 401, body: { error: "step_up_required" } }) });
+    byText("button", "Download the backup", root).click();
+    await vi.advanceTimersByTimeAsync(3 * 5000);
+    expect(handler).not.toHaveBeenCalled();
+    root.remove();
+    const before = polls;
+    await vi.advanceTimersByTimeAsync(10 * 5000);
+    expect(polls).toBeLessThanOrEqual(before + 1);
+    onStepUp(null);
+    vi.useRealTimers();
+  });
+
+  it("gives up after ten minutes without word from the server", async () => {
     const { root, ctx } = await open("Backup");
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     mockApi({ "GET /api/admin/backup/check": { backup_at: null, backup_failed_at: null } });
     const button = byText("button", "Download the backup", root);
     button.click();
-    await vi.advanceTimersByTimeAsync(24 * 5000);
+    await vi.advanceTimersByTimeAsync(120 * 5000);
     expect(root.textContent).toContain("No backup has been downloaded yet.");
     expect(ctx.toast).not.toHaveBeenCalled();
     expect(button.disabled).toBe(false);
