@@ -12,7 +12,6 @@ export async function personHistory(request, env, actorId, action, personId, det
   return historyStmt(env.DB, { actor: actorId, action, targetType: "person", targetId: personId, details, ipHash: await hashIp(env, clientIp(request), now) }, now);
 }
 
-export const personView = (row) => row;
 
 async function personOr404(env, id) {
   const p = await q.personById(env.DB, id).first();
@@ -23,7 +22,7 @@ async function personOr404(env, id) {
 async function personWithLinks(env, id) {
   const person = await personOr404(env, id);
   const { results } = await q.linksByPerson(env.DB, id).all();
-  return { person: personView(person), links: results };
+  return { person, links: results };
 }
 
 // Statements for a validated PATCH: update, link replacement and the history row.
@@ -52,7 +51,7 @@ async function listAll(request, env) {
   const [people, parents, partners, links, avatars] = await env.DB.batch([
     q.listPeople(env.DB), q.listParents(env.DB), q.listPartners(env.DB), q.listLinks(env.DB), q.listAvatars(env.DB),
   ]);
-  return json({ people: people.results.map(personView), parents: parents.results, partners: partners.results, links: links.results, avatars: avatars.results });
+  return json({ people: people.results, parents: parents.results, partners: partners.results, links: links.results, avatars: avatars.results });
 }
 
 async function getOne(request, env, ctx, m) {
