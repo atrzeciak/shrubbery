@@ -226,6 +226,18 @@ describe("admin review", () => {
     expect((await env.DB.prepare("SELECT status, note FROM join_requests WHERE id = ?").bind(id2).first())).toEqual({ status: "rejected", note: "unknown" });
   });
 
+  it("will not approve a request whose address has since become a member", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await pending();
+    const id = (await c.json("/api/admin/join-requests")).body.requests[0].id;
+    await seedAccount(env, { id: "ola", email: "ola@x.org" });       // invited directly and signed in meanwhile
+    const ap = await c.json(`/api/admin/join-requests/${id}/approve`, { method: "POST", body: { create: true } });
+    expect(ap.status).toBe(409);
+    expect((await env.DB.prepare("SELECT status FROM join_requests WHERE id = ?").bind(id).first()).status).toBe("pending");
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email = 'ola@x.org'").first()).n).toBe(0);
+    expect(sent).toHaveLength(0);
+  });
+
   it("approving says the mail failed when it did, rather than answering 500", async () => {
     const { c } = await adminWithFreshPasskey();
     await pending();

@@ -151,6 +151,8 @@ async function approve(request, env, ctx, m) {
     if (await q.accountByPerson(env.DB, p.id).first()) throw new ApiError(409, "conflict");
     personId = p.id;
   }
+  // A member already, by a direct invitation since: an approval now would invite nobody and link nothing.
+  if (await q.accountByEmail(env.DB, r.email).first()) throw new ApiError(409, "conflict");
   if (await q.activeInvitationByEmail(env.DB, r.email, now).first()) throw new ApiError(409, "conflict");
   stmts.push(
     q.decideJoinRequest(env.DB, r.id, "approved", personId, account.id, now, null),
