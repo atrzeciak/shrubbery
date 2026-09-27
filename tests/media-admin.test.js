@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import worker from "../src/worker.js";
 import * as q from "../src/db/queries.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
 import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client } from "./helpers/env.js";
@@ -85,6 +87,32 @@ describe("edit and move", () => {
     const back = await adm.json(`/api/media/${id}`, { method: "PATCH", body: { owner_person_id: "p_me" } });
     expect(back.status).toBe(409);
     expect(back.body.person).toBe("Ja T");
+  });
+});
+
+describe("upload size", () => {
+  // A chunked body carries no Content-Length, so the only way to refuse a huge one is to stop
+  // reading it: the isolate has 128 MB, and a few bodies read whole would take it down.
+  it("stops reading a body once it passes the cap, rather than holding all of it first", async () => {
+    const c = await linkedMember();
+    let pulled = 0;
+    const chunk = new Uint8Array(64 * 1024);
+    const body = new ReadableStream({
+      pull(ctl) {
+        if (pulled >= 20 * 1024 * 1024) return ctl.close();
+        pulled += chunk.length;
+        ctl.enqueue(chunk);
+      },
+    });
+    const cookie = [...c.cookies].map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("; ");
+    const req = new Request("https://example.org/api/media?kind=photo&owner=p_me", {
+      method: "POST", body, duplex: "half", headers: { cookie, "content-type": "image/jpeg", "cf-connecting-ip": "203.0.113.1" },
+    });
+    const ctx = createExecutionContext();
+    const res = await worker.fetch(req, env, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(res.status).toBe(400);
+    expect(pulled).toBeLessThan(4 * 1024 * 1024);                     // the photo cap is 2 MiB
   });
 });
 

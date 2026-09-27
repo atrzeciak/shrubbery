@@ -13,6 +13,28 @@ export const rpIdOf = (env) => new URL(appOrigin(env)).hostname;
 // names its own in configuration.
 export const siteTz = (env) => env.SITE_TZ || "UTC";
 
+// A request body read chunk by chunk, refused once it passes max: arrayBuffer() would hold all of it
+// first, and a chunked request carries no Content-Length to refuse it by.
+export async function readBody(request, max) {
+  if (!request.body) return new Uint8Array(0);
+  const reader = request.body.getReader();
+  const parts = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > max) {
+      await reader.cancel();
+      throw new ApiError(400, "bad_request");
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(size);
+  for (let i = 0, at = 0; i < parts.length; at += parts[i].length, i++) out.set(parts[i], at);
+  return out;
+}
+
 export async function readJson(request) {
   try {
     const body = await request.json();

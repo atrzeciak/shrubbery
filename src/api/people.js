@@ -3,7 +3,7 @@ import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { cleanPersonInput, displayNameOf } from "../people/fields.js";
 import { jpegSize } from "../people/jpeg.js";
-import { ApiError, canCurate, readJson, requireSession } from "./common.js";
+import { ApiError, canCurate, readBody, readJson, requireSession } from "./common.js";
 
 export const AVATAR_MAX_BYTES = 204800;
 export const AVATAR_MAX_SIDE = 512;
@@ -98,7 +98,7 @@ export async function storeAvatar(request, env, actorId, personId, details) {
   if (!/^image\/jpeg\b/.test(request.headers.get("content-type") || "")) throw new ApiError(400, "bad_request");
   const contentLength = Number(request.headers.get("content-length"));
   if (contentLength > AVATAR_MAX_BYTES) throw new ApiError(400, "bad_request");
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  const bytes = await readBody(request, AVATAR_MAX_BYTES);
   if (bytes.length === 0 || bytes.length > AVATAR_MAX_BYTES) throw new ApiError(400, "bad_request");
   const size = jpegSize(bytes);
   if (!size || size.width > AVATAR_MAX_SIDE || size.height > AVATAR_MAX_SIDE) throw new ApiError(400, "bad_request");

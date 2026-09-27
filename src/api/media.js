@@ -1,8 +1,8 @@
 import * as q from "../db/queries.js";
 import { json, nowSec, randomB64url } from "../util.js";
-import { checkDocument, checkPhoto, cleanCaption, cleanYear, MEDIA_CAP, THUMB_MAX_BYTES } from "../media/rules.js";
+import { checkDocument, checkPhoto, cleanCaption, cleanYear, DOC_MAX_BYTES, MEDIA_CAP, PHOTO_MAX_BYTES, THUMB_MAX_BYTES } from "../media/rules.js";
 import { jpegSize } from "../people/jpeg.js";
-import { ApiError, canCurate, readJson, requireSession } from "./common.js";
+import { ApiError, canCurate, readBody, readJson, requireSession } from "./common.js";
 import { personHistory } from "./people.js";
 
 export const keyFor = (m) => `media/${m.id}.${m.content_type === "application/pdf" ? "pdf" : "jpg"}`;
@@ -39,7 +39,7 @@ async function upload(request, env) {
   const { owner, tags } = await resolveOwnerAndTags(env, account, url);
   const { n } = await q.countOwnedMedia(env.DB, owner.id).first();
   if (n >= MEDIA_CAP) return json({ error: "conflict", person: owner.display_name }, 409);
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  const bytes = await readBody(request, kind === "photo" ? PHOTO_MAX_BYTES : DOC_MAX_BYTES);
   const contentType = kind === "photo" ? checkPhoto(bytes) : checkDocument(bytes, request.headers.get("content-type"));
   const now = nowSec();
   const media = { id: randomB64url(12), ownerPersonId: owner.id, kind, caption, year, contentType, size: bytes.length, uploadedBy: account.id, createdAt: now };
@@ -62,7 +62,7 @@ async function putThumb(request, env, ctx, m) {
   const { account } = await requireSession(request, env);
   const media = await mediaOr404(env, m[1]);
   if (!canTouch(account, media)) throw new ApiError(403, "forbidden");
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  const bytes = await readBody(request, THUMB_MAX_BYTES);
   if (bytes.length === 0 || bytes.length > THUMB_MAX_BYTES || !jpegSize(bytes)) throw new ApiError(400, "bad_request");
   await env.MEDIA.put(`media/${media.id}.thumb.jpg`, bytes, { httpMetadata: { contentType: "image/jpeg" } });
   await q.setMediaThumb(env.DB, media.id).run();
