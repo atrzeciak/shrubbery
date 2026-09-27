@@ -100,6 +100,14 @@ describe("code request step", () => {
     expect((await noNonce.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status).toBe(400);
   });
 
+  // A household, or the guests on the host's Wi-Fi, sign in behind one address.
+  it("lets 30 different addresses ask from one IP in an hour, and refuses the 31st", async () => {
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    for (let i = 1; i <= 30; i++) expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: `p${i}@x.org` } })).status).toBe(200);
+    expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: "p31@x.org" } })).status).toBe(429);
+  });
+
   it("limits one address even when every request comes from a different IP", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
@@ -113,7 +121,7 @@ describe("code request step", () => {
     await seedAccount(env, { id: "b1", email: "b@x.org", lang: "en" });
     const c = new Client(env);
     await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
-    for (let i = 0; i < 5; i++) await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
+    for (let i = 0; i < 30; i++) await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
     for (let i = 0; i < 5; i++) expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: "b@x.org" } })).status).toBe(429);
     const b = new Client(env);
     b.ip = "198.51.100.7";

@@ -75,6 +75,13 @@ describe("join request", () => {
     expect((await c.json("/api/join/request", { method: "POST", body: FORM })).status).toBe(429);
   });
 
+  it("lets 10 different addresses ask from one IP in an hour, and refuses the 11th", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const c = new Client(env);
+    for (let i = 1; i <= 10; i++) expect((await c.json("/api/join/request", { method: "POST", body: { ...FORM, email: `p${i}@x.org` } })).status).toBe(200);
+    expect((await c.json("/api/join/request", { method: "POST", body: { ...FORM, email: "p11@x.org" } })).status).toBe(429);
+  });
+
   it("limits one address even when every request comes from a different IP", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     const from = async (i) => { const c = new Client(env); c.ip = `198.51.100.${i}`; return (await c.json("/api/join/request", { method: "POST", body: FORM })).status; };
@@ -89,11 +96,13 @@ describe("join request", () => {
       c.ip = ip;
       return (await c.json("/api/join/request", { method: "POST", body: { ...FORM, email: `p${i}@x.org` } })).status;
     };
-    for (const [i, ip] of ["2001:db8:1:2::1", "2001:db8:1:2::2", "2001:db8:1:2::3"].entries()) expect(await from(ip, i)).toBe(200);
-    expect(await from("2001:db8:1:2:ffff::4", 3)).toBe(429);
-    expect(await from("2001:db8:1:3::1", 4)).toBe(200);
-    for (const [i, ip] of ["2001:db8::1", "2001:db8::2", "2001:db8:0:0:1::3"].entries()) expect(await from(ip, 5 + i)).toBe(200);
-    expect(await from("2001:db8:0:0:ffff::4", 8)).toBe(429);
+    for (let i = 0; i < 10; i++) expect(await from(`2001:db8:1:2::${i + 1}`, i)).toBe(200);
+    expect(await from("2001:db8:1:2:ffff::4", 10)).toBe(429);
+    expect(await from("2001:db8:1:3::1", 11)).toBe(200);
+    // Written short and long, the same /64.
+    const same = ["2001:db8::1", "2001:db8:0:0:1::3", ...Array.from({ length: 8 }, (_, i) => `2001:db8::a${i}`)];
+    for (const [i, ip] of same.entries()) expect(await from(ip, 12 + i)).toBe(200);
+    expect(await from("2001:db8:0:0:ffff::4", 22)).toBe(429);
   });
 
   it("existing member email: the request is silent", async () => {

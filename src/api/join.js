@@ -9,7 +9,7 @@ import { ApiError, found, EMAIL_RE, accountIdentity, adminSession, INVITE_TTL, a
 import { personHistory } from "./people.js";
 
 const NONCE_COOKIE = "join_nonce", NONCE_TTL = 3600;
-const LIMIT = 3, HOUR = 3600;
+const LIMIT = 3, IP_LIMIT = 10, HOUR = 3600;
 
 const text = (v, min, max) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -57,7 +57,7 @@ async function postRequest(request, env, ctx) {
   if (typeof body.website === "string" && body.website.trim()) return json({ ok: true });
   const f = cleanForm(body);
   const now = nowSec(), ip = clientIp(request);
-  if (!(await allow(env.DB, `join:ip:${ipPrefix(ip)}`, LIMIT, HOUR, now)) || !(await allow(env.DB, `join:email:${f.email}`, LIMIT, HOUR, now))) throw new ApiError(429, "rate_limited");
+  if (!(await allow(env.DB, `join:ip:${ipPrefix(ip)}`, IP_LIMIT, HOUR, now)) || !(await allow(env.DB, `join:email:${f.email}`, LIMIT, HOUR, now))) throw new ApiError(429, "rate_limited");
   const existingNonce = readCookie(request, NONCE_COOKIE);
   const nonce = existingNonce || randomB64url(16);
   const headers = existingNonce ? {} : { "set-cookie": cookie(NONCE_COOKIE, nonce, NONCE_TTL) };

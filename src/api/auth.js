@@ -12,7 +12,8 @@ const NONCE_COOKIE = "session_nonce";
 const NONCE_TTL = 3600;
 export const CHALLENGE_COOKIE = "wa_challenge";
 const CHALLENGE_TTL = 300;
-const CODE_LIMIT = 5, CHALLENGE_LIMIT = 20, HOUR = 3600;
+// Per address the limit stops guessing; per IP it has to let a household or a gathering's Wi-Fi in.
+const CODE_LIMIT = 5, CODE_IP_LIMIT = 30, CHALLENGE_LIMIT = 20, HOUR = 3600;
 
 export const clearChallenge = () => ({ "set-cookie": cookie(CHALLENGE_COOKIE, "", 0) });
 
@@ -34,7 +35,7 @@ async function postCodeRequest(request, env, ctx) {
   if (!nonce) throw new ApiError(400, "bad_request");
   const db = env.DB, now = nowSec(), ip = clientIp(request);
   // IP first: a request refused for its IP must not spend the address's budget.
-  if (!(await allow(db, `code:ip:${ipPrefix(ip)}`, CODE_LIMIT, HOUR, now)) || !(await allow(db, `code:email:${email}`, CODE_LIMIT, HOUR, now))) {
+  if (!(await allow(db, `code:ip:${ipPrefix(ip)}`, CODE_IP_LIMIT, HOUR, now)) || !(await allow(db, `code:email:${email}`, CODE_LIMIT, HOUR, now))) {
     throw new ApiError(429, "rate_limited");
   }
   const account = await q.accountByEmail(db, email).first();
