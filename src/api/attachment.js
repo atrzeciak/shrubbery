@@ -18,6 +18,8 @@ export async function documentAttachment(env, mediaId, strict) {
     if (strict) throw new ApiError(400, "bad_attachment");
     return null;
   }
-  const stem = (media.caption || "dokument").normalize("NFKD").replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "dokument";
+  // ż splits into z and a mark that is dropped; ł has no split and is spelt plainly.
+  const stem = (media.caption || "dokument").normalize("NFKD").replace(/\p{M}+/gu, "").replace(/ł/g, "l").replace(/Ł/g, "L")
+    .replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "dokument";
   return { filename: `${stem}.pdf`, content: await obj.arrayBuffer(), type: "application/pdf" };
 }

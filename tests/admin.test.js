@@ -106,6 +106,17 @@ describe("invitation voice", () => {
     expect(sent[0].text.trimEnd().endsWith("Piotr Mazur")).toBe(true);
   });
 
+  it("names an attached document after its caption with Polish letters spelt plainly", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await seedPerson(env, { id: "p_doc", first_name: "Anna", last_name: "Nowak" });
+    const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x20]);
+    await env.MEDIA.put("media/akt.pdf", pdf, { httpMetadata: { contentType: "application/pdf" } });
+    await q.insertMedia(env.DB, { id: "akt", ownerPersonId: "p_doc", kind: "document", caption: "Akt małżeństwa, Łódź", year: null, contentType: "application/pdf", size: pdf.length, uploadedBy: "adm", createdAt: 1_800_000_000 }).run();
+    sent.length = 0;
+    await c.json("/api/admin/invitations", { method: "POST", body: { email: "kin@x.org", lang: "pl", attachment: "akt" } });
+    expect(sent[0].attachments[0].filename).toBe("Akt_malzenstwa_Lodz.pdf");
+  });
+
   it("offers only a PDF that still fits the provider's 5 MiB once base64 has grown it by a third", async () => {
     const { c } = await adminWithFreshPasskey();
     await seedPerson(env, { id: "p_doc", first_name: "Anna", last_name: "Nowak" });
