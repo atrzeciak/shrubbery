@@ -36,20 +36,24 @@ export function sentenceNodes(item) {
 export async function render(root, ctx) {
   clear(root);
   root.append(h("h1", { text: t("news.title") }));
+  // All three asked at once: the feed needs neither the tree nor the gathering, which only the box
+  // above it uses. The feed's first page is guarded so a failure cannot go unhandled before it is awaited.
+  const graphP = loadGraph();
+  const gatheringP = api("/api/gatherings").catch(() => null);
+  const firstPage = api("/api/news");
+  firstPage.catch(() => {});
   try {
-    const g = await loadGraph();
+    const g = await graphP;
     const tz = ctx.state.me.tz;
     const events = upcoming(g.people, dayIn(new Date(), tz), 30);
     // A gathering is the one date here that somebody decided on rather than one worked out from a
     // birth or death, and it is worth seeing from further off than thirty days.
     let meeting = null;
-    try {
-      const data = await api("/api/gatherings");
-      if (data.gathering && !data.gathering.cancelled_at) {
-        const days = Math.round((Date.parse(`${data.gathering.on_date}T00:00:00Z`) - Date.parse(`${dayIn(new Date(), tz)}T00:00:00Z`)) / 86400000);
-        if (days >= 0) meeting = { on_date: data.gathering.on_date, days };
-      }
-    } catch { /* the gathering is not worth losing the birthdays over */ }
+    const data = await gatheringP;           // null when it failed: not worth losing the birthdays over
+    if (data?.gathering && !data.gathering.cancelled_at) {
+      const days = Math.round((Date.parse(`${data.gathering.on_date}T00:00:00Z`) - Date.parse(`${dayIn(new Date(), tz)}T00:00:00Z`)) / 86400000);
+      if (days >= 0) meeting = { on_date: data.gathering.on_date, days };
+    }
     if (events.length || meeting) {
       const lang = document.documentElement.lang;
       root.append(h("div", { class: "card upcoming" },
@@ -81,9 +85,9 @@ export async function render(root, ctx) {
   const run = (p) => p.catch((e) => ctx.toast(ctx.errorText(e), "error"));
   // Only the latest request draws: a double tap would otherwise append the same page twice.
   let seq = 0;
-  async function load(before) {
+  async function load(before, pending = null) {
     const my = ++seq;
-    const page = await api(`/api/news${before ? `?before=${before}` : ""}`);
+    const page = await (pending || api(`/api/news${before ? `?before=${before}` : ""}`));
     if (my !== seq) return;
     for (const item of page.items) {
       list.append(h("li", { class: item.at > seenAt ? "fresh" : null }, h("div", {}, ...sentenceNodes(item)), h("div", { class: "muted", text: fmtAgo(item.at) })));
@@ -93,7 +97,7 @@ export async function render(root, ctx) {
     if (!list.children.length) list.append(h("li", { class: "muted", text: t("news.empty") }));
   }
   more.onclick = () => run(load(next));
-  await load(null);
+  await load(null, firstPage);
   api("/api/me", { method: "PATCH", body: { news_seen_at: Math.floor(Date.now() / 1000) } })
     .then(() => { ctx.state.me.account.news_seen_at = Math.floor(Date.now() / 1000); })
     .catch(() => {});

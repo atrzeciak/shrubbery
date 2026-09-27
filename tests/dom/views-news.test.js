@@ -96,6 +96,25 @@ describe("the feed", () => {
     expect(feed()).toHaveLength(2);
   });
 
+  // The feed needs neither the tree nor the gathering, which only the box above it uses.
+  it("asks for the feed, the tree and the gathering at once", async () => {
+    document.body.innerHTML = '<div id="root"></div>';
+    let release;
+    const calls = mockApi({ ...base(), "GET /api/people": () => new Promise((r) => { release = r; }) });
+    const done = render(root(), viewCtx(meFixture()));
+    await tick();
+    expect(calls.map((c) => c.path).sort()).toEqual(["/api/gatherings", "/api/news", "/api/people"]);
+    release(base()["GET /api/people"]);
+    await done;
+  });
+
+  it("fails the feed alone when all three reads fail, and leaves nothing unhandled", async () => {
+    document.body.innerHTML = '<div id="root"></div>';
+    const down = { status: 500, body: { error: "internal" } };
+    mockApi({ "GET /api/people": down, "GET /api/gatherings": down, "GET /api/news": down });
+    await expect(render(root(), viewCtx(meFixture()))).rejects.toMatchObject({ code: "internal" });
+  });
+
   it("offers older entries page by page and toasts when a page fails", async () => {
     const { calls, ctx } = await start({ ...base(), "GET /api/news": (body, path) => (path.includes("before=") ? { items: [items[3]], next: null } : { items: items.slice(0, 1), next: 40 }) });
     const more = q("button.btn");
