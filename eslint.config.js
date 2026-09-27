@@ -17,7 +17,6 @@ export default [
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: "module",
-      globals: { ...globals.browser, ...globals.serviceworker },
     },
     linterOptions: { reportUnusedDisableDirectives: "error" },
     rules: {
@@ -98,6 +97,15 @@ export default [
       "require-atomic-updates": "off",
       "no-console": "off",
     },
+  },
+  // Each tree gets only the globals its runtime has, so `document` in the Worker is an error.
+  {
+    files: ["src/**/*.js"],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
+  {
+    files: ["public/**/*.js", "tests/dom/**/*.js"],
+    languageOptions: { globals: { ...globals.browser } },
   },
   {
     files: ["tests/**/*.js", "vitest.config.js"],
