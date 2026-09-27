@@ -90,6 +90,21 @@ describe("openSheet", () => {
     back.mockRestore();
   });
 
+  // A card opened from inside another card replaces it; the button that opened the second card went
+  // with the first, so closing hands focus back to what opened the first one, not to the page top.
+  it("returns focus to what opened the first card when a card opened from it is closed", () => {
+    const outside = h("button", { text: "Anna" });
+    document.body.append(outside);
+    outside.focus();
+    const inner = h("button", { text: "Mother" });
+    openSheet(inner, "Anna");
+    inner.focus();
+    openSheet(h("p"), "Mother");
+    closeSheet();
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
+
   it("keeps one entry for a sheet that replaces a sheet, and hands it back only when the user closes", () => {
     const push = vi.spyOn(history, "pushState");
     const back = vi.spyOn(history, "back").mockImplementation(() => {});

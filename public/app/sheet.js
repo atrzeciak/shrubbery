@@ -75,7 +75,9 @@ function teardown() {
 // full: covers the whole page (blocking editor). onClose fires only when the user closes it
 // (×, Escape or Back), not when the app closes it programmatically on navigation/redraw.
 export function openSheet(content, label, { full = false, onClose = null } = {}) {
-  const opening = document.activeElement;      // captured before teardown moves focus anywhere
+  // Captured before teardown moves focus anywhere. Opened from inside the card it replaces, the button
+  // goes with that card, so the card keeps what opened the first one.
+  const opening = el && el.contains(document.activeElement) ? opener : document.activeElement;
   teardown();
   opener = opening;
   const close = h("button", { class: "icon-btn sheet-close", type: "button", "aria-label": t("close"), text: "×" });
