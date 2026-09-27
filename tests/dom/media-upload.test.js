@@ -22,6 +22,12 @@ describe("toastApiError", () => {
     toastApiError(ctx, "plain");
     expect(ctx.toast).toHaveBeenLastCalledWith("plain", "error");
   });
+  it("says the connection dropped, not what the browser called it", () => {
+    const ctx = appCtx();
+    ctx.errorText = vi.fn(() => "Brak połączenia.");
+    toastApiError(ctx, new TypeError("Failed to fetch"));
+    expect(ctx.toast).toHaveBeenLastCalledWith("Brak połączenia.", "error");
+  });
 });
 
 describe("uploadForm", () => {

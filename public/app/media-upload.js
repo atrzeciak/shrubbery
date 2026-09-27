@@ -6,7 +6,8 @@ import { pickKind, formatSize } from "./upload-rules.js";
 // 409-with-person conflict gets its own message; everything else goes through errorText.
 export function toastApiError(ctx, e) {
   if (e && e.code === "conflict" && e.detail && e.detail.person) ctx.toast(t("media.full", { person: e.detail.person }), "error");
-  else ctx.toast(e && e.code ? ctx.errorText(e) : String((e && e.message) || e), "error");
+  // A dropped connection is a TypeError in the browser's own words: errorText says it plainly instead.
+  else ctx.toast(e && (e.code || e instanceof TypeError) ? ctx.errorText(e) : String((e && e.message) || e), "error");
 }
 
 async function toJpeg(file, maxSide, quality) {
