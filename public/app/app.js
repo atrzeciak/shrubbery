@@ -202,6 +202,8 @@ function opsBanner() {
   return h("div", { class: "banner" }, ...lines);
 }
 
+let wanted = null;          // the page a signed-out visitor asked for
+
 export async function render({ restore = false } = {}) {
   dirty = false;
   const my = ++renderToken;
@@ -212,7 +214,13 @@ export async function render({ restore = false } = {}) {
   const ctx = { state, navigate, refreshMe, toast, errorText };
   openMenu(false);
   closeSheet();
-  if (!state.me && !PUBLIC.includes(path)) return navigate("/app/login", { replace: true });
+  // A link from a mail names a page; signing in on the way must bring the reader back to it.
+  if (!state.me && !PUBLIC.includes(path)) { wanted = path; return navigate("/app/login", { replace: true }); }
+  if (state.me && wanted) {
+    const to = wanted;
+    wanted = null;
+    if (to !== path) return navigate(to, { replace: true });
+  }
   if (state.me && PUBLIC.includes(path)) return navigate("/app/", { replace: true });
   const section = SECTIONS.find((s) => matches(s, path) && (!s.role || state.me.account.role === s.role));
   const view = section ? section.view : EXTRA[path] || news;
@@ -226,7 +234,7 @@ export async function render({ restore = false } = {}) {
     if (my !== renderToken) return;
   } catch (e) {
     if (my !== renderToken) return;
-    if (e instanceof ApiError && e.status === 401) { state.me = null; return navigate("/app/login", { replace: true }); }
+    if (e instanceof ApiError && e.status === 401) { state.me = null; wanted = path; return navigate("/app/login", { replace: true }); }
     root.append(h("p", { class: "error", text: errorText(e) }));
   }
   window.scrollTo(0, restore || previous === path ? scrollAt.get(path) ?? 0 : 0);

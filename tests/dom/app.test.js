@@ -53,6 +53,20 @@ describe("boot", () => {
     expect(q(".brand").textContent).toBe(pl["app.brand"]);
   });
 
+  // A mail links straight to a page; signing in on the way must not drop the reader on News instead.
+  it("returns to the page a signed-out visitor asked for once they have signed in", async () => {
+    let signedIn = false;
+    const { app } = await boot({ me: null, path: "/app/gathering", routes: {
+      "GET /api/me": () => (signedIn ? meFixture() : { status: 401, body: { error: "unauthorized" } }),
+    } });
+    expect(location.pathname).toBe("/app/login");
+    signedIn = true;
+    await app.refreshMe();
+    app.navigate("/app/", { replace: true });                        // what the login view does
+    await settled();
+    expect(location.pathname).toBe("/app/gathering");
+  });
+
   it("sends a signed-in member away from the public pages", async () => {
     await boot({ path: "/app/login" });
     expect(location.pathname).toBe("/app/");
