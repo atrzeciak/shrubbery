@@ -56,8 +56,7 @@ export function personForm(person, links, { admin, emailLocked = false, onSubmit
   };
   deceased.onchange = syncDeath;
   syncDeath();
-  form.onsubmit = async (ev) => {
-    ev.preventDefault();
+  const read = () => {
     const body = {};
     for (const name of TEXT) body[name] = inputs[name].value.trim() || null;
     body.sex = sex.value || null;
@@ -67,6 +66,18 @@ export function personForm(person, links, { admin, emailLocked = false, onSubmit
     if (admin) body.unverified = unverified.checked ? 1 : 0;
     body.notes = notes.value.trim() || null;
     body.links = [...linkRows.children].map((row) => ({ kind: row.children[0].value, label: row.children[1].value.trim() || null, url: row.children[2].value.trim() }));
+    return body;
+  };
+  // An existing person gets only what changed: sending back what the form merely loaded would undo
+  // whatever somebody else saved in the meantime.
+  const loaded = read();
+  form.onsubmit = async (ev) => {
+    ev.preventDefault();
+    const body = read();
+    if (person) {
+      for (const k of Object.keys(body)) if (JSON.stringify(body[k]) === JSON.stringify(loaded[k])) delete body[k];
+      if (!Object.keys(body).length) return;
+    }
     save.disabled = true; err.textContent = "";
     try { await onSubmit(body); } catch (e) { err.textContent = e && e.message ? e.message : String(e); }
     save.disabled = false;

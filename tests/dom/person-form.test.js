@@ -47,6 +47,18 @@ describe("personForm", () => {
     expect(q("#pf-phone").disabled).toBe(true);
     expect(q("#pf-email").disabled).toBe(true);
   });
+  // Someone else may have changed the person since this form loaded: sending back what the form
+  // merely loaded would quietly undo their change.
+  it("sends only what was changed in an existing person, and nothing when nothing was", async () => {
+    const onSubmit = vi.fn(async () => {});
+    const form = personForm(person, [{ kind: "facebook", label: "", url: "https://f.example/x" }], { admin: true, onSubmit });
+    document.body.append(form);
+    await submit(form);
+    expect(onSubmit).not.toHaveBeenCalled();
+    q("#pf-birth_place").value = "Gdynia";
+    await submit(form);
+    expect(onSubmit.mock.calls[0][0]).toEqual({ birth_place: "Gdynia" });
+  });
   it("clears the death date and place when Deceased is unticked, rather than saving them locked", async () => {
     const onSubmit = vi.fn();
     const form = personForm({ ...person, deceased: 1, death_date: "1990-05-05", death_place: "Kraków" }, [], { admin: true, onSubmit });
@@ -80,8 +92,10 @@ describe("personForm", () => {
   });
   it("submits trimmed values with nulls for blanks, flags as 0/1, and the links", async () => {
     const onSubmit = vi.fn(async () => {});
-    const form = personForm({ ...person, deceased: 1, unverified: 0 }, [{ kind: "facebook", label: "", url: "https://f.example/x" }], { admin: true, onSubmit });
+    const form = personForm(null, [{ kind: "facebook", label: "", url: "https://f.example/x" }], { admin: true, onSubmit });
     document.body.append(form);
+    q("#pf-sex").value = "f";
+    q("#pf-deceased").checked = true;
     q("#pf-first_name").value = "  Anna ";
     q("#pf-nickname").value = "  ";
     q("#pf-notes").value = " n ";
@@ -99,9 +113,9 @@ describe("personForm", () => {
     expect(body.notes).toBe("n");
     expect(body.links).toEqual([{ kind: "facebook", label: null, url: "https://f.example/y" }]);
   });
-  it("omits unverified and sends a null sex when a member edits themselves", async () => {
+  it("omits unverified for a member, and sends a null sex from a blank form", async () => {
     const onSubmit = vi.fn(async () => {});
-    const form = personForm({}, [], { admin: false, onSubmit });
+    const form = personForm(null, [], { admin: false, onSubmit });
     document.body.append(form);
     await submit(form);
     const body = onSubmit.mock.calls[0][0];
@@ -112,7 +126,7 @@ describe("personForm", () => {
   it("disables Save while saving, shows what went wrong, and re-enables it", async () => {
     let release;
     const onSubmit = vi.fn(() => new Promise((_, reject) => { release = reject; }));
-    const form = personForm({}, [], { admin: false, onSubmit });
+    const form = personForm(null, [], { admin: false, onSubmit });
     document.body.append(form);
     form.showError("old");
     form.dispatchEvent(new Event("submit", { cancelable: true }));
@@ -124,7 +138,7 @@ describe("personForm", () => {
     expect(q("button[type=submit]").disabled).toBe(false);
   });
   it("shows a thrown non-Error as text", async () => {
-    const form = personForm({}, [], { admin: false, onSubmit: async () => { throw "raw"; } }); // eslint-disable-line no-throw-literal
+    const form = personForm(null, [], { admin: false, onSubmit: async () => { throw "raw"; } }); // eslint-disable-line no-throw-literal
     document.body.append(form);
     await submit(form);
     expect(q(".error").textContent).toBe("raw");

@@ -72,8 +72,7 @@ describe("with a linked person", () => {
     await tick();
     const patch = calls.find((c) => c.method === "PATCH");
     expect(patch.path).toBe("/api/me/person");
-    expect(patch.body).toMatchObject({ first_name: "Anna", nickname: "Ania", deceased: 0 });
-    expect(patch.body.unverified).toBeUndefined();
+    expect(patch.body).toEqual({ nickname: "Ania" });                 // only what changed
     expect(ctx.toast).toHaveBeenCalledWith("Zapisano.");
     expect(calls.filter((c) => c.path === "/api/me/person" && c.method === "GET").length).toBe(2);
   });
@@ -101,6 +100,7 @@ describe("with a linked person", () => {
 
   it("shows a refused save inside the form", async () => {
     const { ctx } = await start({ ...base(), "PATCH /api/me/person": { status: 400, body: { error: "bad_request" } } });
+    q("#pf-nickname").value = "Ania";
     submit(q("form"));
     await tick();
     expect(q("form .error").textContent).toBe("bad_request");

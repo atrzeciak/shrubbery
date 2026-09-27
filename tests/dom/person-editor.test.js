@@ -79,9 +79,10 @@ describe("openPersonEditor", () => {
   it("patches on save and shows the failure inside the form", async () => {
     const calls = mockApi(routes({ "PATCH /api/admin/people/p1": { status: 422, body: { error: "invalid" } } }));
     await open("p1");
+    q("#pf-first_name").value = "Ania";
     q("form").dispatchEvent(new Event("submit", { cancelable: true }));
     await tick();
-    expect(calls.find((c) => c.method === "PATCH").body.first_name).toBe("Anna");
+    expect(calls.find((c) => c.method === "PATCH").body).toEqual({ first_name: "Ania" });
     expect(q("form .error").textContent).toBe("invalid");
   });
   it("uploads a new photo and toasts, or rethrows the failure for the picker to show", async () => {
