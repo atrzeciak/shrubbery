@@ -3,6 +3,7 @@ import * as q from "../src/db/queries.js";
 import { API } from "../src/worker.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
 import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs, adminAs } from "./helpers/env.js";
+import { capturingErrors } from "./helpers/logging.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
@@ -52,9 +53,10 @@ describe("invitations", () => {
     const { c } = await adminWithFreshPasskey();
     const send = env.EMAIL.send;
     env.EMAIL.send = async () => { throw new Error("provider down"); };
-    const inv = await c.json("/api/admin/invitations", { method: "POST", body: { email: "new@x.org", lang: "pl" } });
+    const { value: inv, logged } = await capturingErrors(() => c.json("/api/admin/invitations", { method: "POST", body: { email: "new@x.org", lang: "pl" } }));
     env.EMAIL.send = send;
     expect(inv.status).toBe(502);
+    expect(logged.map((e) => e.message)).toEqual(["provider down"]);
     expect(inv.body).toEqual({ error: "mail_failed" });
     const { invitations } = (await c.json("/api/admin/invitations")).body;
     const row = invitations.find((i) => i.email === "new@x.org");

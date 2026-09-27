@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
 import { makeEnv, resetDb, seedAccount, seedPerson, loginAs, adminAs } from "./helpers/env.js";
+import { capturingErrors } from "./helpers/logging.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
@@ -99,8 +100,9 @@ describe("sending", () => {
     const c = await adminWithFreshPasskey();
     const real = env.EMAIL.send;
     env.EMAIL.send = async (msg) => { if (msg.to === "dead@x.org") throw new Error("mailbox full"); return real(msg); };
-    const r = await c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd", body: "x", groups: ["accounts"] } });
+    const { value: r, logged } = await capturingErrors(() => c.json("/api/admin/broadcasts", { method: "POST", body: { subject: "Zjazd", body: "x", groups: ["accounts"] } }));
     expect(r.body.sent).toBe(1);
+    expect(logged.map((e) => e.message)).toEqual(["mailbox full"]);
     expect(to()).toEqual(["adm@x.org"]);
     expect((await env.DB.prepare("SELECT sent_count FROM broadcasts").first()).sent_count).toBe(1);
   });
@@ -195,7 +197,9 @@ describe("who it reaches", () => {
     await seedPerson(env, { id: "p1", first_name: "Maria", email: "maria@x.org" });
     const real = env.EMAIL.send;
     env.EMAIL.send = async (msg) => { if (msg.to === "maria@x.org") throw new Error("mailbox full"); return real(msg); };
-    expect((await send(c, ["others"])).body.sent).toBe(0);
+    const { value: failed, logged } = await capturingErrors(() => send(c, ["others"]));
+    expect(failed.body.sent).toBe(0);
+    expect(logged.map((e) => e.message)).toEqual(["mailbox full"]);
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email = 'maria@x.org'").first()).toEqual({ n: 0 });
 
     env.EMAIL.send = real;

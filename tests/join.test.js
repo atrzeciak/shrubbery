@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
 import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client, loginAs, adminAs } from "./helpers/env.js";
+import { capturingErrors } from "./helpers/logging.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
@@ -32,9 +33,10 @@ describe("join request", () => {
     const code = lastCode(sent);
     const send = env.EMAIL.send;
     env.EMAIL.send = async (m) => { if (m.to === "adm@x.org") throw new Error("mailbox gone"); return send(m); };
-    const r = await c.json("/api/join/confirm", { method: "POST", body: { ...FORM, code } });
+    const { value: r, logged } = await capturingErrors(() => c.json("/api/join/confirm", { method: "POST", body: { ...FORM, code } }));
     env.EMAIL.send = send;
     expect(r.status).toBe(200);
+    expect(logged.map((e) => e.message)).toEqual(["mailbox gone"]);
     expect(sent.at(-1).to).toBe("adm2@x.org");
     expect((await env.DB.prepare("SELECT status FROM join_requests").first()).status).toBe("pending");
   });
@@ -246,9 +248,10 @@ describe("admin review", () => {
     const id = (await c.json("/api/admin/join-requests")).body.requests[0].id;
     const send = env.EMAIL.send;
     env.EMAIL.send = async () => { throw new Error("provider down"); };
-    const ap = await c.json(`/api/admin/join-requests/${id}/approve`, { method: "POST", body: { create: true } });
+    const { value: ap, logged } = await capturingErrors(() => c.json(`/api/admin/join-requests/${id}/approve`, { method: "POST", body: { create: true } }));
     env.EMAIL.send = send;
     expect(ap.status).toBe(502);
+    expect(logged.map((e) => e.message)).toEqual(["provider down"]);
     expect(ap.body).toEqual({ error: "mail_failed" });
   });
 

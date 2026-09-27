@@ -4,6 +4,7 @@ import worker from "../src/worker.js";
 import * as q from "../src/db/queries.js";
 import { makeEnv, resetDb, seedAccount, seedPerson, loginAs, adminAs } from "./helpers/env.js";
 import { fakeJpeg } from "./helpers/jpeg.js";
+import { capturingErrors } from "./helpers/logging.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
@@ -186,7 +187,9 @@ describe("deleting a document a letter carried", () => {
     const batch = env.DB.batch.bind(env.DB);
     env.DB.batch = async () => { throw new Error("constraint"); };
     try {
-      expect((await c.json("/api/media/doc", { method: "DELETE" })).status).toBe(500);
+      const { value: r, logged } = await capturingErrors(() => c.json("/api/media/doc", { method: "DELETE" }));
+      expect(r.status).toBe(500);
+      expect(logged.map((e) => e.message)).toEqual(["constraint"]);
     } finally { env.DB.batch = batch; }
     // the bytes are still there, so the same delete can be tried again once the cause is fixed
     expect(await env.MEDIA.get("media/doc.pdf")).not.toBeNull();
