@@ -359,6 +359,7 @@
   "gathering.where": "Gdzie: {place}",
   "gathering.in.days": "za {days} dni",
   "gathering.today": "dzisiaj",
+  "gathering.tomorrow": "jutro",
   "gathering.rsvp.question": "Przyjedziesz?",
   "gathering.rsvp.yes": "Tak",
   "gathering.rsvp.no": "Nie",

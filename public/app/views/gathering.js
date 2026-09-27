@@ -72,7 +72,7 @@ export async function render(root, ctx) {
     body.append(h("div", { class: "card" },
       h("h2", { text: longDate(g.on_date) }),
       g.cancelled_at ? h("p", { class: "error", text: t("gathering.cancelled") }) : null,
-      days >= 0 ? h("p", { class: "muted", text: days === 0 ? t("gathering.today") : t("gathering.in.days", { days }) }) : null,
+      days >= 0 ? h("p", { class: "muted", text: days === 0 ? t("gathering.today") : days === 1 ? t("gathering.tomorrow") : t("gathering.in.days", { days }) }) : null,
       g.place ? h("p", { text: t("gathering.where", { place: g.place }) }) : null,
       g.note ? h("p", { text: g.note }) : null));
 

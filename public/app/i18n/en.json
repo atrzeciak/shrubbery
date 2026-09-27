@@ -359,6 +359,7 @@
   "gathering.where": "Where: {place}",
   "gathering.in.days": "in {days} days",
   "gathering.today": "today",
+  "gathering.tomorrow": "tomorrow",
   "gathering.rsvp.question": "Are you coming?",
   "gathering.rsvp.yes": "Yes",
   "gathering.rsvp.no": "No",

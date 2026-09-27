@@ -90,6 +90,12 @@ describe("with a gathering", () => {
     expect(document.body.textContent).toContain("Your account is not linked to anybody in the tree yet");
   });
 
+  it("says tomorrow for a gathering tomorrow, not in 1 days", async () => {
+    await draw(family(), { "GET /api/gatherings": feed(gathering({ on_date: dayPlus(1) })) });
+    expect(document.body.textContent).toContain("tomorrow");
+    expect(document.body.textContent).not.toContain("in 1 days");
+  });
+
   it("saves my own answer: yes with a headcount, no, and a changed count", async () => {
     let mine = guests[0];
     const { calls, ctx } = await draw(family(), {
