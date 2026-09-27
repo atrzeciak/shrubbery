@@ -1,5 +1,5 @@
 import * as q from "../db/queries.js";
-import { clientIp, cookie, json, nowSec, randomB64url, readCookie } from "../util.js";
+import { clientIp, cookie, ipPrefix, json, nowSec, randomB64url, readCookie } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { allow } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
@@ -57,7 +57,7 @@ async function postRequest(request, env) {
   if (typeof body.website === "string" && body.website.trim()) return json({ ok: true });
   const f = cleanForm(body);
   const now = nowSec(), ip = clientIp(request);
-  if (!(await allow(env.DB, `join:ip:${ip}`, LIMIT, HOUR, now)) || !(await allow(env.DB, `join:email:${f.email}`, LIMIT, HOUR, now))) throw new ApiError(429, "rate_limited");
+  if (!(await allow(env.DB, `join:ip:${ipPrefix(ip)}`, LIMIT, HOUR, now)) || !(await allow(env.DB, `join:email:${f.email}`, LIMIT, HOUR, now))) throw new ApiError(429, "rate_limited");
   const existingNonce = readCookie(request, NONCE_COOKIE);
   const nonce = existingNonce || randomB64url(16);
   const headers = existingNonce ? {} : { "set-cookie": cookie(NONCE_COOKIE, nonce, NONCE_TTL) };

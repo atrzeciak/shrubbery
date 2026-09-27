@@ -64,6 +64,20 @@ describe("join request", () => {
     expect((await c.json("/api/join/request", { method: "POST", body: FORM })).status).toBe(429);
   });
 
+  it("counts an IPv6 /64 as one address", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const from = async (ip, i) => {
+      const c = new Client(env);
+      c.ip = ip;
+      return (await c.json("/api/join/request", { method: "POST", body: { ...FORM, email: `p${i}@x.org` } })).status;
+    };
+    for (const [i, ip] of ["2001:db8:1:2::1", "2001:db8:1:2::2", "2001:db8:1:2::3"].entries()) expect(await from(ip, i)).toBe(200);
+    expect(await from("2001:db8:1:2:ffff::4", 3)).toBe(429);
+    expect(await from("2001:db8:1:3::1", 4)).toBe(200);
+    for (const [i, ip] of ["2001:db8::1", "2001:db8::2", "2001:db8:0:0:1::3"].entries()) expect(await from(ip, 5 + i)).toBe(200);
+    expect(await from("2001:db8:0:0:ffff::4", 8)).toBe(429);
+  });
+
   it("existing member email: request is silent, confirm is 409", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     await seedAccount(env, { id: "f1", email: "ola@x.org" });

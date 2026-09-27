@@ -127,7 +127,7 @@ D1, migrations `0001`–`0013` in `src/db/migrations/`, append-only.
 | ----- | ----- |
 | `accounts` | Who may sign in; role, language, reminder opt-in, `founder`, `protected` |
 | `sessions`, `passkeys`, `login_codes` | Authentication state |
-| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:` — what stops a stranger asking for login codes all day |
+| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IPv6 key holds the /64 — what stops a stranger asking for login codes all day |
 | `people` | The tree: names, dates, `deceased`, optional address; `email` is the login address once an account is linked |
 | `parent_of`, `partner_of`, `person_links` | Relationships and external links |
 | `avatars` | Portrait JPEGs, stored as blobs in D1 |

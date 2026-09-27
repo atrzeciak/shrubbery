@@ -50,3 +50,13 @@ export function cookie(name, value, maxAgeSeconds) {
 export function clientIp(request) {
   return request.headers.get("cf-connecting-ip") || "0.0.0.0";
 }
+
+// An IPv6 client owns its whole /64, so rate limits count the /64 as one address.
+export function ipPrefix(ip) {
+  if (!ip.includes(":") || ip.includes(".")) return ip;
+  const groups = (s) => (s ? s.split(":") : []);
+  const [head, tail] = ip.split("::");
+  const h = groups(head), t = groups(tail);
+  const all = tail === undefined ? h : [...h, ...Array(8 - h.length - t.length).fill("0"), ...t];
+  return all.slice(0, 4).join(":");
+}
