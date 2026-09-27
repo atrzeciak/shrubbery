@@ -74,7 +74,9 @@ describe("with a linked person", () => {
     expect(patch.path).toBe("/api/me/person");
     expect(patch.body).toEqual({ nickname: "Ania" });                 // only what changed
     expect(ctx.toast).toHaveBeenCalledWith("Zapisano.");
-    expect(calls.filter((c) => c.path === "/api/me/person" && c.method === "GET").length).toBe(2);
+    // The header's name and photo come from /api/me: it is fetched again and the page redrawn with it.
+    expect(ctx.refreshMe).toHaveBeenCalled();
+    expect(ctx.navigate).toHaveBeenCalledWith("/app/me", { replace: true });
   });
 
   it("uploads a chosen photo, says so, and redraws; a refusal shows in the picker", async () => {
@@ -88,7 +90,8 @@ describe("with a linked person", () => {
     expect(put.path).toBe("/api/me/person/avatar");
     expect(put.body).toBeInstanceOf(Blob);
     expect(ctx.toast).toHaveBeenCalledWith("Zdjęcie zapisane.");
-    expect(calls.filter((c) => c.path === "/api/me/person" && c.method === "GET").length).toBe(2);
+    expect(ctx.refreshMe).toHaveBeenCalled();
+    expect(ctx.navigate).toHaveBeenCalledWith("/app/me", { replace: true });
     const failed = await start({ ...base(), "PUT /api/me/person/avatar": { status: 413, body: { error: "bad_request" } } });
     pickFile(q("#avatar-file"), new File(["x"], "me.jpg", { type: "image/jpeg" }));
     await tick();

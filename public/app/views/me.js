@@ -22,13 +22,14 @@ export async function render(root, ctx) {
     admin: false,
     emailLocked: true,
     onSubmit: async (body) => {
-      try { await api("/api/me/person", { method: "PATCH", body }); ctx.toast(t("form.saved")); await render(root, ctx); }
+      // The header's name and photo come from /api/me, so it is fetched again and the page redrawn with it.
+      try { await api("/api/me/person", { method: "PATCH", body }); ctx.toast(t("form.saved")); await ctx.refreshMe(); ctx.navigate("/app/me", { replace: true }); }
       catch (e) { form.showError(ctx.errorText(e)); }
     },
   });
   const picker = avatarPicker(avatarUrl(g, id), {
     onSave: async (blob) => {
-      try { await api("/api/me/person/avatar", { method: "PUT", body: blob }); ctx.toast(t("avatar.saved")); await render(root, ctx); }
+      try { await api("/api/me/person/avatar", { method: "PUT", body: blob }); ctx.toast(t("avatar.saved")); await ctx.refreshMe(); ctx.navigate("/app/me", { replace: true }); }
       catch (e) { throw new Error(ctx.errorText(e)); }
     },
   });
