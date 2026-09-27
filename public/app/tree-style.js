@@ -37,10 +37,7 @@ const classic = {
     const p = g.byId.get(n.id);
     const grp = group(n, p, opts, n.col * (this.W + this.GX), n.row * (this.H + this.GY));
     grp.append(s("circle", { cx: 0, cy: R, r: R, class: "avatar-ring" }), ...avatar(g, n, 0, R, R, 6));
-    const words = (p.display_name || "").split(" ");
-    const [line1, line2] = p.first_name || p.last_name
-      ? [p.first_name || "", p.last_name || ""]
-      : [words[0] || "", words.slice(1).join(" ")];
+    const [line1, line2] = nameLines(p);
     grp.append(s("text", { x: 0, y: 2 * R + 20, "text-anchor": "middle", class: "name", text: clip(line1, 16) }));
     if (line2) grp.append(s("text", { x: 0, y: 2 * R + 38, "text-anchor": "middle", class: "name", text: clip(line2, 16) }));
     grp.append(s("text", { x: 0, y: 2 * R + 56, "text-anchor": "middle", class: "years", text: lifeSpan(p) }));
