@@ -219,8 +219,10 @@ export const clearInvitationAttachment = (db, mediaId) =>
 export const clearBroadcastAttachment = (db, mediaId) =>
   db.prepare("UPDATE broadcasts SET attachment_media_id = NULL WHERE attachment_media_id = ?").bind(mediaId);
 // Every listed file's tags in one query: the listing used to run one per file.
-export const tagsForMediaMany = (db, ids) =>
-  db.prepare(`SELECT media_id, person_id FROM media_people WHERE media_id IN (${ids.map(() => "?").join(", ")})`).bind(...ids);
+// Keyed by the person, not by a list of ids: D1 allows 100 bound parameters, and tagged files have no cap.
+export const tagsForPersonMedia = (db, personId) =>
+  db.prepare(`SELECT media_id, person_id FROM media_people WHERE media_id IN
+                (SELECT id FROM media WHERE owner_person_id = ?1 UNION SELECT media_id FROM media_people WHERE person_id = ?1)`).bind(personId);
 export const insertMediaTag = (db, mediaId, personId) => db.prepare("INSERT OR IGNORE INTO media_people (media_id, person_id) VALUES (?, ?)").bind(mediaId, personId);
 export const deleteTagsForPerson = (db, personId) => db.prepare("DELETE FROM media_people WHERE person_id = ?").bind(personId);
 

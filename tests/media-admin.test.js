@@ -88,6 +88,27 @@ describe("edit and move", () => {
   });
 });
 
+describe("a person's gallery", () => {
+  it("lists every file a person is tagged in, past D1's 100 bound parameters, with its tags", async () => {
+    const c = await linkedMember();
+    const stmts = [];
+    for (let o = 0; o < 17; o++) {                       // 17 owners at the cap of 6: 102 files, all tagging p_me
+      stmts.push(env.DB.prepare("INSERT INTO people (id, display_name, created_at, updated_at) VALUES (?, ?, 1, 1)").bind(`o${o}`, `O${o}`));
+      for (let i = 0; i < 6; i++) {
+        const id = `m${o}_${i}`;
+        stmts.push(
+          env.DB.prepare("INSERT INTO media (id, owner_person_id, kind, content_type, size, uploaded_by, created_at) VALUES (?, ?, 'photo', 'image/jpeg', 1, 'a1', 1)").bind(id, `o${o}`),
+          env.DB.prepare("INSERT INTO media_people (media_id, person_id) VALUES (?, 'p_me')").bind(id));
+      }
+    }
+    await env.DB.batch(stmts);
+    const r = await c.json("/api/people/p_me/media");
+    expect(r.status).toBe(200);
+    expect(r.body.media).toHaveLength(102);
+    expect(r.body.media.every((m) => m.people.length === 1 && m.people[0] === "p_me")).toBe(true);
+  });
+});
+
 describe("delete + news", () => {
   it("uploader deletes own (R2 objects gone); admin deletes any; media_added visible in family news", async () => {
     const c = await linkedMember();

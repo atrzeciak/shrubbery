@@ -74,10 +74,8 @@ async function listForPerson(request, env, ctx, m) {
   if (!(await q.personById(env.DB, m[1]).first())) throw new ApiError(404, "not_found");
   const { results } = await q.mediaForPerson(env.DB, m[1]).all();
   const byMedia = new Map(results.map((r) => [r.id, []]));
-  if (results.length) {
-    const { results: tags } = await q.tagsForMediaMany(env.DB, [...byMedia.keys()]).all();
-    for (const tag of tags) byMedia.get(tag.media_id)?.push(tag.person_id);
-  }
+  const { results: tags } = await q.tagsForPersonMedia(env.DB, m[1]).all();
+  for (const tag of tags) byMedia.get(tag.media_id)?.push(tag.person_id);
   const media = results.map((row) => ({ ...row, people: byMedia.get(row.id) }));
   const { n } = await q.countOwnedMedia(env.DB, m[1]).first();
   return json({ media, counts: { used: n, cap: MEDIA_CAP } });
