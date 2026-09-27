@@ -6,6 +6,12 @@ on:
     branches: [main]
   pull_request:
 
+# One run per ref at a time, in push order: an older run must never deploy over a newer one, and two
+# runs must never apply the same migration at once. Workflow-level, so the queue follows push order.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   verify:
     runs-on: ubuntu-latest
