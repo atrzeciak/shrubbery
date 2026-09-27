@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { buildScope } from "../src/events/scope.js";
 
-// gm(=grandma)+gf are parents of mom & aunt; mom+dad are parents of me & sis; partners: dad-mom, gm-gsp, me-wife
+// ggm is gm's mother; gm(=grandma)+gf are parents of mom & aunt; mom+dad are parents of me & sis; partners: dad-mom, gm-gsp, me-wife
 const parents = [
   { parent_id: "gm", child_id: "mom" }, { parent_id: "gf", child_id: "mom" }, { parent_id: "gm", child_id: "aunt" },
   { parent_id: "mom", child_id: "me" }, { parent_id: "dad", child_id: "me" }, { parent_id: "mom", child_id: "sis" },
-  { parent_id: "aunt", child_id: "cousin" },
+  { parent_id: "aunt", child_id: "cousin" }, { parent_id: "ggm", child_id: "gm" },
 ];
 const partners = [{ a_id: "dad", b_id: "mom" }, { a_id: "gm", b_id: "gsp" }, { a_id: "me", b_id: "wife" }];
 const s = buildScope(parents, partners);
@@ -23,7 +23,7 @@ describe("death scope adds ancestors up to two generations and their partners", 
   it("grandparents and their partners are in", () => {
     for (const ok of ["mom", "gm", "gf", "gsp"]) expect(s.inScope(ok, "me", "death"), ok).toBe(true);
   });
-  it("aunt and cousin are still out; great-grandparents would be out", () => {
-    for (const no of ["aunt", "cousin"]) expect(s.inScope(no, "me", "death"), no).toBe(false);
+  it("aunt, cousin and a great-grandparent are still out", () => {
+    for (const no of ["aunt", "cousin", "ggm"]) expect(s.inScope(no, "me", "death"), no).toBe(false);
   });
 });

@@ -26,7 +26,7 @@ describe("static assets", () => {
     expect(await res.text()).toMatch(/not found/i);
   });
 
-  it("answers /api/* with JSON 404 until routes exist", async () => {
+  it("answers an unknown /api/* path with JSON 404", async () => {
     const res = await SELF.fetch("https://example.org/api/nothing");
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not_found" });

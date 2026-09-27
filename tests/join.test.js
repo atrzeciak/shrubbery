@@ -94,7 +94,7 @@ describe("join request", () => {
     expect(await from("2001:db8:0:0:ffff::4", 8)).toBe(429);
   });
 
-  it("existing member email: request is silent, confirm is 409", async () => {
+  it("existing member email: the request is silent", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     await seedAccount(env, { id: "f1", email: "ola@x.org" });
     const c = new Client(env);

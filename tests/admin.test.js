@@ -277,7 +277,7 @@ describe("accounts", () => {
 });
 
 describe("history and news", () => {
-  it("family and admin both see only content events, with no emails; paging works", async () => {
+  it("family and admin both see only content events, with no actor_email field; paging works", async () => {
     const { c } = await adminWithFreshPasskey();
     await q.insertInvitation(env.DB, { id: "i1", email: "n@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
     const fam = await login("n@x.org");
