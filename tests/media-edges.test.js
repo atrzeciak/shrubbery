@@ -46,7 +46,7 @@ describe("two uploads arriving together", () => {
     const objects = async () => (await env.MEDIA.list()).objects.length;
     const before = await objects();
     const real = env.DB;
-    c.env = { ...env, DB: { prepare: (sql) => (sql.includes("COUNT(*) AS n FROM media") ? { bind: () => ({ first: async () => ({ n: 0 }) }) } : real.prepare(sql)) } };
+    c.env = { ...env, DB: { prepare: (sql) => (sql.includes("COUNT(*) AS n FROM media") ? { bind: () => ({ first: async () => ({ n: 0 }) }) } : real.prepare(sql)), batch: (st) => real.batch(st) } };
     const r = await upload(c);
     expect(r.status).toBe(409);
     expect(r.body).toEqual({ error: "conflict", person: "Ja T" });

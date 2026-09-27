@@ -36,6 +36,7 @@ export const insertSession = (db, s) =>
   db.prepare("INSERT INTO sessions (id, account_id, created_at, expires_at, last_seen_at, passkey_at, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .bind(s.id, s.accountId, s.createdAt, s.expiresAt, s.createdAt, s.passkeyAt, s.userAgent);
 export const sessionById = (db, id) => db.prepare("SELECT * FROM sessions WHERE id = ?").bind(id);
+export const accountBySession = (db, sessionId) => db.prepare("SELECT a.* FROM accounts a JOIN sessions s ON s.account_id = a.id WHERE s.id = ?").bind(sessionId);
 export const sessionsByAccount = (db, accountId, now) =>
   db.prepare("SELECT id, created_at, last_seen_at, passkey_at, user_agent FROM sessions WHERE account_id = ? AND revoked_at IS NULL AND expires_at > ? ORDER BY last_seen_at DESC")
     .bind(accountId, now);

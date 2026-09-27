@@ -35,6 +35,24 @@ describe("sessions", () => {
     expect(r.session.passkey_at).toBeNull();
   });
 
+  // Every signed-in request starts here, so its D1 round trips are paid on every request.
+  it("resolves the session and its account in one round trip to D1", async () => {
+    const { token, stmt } = await prepareSession(db, { accountId: "a1", passkeyAt: null, userAgent: "ua" }, T);
+    await stmt.run();
+    let trips = 0;
+    const counted = {
+      prepare(sql) {
+        const st = db.prepare(sql);
+        const wrap = (s) => ({ bind: (...a) => wrap(s.bind(...a)), first: (...a) => { trips++; return s.first(...a); }, run: () => { trips++; return s.run(); }, raw: s });
+        return wrap(st);
+      },
+      batch(stmts) { trips++; return db.batch(stmts.map((s) => s.raw)); },
+    };
+    const r = await resolveSession(counted, reqWithCookie(token), T + 5);
+    expect(r.account.id).toBe("a1");
+    expect(trips).toBe(1);
+  });
+
   it("cookie attributes", () => {
     const c = sessionCookie("tok");
     expect(c).toContain("session=tok");

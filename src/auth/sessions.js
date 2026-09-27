@@ -19,9 +19,12 @@ export const clearSessionCookie = () => cookie(SESSION_COOKIE, "", 0);
 export async function resolveSession(db, request, now = nowSec()) {
   const token = readCookie(request, SESSION_COOKIE);
   if (!token) return null;
-  const session = await q.sessionById(db, await sha256Hex(token)).first();
+  // Session and account in one round trip: this runs before every signed-in request.
+  const id = await sha256Hex(token);
+  const [s, a] = await db.batch([q.sessionById(db, id), q.accountBySession(db, id)]);
+  const session = s.results[0];
   if (!session || session.revoked_at || session.expires_at <= now) return null;
-  const account = await q.accountById(db, session.account_id).first();
+  const account = a.results[0];
   if (!account || account.disabled_at) return null;
   if (now - session.last_seen_at >= TOUCH_INTERVAL) {
     await q.touchSession(db, session.id, now).run();
