@@ -232,10 +232,11 @@ const PANELS = {
     const button = h("button", { class: "btn", type: "button", text: t("admin.backup.download") });
     let lastAt = info.backup_at;
     let failedAt = info.backup_failed_at;
+    let failReason = info.backup_error;
     // A failure only speaks while it is the most recent word: a good download afterwards settles it.
     const failed = () => !!failedAt && failedAt > (lastAt || 0);
     const stateText = () => (failed()
-      ? t("admin.backup.failed", { when: fmtDate(failedAt) })
+      ? t("admin.backup.failed", { when: fmtDate(failedAt) }) + (failReason ? ` ${t("admin.backup.reason", { reason: failReason })}` : "")
       : lastAt ? t("admin.backup.last", { when: fmtDate(lastAt) }) : t("admin.backup.never"));
     const lastLine = h("p", { class: "muted", text: stateText() });
     const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
@@ -265,6 +266,7 @@ const PANELS = {
           if (check.backup_at !== lastAt || check.backup_failed_at !== failedAt) {
             lastAt = check.backup_at;
             failedAt = check.backup_failed_at;
+            failReason = check.backup_error;
             heard = true;
           }
         } catch {
@@ -279,6 +281,7 @@ const PANELS = {
       h("h2", { text: t("admin.backup.title") }),
       h("p", { class: "muted", text: t("admin.backup.what") }),
       h("p", { class: "muted", text: t("admin.backup.size", { files: info.files, mb }) }),
+      ...(info.near_limits || []).map((k) => h("p", { class: "muted", text: t(`admin.backup.limit.${k}`) })),
       lastLine,
       h("div", { class: "row" }, button)));
   },

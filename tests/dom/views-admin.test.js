@@ -392,6 +392,15 @@ describe("backup", () => {
     expect(r3.textContent).toContain("did not finish");
   });
 
+  it("says why the last download failed, and warns before the archive outgrows what one download can carry", async () => {
+    const { root } = await open("Backup", { "GET /api/admin/backup/check": {
+      files: 950, media_bytes: 0, backup_at: 1e9, backup_failed_at: 2e9, backup_error: "R2 said no", near_limits: ["r2_reads", "zip_entries"],
+    } });
+    expect(root.textContent).toContain("R2 said no");
+    expect(root.textContent).toContain("files to read in one download");
+    expect(root.textContent).toContain("files one ZIP can hold");
+  });
+
   it("refuses to start a download the session cannot make", async () => {
     const { root, ctx } = await open("Backup");
     mockApi({ "GET /api/admin/backup/check": { status: 401, body: { error: "step_up_required" } } });
