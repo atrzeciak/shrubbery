@@ -1,5 +1,5 @@
 import { h } from "./dom.js";
-import { t } from "./i18n.js";
+import { getLang, t } from "./i18n.js";
 import { clampCrop, initialCrop, minZoom } from "./crop.js";
 
 const TEXT = ["first_name", "last_name", "maiden_name", "nickname", "birth_date", "birth_place", "death_date", "death_place", "residence", "phone", "email"];
@@ -15,7 +15,7 @@ export function personForm(person, links, { admin, emailLocked = false, onSubmit
     const id = `pf-${name}`;
     const locked = name === "email" && emailLocked;
     const input = h("input", { type: name === "email" ? "email" : name === "phone" ? "tel" : "text", id, value: p[name] || "", autocomplete: "off",
-      placeholder: DATE.has(name) ? "RRRR-MM-DD" : null, pattern: DATE.has(name) ? "(~?\\d{4}|\\d{4}-\\d{2}|\\d{4}-\\d{2}-\\d{2})" : null, "aria-describedby": locked ? `${id}-hint` : null });
+      placeholder: DATE.has(name) ? (getLang() === "en" ? "YYYY-MM-DD" : "RRRR-MM-DD") : null, pattern: DATE.has(name) ? "(~?\\d{4}|\\d{4}-\\d{2}|\\d{4}-\\d{2}-\\d{2})" : null, "aria-describedby": locked ? `${id}-hint` : null });
     inputs[name] = input;
     return [h("label", { for: id, text: t(`form.${name}`) }), input, locked ? h("p", { id: `${id}-hint`, class: "muted", text: t("form.email.locked") }) : null];
   };

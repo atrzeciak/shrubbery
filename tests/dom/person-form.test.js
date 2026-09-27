@@ -59,6 +59,14 @@ describe("personForm", () => {
     await submit(form);
     expect(onSubmit.mock.calls[0][0]).toEqual({ birth_place: "Gdynia" });
   });
+  it("writes the date placeholder in the reader's language", async () => {
+    await lang("en");
+    const form = personForm(null, [], { admin: true, onSubmit: vi.fn() });
+    document.body.append(form);
+    expect(q("#pf-birth_date").placeholder).toBe("YYYY-MM-DD");
+    expect(q("#pf-death_date").placeholder).toBe("YYYY-MM-DD");
+    await lang("pl");
+  });
   it("clears the death date and place when Deceased is unticked, rather than saving them locked", async () => {
     const onSubmit = vi.fn();
     const form = personForm({ ...person, deceased: 1, death_date: "1990-05-05", death_place: "Kraków" }, [], { admin: true, onSubmit });
