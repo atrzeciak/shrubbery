@@ -80,7 +80,8 @@ the file you are in rather than reformatting it.
   died must not keep reading as calm.
 - **History is an append-only log.** Deleting a thing does not delete the record that it existed.
 - **Admin write routes require a fresh passkey** (`requireAdmin`). Routes that are merely
-  administrative rather than destructive use `requireRole`. If you add a route, decide which it is.
+  administrative rather than destructive use `requireRole`. `adminSession(request, env, write)` in
+  `src/api/common.js` applies one or the other; if you add a route, decide which it is.
 - **Comments explain why, not what.** The what is in the code underneath them.
 
 ## Tests

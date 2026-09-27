@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { ApiError, INVITE_TTL, accountIdentity, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, INVITE_TTL, accountIdentity, adminSession, normEmail, readJson } from "./common.js";
 import { documentAttachment } from "./attachment.js";
 import { hashIp, historyStmt } from "../history.js";
 import { sendBroadcast } from "../mail.js";
@@ -14,11 +14,7 @@ const header = (v, max) => text(String(v ?? "").replace(/[\r\n]+/g, " "), max);
 
 // Writing to the whole family is not a thing to do by accident, so it asks for a fresh passkey,
 // the same line a single invitation draws.
-async function adminCtx(request, env) {
-  const ctx = await requireSession(request, env);
-  requireAdmin(ctx);
-  return ctx;
-}
+const adminCtx = (request, env) => adminSession(request, env, true);
 
 // The three groups the form offers, kept apart so that ticking two never writes to anybody twice
 // and the counts add up to what will be sent: every account, then the invitations of people who
@@ -50,8 +46,7 @@ async function groupsOf(env, now) {
 
 // Reading the record is administrative rather than destructive, so the admin role is enough here.
 async function listSent(request, env) {
-  const ctx = await requireSession(request, env);
-  requireRole(ctx, "admin");
+  await adminSession(request, env, false);
   const { results } = await q.listBroadcasts(env.DB).all();
   const picked = await groupsOf(env, nowSec());
   return json({

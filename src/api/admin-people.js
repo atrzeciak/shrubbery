@@ -2,17 +2,11 @@ import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { cleanPersonInput, displayNameOf, PARTNER_KINDS } from "../people/fields.js";
-import { ApiError, found, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, adminSession, found, readJson } from "./common.js";
 import { personHistory, personOr404, savePersonPatch, storeAvatar } from "./people.js";
 
-async function admin(request, env, write) {
-  const ctx = await requireSession(request, env);
-  if (write) requireAdmin(ctx); else requireRole(ctx, "admin");
-  return ctx;
-}
-
 async function createPerson(request, env) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const { fields, links } = cleanPersonInput(await readJson(request), { admin: true });
   const display_name = displayNameOf(fields, null);
   if (!display_name) throw new ApiError(400, "bad_request");
@@ -26,14 +20,14 @@ async function createPerson(request, env) {
 }
 
 async function patchPerson(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const person = await personOr404(env, m[1]);
   await env.DB.batch(await savePersonPatch(env, request, account, person, await readJson(request), { admin: true, now: nowSec() }));
   return json({ ok: true });
 }
 
 async function deletePerson(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const person = await personOr404(env, m[1]);
   if ((await q.personRefCount(env.DB, person.id).first()).n > 0) throw new ApiError(409, "conflict");
   const now = nowSec();
@@ -50,7 +44,7 @@ async function deletePerson(request, env, ctx, m) {
 }
 
 async function putAvatar(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const person = await personOr404(env, m[1]);
   const updated_at = await storeAvatar(request, env, account.id, person.id, { name: person.display_name });
   return json({ ok: true, updated_at });
@@ -76,7 +70,7 @@ async function isAncestor(env, ancestor, personId) {
 }
 
 async function addParent(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const [childId, parentId] = [m[1], m[2]];
   if (childId === parentId) throw new ApiError(400, "bad_request");
   const child = await personOr404(env, childId);
@@ -94,7 +88,7 @@ async function addParent(request, env, ctx, m) {
 }
 
 async function removeParent(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const [childId, parentId] = [m[1], m[2]];
   if (!(await q.parentEdge(env.DB, parentId, childId).first())) throw new ApiError(404, "not_found");
   const child = await personOr404(env, childId);
@@ -111,7 +105,7 @@ const yearOk = (v) => v == null || (Number.isInteger(v) && v >= 1000 && v <= 299
 const pair = (x, y) => (x < y ? [x, y] : [y, x]);
 
 async function putPartner(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   if (m[1] === m[2]) throw new ApiError(400, "bad_request");
   const body = await readJson(request);
   const kind = body.kind, start_year = body.start_year ?? null, end_year = body.end_year ?? null;
@@ -128,7 +122,7 @@ async function putPartner(request, env, ctx, m) {
 }
 
 async function removePartner(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const [a_id, b_id] = pair(m[1], m[2]);
   if (!(await q.partnerEdge(env.DB, a_id, b_id).first())) throw new ApiError(404, "not_found");
   const person = await personOr404(env, m[1]);
@@ -142,7 +136,7 @@ async function removePartner(request, env, ctx, m) {
 }
 
 async function linkAccount(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const body = await readJson(request);
   const target = found(await q.accountById(env.DB, m[1]).first());
   const person = await personOr404(env, String(body.person_id || ""));
@@ -158,7 +152,7 @@ async function linkAccount(request, env, ctx, m) {
 }
 
 async function unlinkAccount(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const target = found(await q.accountById(env.DB, m[1]).first());
   if (!target.person_id) throw new ApiError(404, "not_found");
   const now = nowSec();

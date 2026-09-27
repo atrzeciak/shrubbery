@@ -2,21 +2,15 @@ import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { sendAdminGranted, sendInvitation } from "../mail.js";
-import { ApiError, found, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, found, EMAIL_RE, accountIdentity, adminSession, INVITE_TTL, adminEmails, normEmail, readJson } from "./common.js";
 import { ATTACHMENT_MAX_BYTES, documentAttachment } from "./attachment.js";
 
 const PAGE = 50;
 
 async function listDocuments(request, env) {
-  await admin(request, env, false);
+  await adminSession(request, env, false);
   const { results } = await q.listDocuments(env.DB).all();
   return json({ documents: results.filter((d) => d.content_type === "application/pdf" && d.size <= ATTACHMENT_MAX_BYTES) });
-}
-
-async function admin(request, env, write) {
-  const ctx = await requireSession(request, env);
-  if (write) requireAdmin(ctx); else requireRole(ctx, "admin");
-  return ctx;
 }
 
 async function adminHistory(request, env, actor, action, targetType, targetId, details, now) {
@@ -24,13 +18,13 @@ async function adminHistory(request, env, actor, action, targetType, targetId, d
 }
 
 async function listInvitations(request, env) {
-  await admin(request, env, false);
+  await adminSession(request, env, false);
   const { results } = await q.listInvitations(env.DB, nowSec()).all();
   return json({ invitations: results });
 }
 
 async function createInvitation(request, env) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const body = await readJson(request);
   const email = normEmail(body.email);
   const lang = body.lang === "en" ? "en" : body.lang === "pl" ? "pl" : null;
@@ -56,7 +50,7 @@ async function createInvitation(request, env) {
 }
 
 async function resendInvitation(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const inv = await q.invitationById(env.DB, m[1]).first();
   if (!inv || inv.accepted_at || inv.revoked_at) throw new ApiError(404, "not_found");
   const now = nowSec();
@@ -70,7 +64,7 @@ async function resendInvitation(request, env, ctx, m) {
 }
 
 async function revokeInvitation(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const inv = await q.invitationById(env.DB, m[1]).first();
   if (!inv || inv.accepted_at || inv.revoked_at) throw new ApiError(404, "not_found");
   const now = nowSec();
@@ -82,13 +76,13 @@ async function revokeInvitation(request, env, ctx, m) {
 }
 
 async function listAccounts(request, env) {
-  await admin(request, env, false);
+  await adminSession(request, env, false);
   const { results } = await q.listAccounts(env.DB).all();
   return json({ accounts: results });
 }
 
 async function patchAccount(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const body = await readJson(request);
   const wantsRole = "role" in body;
   const wantsProtection = "protected" in body;
@@ -124,7 +118,7 @@ async function patchAccount(request, env, ctx, m) {
 }
 
 async function disableAccount(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   if (m[1] === account.id) throw new ApiError(409, "conflict");
   const target = found(await q.accountById(env.DB, m[1]).first());
   if (target.founder) throw new ApiError(403, "forbidden");                                  // demotion by another name
@@ -139,7 +133,7 @@ async function disableAccount(request, env, ctx, m) {
 }
 
 async function enableAccount(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const target = found(await q.accountById(env.DB, m[1]).first());
   const now = nowSec();
   await env.DB.batch([
@@ -150,7 +144,7 @@ async function enableAccount(request, env, ctx, m) {
 }
 
 async function revokeAccountSessions(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const target = found(await q.accountById(env.DB, m[1]).first());
   const now = nowSec();
   await env.DB.batch([
@@ -182,7 +176,7 @@ export function beforeIdOf(url) {
 }
 
 async function history(request, env) {
-  await admin(request, env, false);
+  await adminSession(request, env, false);
   const url = new URL(request.url);
   const beforeId = beforeIdOf(url);
   const accountId = url.searchParams.get("account") || null;

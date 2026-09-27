@@ -3,7 +3,7 @@ import { json, nowSec } from "../util.js";
 import { keyFor } from "./media.js";
 import { dumpSql } from "../backup/dump.js";
 import { zipStream } from "../backup/zip.js";
-import { requireAdmin, requireSession } from "./common.js";
+import { adminSession } from "./common.js";
 import { host } from "../mail.js";
 
 const restoreNote = (env) => {
@@ -67,11 +67,8 @@ W tym archiwum jest wszystko: dane rodziny i pliki.
 `;
 };
 
-async function guard(request, env) {
-  const ctx = await requireSession(request, env);
-  requireAdmin(ctx);        // admin plus a fresh passkey: the archive holds every address in the family
-  return ctx;
-}
+// Admin plus a fresh passkey: the archive holds every address in the family.
+const guard = (request, env) => adminSession(request, env, true);
 
 export async function backupCheck(request, env) {
   await guard(request, env);

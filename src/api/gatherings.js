@@ -1,7 +1,7 @@
 import * as q from "../db/queries.js";
 import { isDate } from "../people/fields.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { ApiError, found, INVITE_TTL, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
+import { ApiError, found, INVITE_TTL, accountIdentity, adminSession, normEmail, readJson, requireSession, siteTz } from "./common.js";
 import { hashIp, historyStmt } from "../history.js";
 import { today as dayIn } from "../../public/app/events.js";
 import { sendGatheringMail } from "../mail.js";
@@ -15,11 +15,7 @@ const text = (v, max) => {
 
 // A gathering is not a destructive administrative act, so it asks for the admin role but not a fresh
 // passkey — the same line the media routes draw.
-async function adminCtx(request, env) {
-  const ctx = await requireSession(request, env);
-  requireRole(ctx, "admin");
-  return ctx;
-}
+const adminCtx = (request, env) => adminSession(request, env, false);
 
 function guestsAndTotals(rows) {
   const totals = { coming: 0, not_coming: 0, unanswered: 0 };

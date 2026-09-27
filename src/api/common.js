@@ -62,6 +62,13 @@ export function requireRole({ account }, role) {
   if (account.role !== role) throw new ApiError(403, "forbidden");
 }
 
+// A write that could hurt asks for a fresh passkey; reading or a merely administrative act, the role alone.
+export async function adminSession(request, env, write) {
+  const ctx = await requireSession(request, env);
+  if (write) requireAdmin(ctx); else requireRole(ctx, "admin");
+  return ctx;
+}
+
 // Photos and the avatar of a person: the person, or a parent until the child has an account.
 // Says nothing of admins, whose routes ask for a fresh passkey.
 export async function canCurate(env, account, personId) {

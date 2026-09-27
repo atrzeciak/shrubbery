@@ -5,17 +5,11 @@ import { allow } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
 import { sendCode, sendInvitation, sendJoinNotice } from "../mail.js";
 import { isDate, yearOf } from "../people/fields.js";
-import { ApiError, found, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, found, EMAIL_RE, accountIdentity, adminSession, INVITE_TTL, adminEmails, normEmail, readJson } from "./common.js";
 import { personHistory } from "./people.js";
 
 const NONCE_COOKIE = "join_nonce", NONCE_TTL = 3600;
 const LIMIT = 3, HOUR = 3600;
-
-async function admin(request, env, write) {
-  const ctx = await requireSession(request, env);
-  if (write) requireAdmin(ctx); else requireRole(ctx, "admin");
-  return ctx;
-}
 
 const text = (v, min, max) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -118,7 +112,7 @@ async function postConfirm(request, env) {
 }
 
 async function listRequests(request, env) {
-  await admin(request, env, false);
+  await adminSession(request, env, false);
   const [reqs, people] = await env.DB.batch([q.listJoinRequests(env.DB), q.listPeople(env.DB)]);
   const requests = reqs.results.map((r) => {
     const byEmail = people.results.find((p) => p.email && p.email.toLowerCase() === r.email);
@@ -135,7 +129,7 @@ async function pendingOr404(env, id) {
 }
 
 async function approve(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const r = await pendingOr404(env, m[1]);
   const body = await readJson(request);
   const now = nowSec(), stmts = [];
@@ -170,7 +164,7 @@ async function approve(request, env, ctx, m) {
 }
 
 async function reject(request, env, ctx, m) {
-  const { account } = await admin(request, env, true);
+  const { account } = await adminSession(request, env, true);
   const r = await pendingOr404(env, m[1]);
   const body = await readJson(request);
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) || null : null;

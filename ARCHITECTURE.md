@@ -79,7 +79,8 @@ holding a session or learning anything.
 - **Two ways in:** a one-time code by mail, or a passkey (WebAuthn, verified in-house in
   `src/auth/webauthn.js` — no library). Sessions are opaque tokens in an `HttpOnly` cookie.
 - **Step-up:** destructive admin routes require a *fresh* passkey assertion, not merely an admin
-  role (`requireAdmin`). Administrative-but-not-destructive routes use `requireRole`.
+  role (`requireAdmin`). Administrative-but-not-destructive routes use `requireRole`. Routes reach
+  both through `adminSession(request, env, write)` in `src/api/common.js`.
 - **Privacy is editorial, not technical.** Everyone signed in sees everything; nothing sensitive is
   put in in the first place. The news feed and the gathering payload carry no addresses.
 - **The founder** (`accounts.founder`) is fixed: they cannot be demoted, only they may protect
