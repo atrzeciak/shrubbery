@@ -6,6 +6,7 @@ import { ApiError, found, canCurate, readBody, readJson, requireSession } from "
 import { personHistory } from "./people.js";
 
 export const keyFor = (m) => `media/${m.id}.${m.content_type === "application/pdf" ? "pdf" : "jpg"}`;
+export const thumbKeyFor = (m) => `media/${m.id}.thumb.jpg`;
 // The owner too, so a child who joins takes over what a parent uploaded for them.
 export const canTouch = (account, media) =>
   account.role === "admin" || media.uploaded_by === account.id || (Boolean(account.person_id) && media.owner_person_id === account.person_id);
@@ -62,7 +63,7 @@ async function putThumb(request, env, ctx, m) {
   if (!canTouch(account, media)) throw new ApiError(403, "forbidden");
   const bytes = await readBody(request, THUMB_MAX_BYTES);
   if (bytes.length === 0 || bytes.length > THUMB_MAX_BYTES || !jpegSize(bytes)) throw new ApiError(400, "bad_request");
-  await env.MEDIA.put(`media/${media.id}.thumb.jpg`, bytes, { httpMetadata: { contentType: "image/jpeg" } });
+  await env.MEDIA.put(thumbKeyFor(media), bytes, { httpMetadata: { contentType: "image/jpeg" } });
   await q.setMediaThumb(env.DB, media.id).run();
   return json({ ok: true });
 }
@@ -103,7 +104,7 @@ async function getThumb(request, env, ctx, m) {
   await requireSession(request, env);
   const media = await mediaOr404(env, m[1]);
   if (!media.has_thumb) throw new ApiError(404, "not_found");
-  return streamObject(env, media, `media/${media.id}.thumb.jpg`, "image/jpeg", request);
+  return streamObject(env, media, thumbKeyFor(media), "image/jpeg", request);
 }
 
 async function patchMedia(request, env, ctx, m) {
@@ -157,7 +158,7 @@ async function deleteMediaRoute(request, env, ctx, m) {
   ]);
   // Only once the row is gone. The other way round, a batch that fails leaves the archive listing
   // a file whose bytes it has already destroyed, and no way to try again.
-  await env.MEDIA.delete([keyFor(media), `media/${media.id}.thumb.jpg`]);
+  await env.MEDIA.delete([keyFor(media), thumbKeyFor(media)]);
   return json({ ok: true });
 }
 

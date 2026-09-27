@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { json, nowSec } from "../util.js";
-import { keyFor } from "./media.js";
+import { keyFor, thumbKeyFor } from "./media.js";
 import { dumpSql } from "../backup/dump.js";
 import { zipStream } from "../backup/zip.js";
 import { adminSession } from "./common.js";
@@ -114,7 +114,7 @@ export async function backupDownload(request, env, ctx) {
       if (obj) yield { name: key, bytes: new Uint8Array(await obj.arrayBuffer()) };
       else missing.push(`${m.id}  ${key}`);              // a missing object must not cost the rest of the archive
       if (m.has_thumb) {
-        const thumbKey = `media/${m.id}.thumb.jpg`;
+        const thumbKey = thumbKeyFor(m);
         const thumb = await env.MEDIA.get(thumbKey);
         if (thumb) yield { name: thumbKey, bytes: new Uint8Array(await thumb.arrayBuffer()) };
         else missing.push(`${m.id}  ${thumbKey}`);
