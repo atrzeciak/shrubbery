@@ -62,6 +62,8 @@ export function personForm(person, links, { admin, emailLocked = false, onSubmit
     for (const name of TEXT) body[name] = inputs[name].value.trim() || null;
     body.sex = sex.value || null;
     body.deceased = deceased.checked ? 1 : 0;
+    // Locked is not cleared: a death date left behind still draws a lifespan and mails an anniversary.
+    if (!deceased.checked) body.death_date = body.death_place = null;
     if (admin) body.unverified = unverified.checked ? 1 : 0;
     body.notes = notes.value.trim() || null;
     body.links = [...linkRows.children].map((row) => ({ kind: row.children[0].value, label: row.children[1].value.trim() || null, url: row.children[2].value.trim() }));

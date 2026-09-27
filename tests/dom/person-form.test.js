@@ -47,6 +47,15 @@ describe("personForm", () => {
     expect(q("#pf-phone").disabled).toBe(true);
     expect(q("#pf-email").disabled).toBe(true);
   });
+  it("clears the death date and place when Deceased is unticked, rather than saving them locked", async () => {
+    const onSubmit = vi.fn();
+    const form = personForm({ ...person, deceased: 1, death_date: "1990-05-05", death_place: "Kraków" }, [], { admin: true, onSubmit });
+    document.body.append(form);
+    q("#pf-deceased").checked = false;
+    q("#pf-deceased").dispatchEvent(new Event("change"));
+    await submit(form);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ deceased: 0, death_date: null, death_place: null });
+  });
   it("locks the e-mail of a person who logs in with it, dead or alive", () => {
     const form = personForm(person, [], { admin: true, emailLocked: true, onSubmit: vi.fn() });
     document.body.append(form);
