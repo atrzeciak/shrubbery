@@ -186,7 +186,7 @@ than a date somebody retypes once a year. Empty or unreadable says so out loud r
 | Backup downloads as a 0-byte file | The stream failed. The site now records the time and reason; look at the backup panel. |
 | Nobody can sign in | The `EMAIL` binding or its verified sender. Login codes go out over it. |
 | `SQLITE_AUTH` from a query | You are reading a Cloudflare-internal table (`_cf_*`). They exist only on remote D1. |
-| Admin write returns `step_up_required` | Correct: add a passkey and use it, then retry. |
+| Admin write returns `step_up_required` | Correct: confirm with your passkey, then retry. An admin with none adds the first one without step-up. |
 
 ## Before publishing anything
 

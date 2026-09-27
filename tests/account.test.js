@@ -85,6 +85,16 @@ describe("passkeys", () => {
     expect(last.body).toEqual({ error: "last_passkey" });
   });
 
+  it("an admin with no passkey adds the first one without step-up, then needs it for the next", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const c = await login("adm@x.org");
+    expect((await addPasskey(c, "first")).r.status).toBe(201);
+    expect((await c.json("/api/me")).body.session.passkey_at).toBeNull();
+    const second = await addPasskey(c, "second");
+    expect(second.r.status).toBe(401);
+    expect((await q.countPasskeys(env.DB, "adm").first()).n).toBe(1);
+  });
+
   it("removing a non-existent passkey is a 404 and writes no history", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = await login("a@x.org");

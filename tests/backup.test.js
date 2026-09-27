@@ -118,6 +118,8 @@ describe("backup", () => {
     expect(all).toContain("INSERT INTO \"people\"");
     expect(all).toContain("Kowalski");
     expect(all).toContain("sqlite3 nowa.db < dane.sql");
+    // Old passkeys are bound to the old host; admins can add a first key only once none are left.
+    expect(all).toContain(`wrangler d1 execute family --remote --command "DELETE FROM passkeys"`);
     expect((await env.DB.prepare("SELECT backup_at FROM ops_status WHERE id = 1").first()).backup_at)
       .toBeGreaterThan(0);
   });

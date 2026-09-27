@@ -53,8 +53,11 @@ W tym archiwum jest wszystko: dane rodziny i pliki.
    - Kopia zawiera tabelę d1_migrations, więc odtworzona baza nie uruchomi
      migracji jeszcze raz.
    - Klucze (passkeys) są przypisane do adresu ${host(env)}. Ten sam adres —
-     działają dalej. Nowy adres — każdy loguje się kodem z e-maila i dodaje
-     klucz od nowa.
+     działają dalej. Nowy adres — stare klucze nie zadziałają; najpierw je usuń:
+
+       wrangler d1 execute ${db} --remote --command "DELETE FROM passkeys"
+
+     potem każdy loguje się kodem z e-maila i dodaje klucz od nowa.
    - Wysyłka e-maili wymaga zweryfikowanej domeny w nowym koncie; tego
      archiwum nie da się w to wyręczyć.
    - Sesje nie przechodzą: wszyscy logują się ponownie.

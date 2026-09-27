@@ -90,7 +90,8 @@ async function listPasskeys(request, env) {
 async function addPasskey(request, env) {
   const ctx = await requireSession(request, env);
   const { account } = ctx;
-  if (account.role === "admin") requireAdmin(ctx);
+  // An admin with no passkey yet (the first account, or after a restore) could never step up to add one.
+  if (account.role === "admin" && (await q.countPasskeys(env.DB, account.id).first()).n > 0) requireAdmin(ctx);
   const body = await readJson(request);
   const challenge = readCookie(request, CHALLENGE_COOKIE);
   const cred = body.credential;

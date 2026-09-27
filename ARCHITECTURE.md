@@ -80,7 +80,8 @@ holding a session or learning anything.
   `src/auth/webauthn.js` — no library). Sessions are opaque tokens in an `HttpOnly` cookie.
 - **Step-up:** destructive admin routes require a *fresh* passkey assertion, not merely an admin
   role (`requireAdmin`). Administrative-but-not-destructive routes use `requireRole`. Routes reach
-  both through `adminSession(request, env, write)` in `src/api/common.js`.
+  both through `adminSession(request, env, write)` in `src/api/common.js`. An admin's first
+  passkey is the one exception: step-up needs a passkey, so adding the first needs none.
 - **Privacy is editorial, not technical.** Everyone signed in sees everything; nothing sensitive is
   put in in the first place. The news feed and the gathering payload carry no home addresses. The
   gathering payload carries no e-mail either; the news feed names an account that has no person
