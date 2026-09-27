@@ -30,6 +30,21 @@ async function adminWithFreshPasskey(email = "adm@x.org") {
 const FORM = { first_name: "Anna", last_name: "Zielińska", birth_date: "1985", parent_text: "Barbara", email: "ola@x.org", message: "hi", lang: "en" };
 
 describe("join request", () => {
+  it("one admin's dead mailbox neither fails the request nor silences the other admins", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    await seedAccount(env, { id: "adm2", email: "adm2@x.org", role: "admin" });
+    const c = new Client(env);
+    await c.json("/api/join/request", { method: "POST", body: FORM });
+    const code = lastCode(sent);
+    const send = env.EMAIL.send;
+    env.EMAIL.send = async (m) => { if (m.to === "adm@x.org") throw new Error("mailbox gone"); return send(m); };
+    const r = await c.json("/api/join/confirm", { method: "POST", body: { ...FORM, code } });
+    env.EMAIL.send = send;
+    expect(r.status).toBe(200);
+    expect(sent.at(-1).to).toBe("adm2@x.org");
+    expect((await env.DB.prepare("SELECT status FROM join_requests").first()).status).toBe("pending");
+  });
+
   it("validates, honeypot swallows, code mailed, confirm → pending + admins mailed", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin", lang: "pl" });
     await seedAccount(env, { id: "adm2", email: "adm2@x.org", role: "admin", lang: "en" });
