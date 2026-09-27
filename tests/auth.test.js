@@ -110,6 +110,19 @@ describe("code request step", () => {
 });
 
 describe("code step", () => {
+  it("five wrong codes burn the right one too, and no session comes of it", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
+    const code = lastCode(sent), wrong = code === "000000" ? "111111" : "000000";
+    for (let i = 0; i < 5; i++) {
+      expect((await c.json("/api/auth/code", { method: "POST", body: { email: "a@x.org", code: wrong } })).body).toEqual({ error: "invalid_code" });
+    }
+    expect((await c.json("/api/auth/code", { method: "POST", body: { email: "a@x.org", code } })).body).toEqual({ error: "expired" });
+    expect(c.cookies.has("session")).toBe(false);
+  });
+
   it("invited relative signs in, account is created with the invitation language, history recorded", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     await q.insertInvitation(env.DB, { id: "i1", email: "new@x.org", lang: "en", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();

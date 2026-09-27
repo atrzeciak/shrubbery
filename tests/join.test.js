@@ -13,6 +13,17 @@ const adminWithFreshPasskey = (email) => adminAs(env, sent, email);
 const FORM = { first_name: "Anna", last_name: "Zielińska", birth_date: "1985", parent_text: "Barbara", email: "ola@x.org", message: "hi", lang: "en" };
 
 describe("join request", () => {
+  it("five wrong codes burn the right one too, and no request is filed", async () => {
+    const c = new Client(env);
+    await c.json("/api/join/request", { method: "POST", body: FORM });
+    const code = lastCode(sent), wrong = code === "000000" ? "111111" : "000000";
+    for (let i = 0; i < 5; i++) {
+      expect((await c.json("/api/join/confirm", { method: "POST", body: { ...FORM, code: wrong } })).body).toEqual({ error: "invalid_code" });
+    }
+    expect((await c.json("/api/join/confirm", { method: "POST", body: { ...FORM, code } })).body).toEqual({ error: "expired" });
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM join_requests").first()).n).toBe(0);
+  });
+
   it("one admin's dead mailbox neither fails the request nor silences the other admins", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     await seedAccount(env, { id: "adm2", email: "adm2@x.org", role: "admin" });
