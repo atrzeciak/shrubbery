@@ -238,6 +238,17 @@ describe("sign out", () => {
     expect(ctx.state.me).toBeNull();
     expect(ctx.navigate).toHaveBeenCalledWith("/app/login", { replace: true });
   });
+
+  // The session cookie is HttpOnly: only the server can end it. A sign-out that never arrived must
+  // not show the login page, or the next person at a shared computer reloads into this account.
+  it("stays signed in, and says so, when the sign-out never reached the server", async () => {
+    const { ctx } = await start({ ...base(), "POST /api/auth/logout": { status: 500, body: { error: "internal" } } });
+    signOut().click();
+    await tick();
+    expect(ctx.state.me).not.toBeNull();
+    expect(ctx.navigate).not.toHaveBeenCalled();
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
+  });
 });
 
 describe("about", () => {

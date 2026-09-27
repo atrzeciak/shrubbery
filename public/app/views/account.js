@@ -101,7 +101,12 @@ function reminders(ctx) {
 function signOut(ctx) {
   const btn = h("button", { class: "btn secondary", type: "button", text: t("account.signout") });
   btn.onclick = async () => {
-    try { await api("/api/auth/logout", { method: "POST", body: {} }); } finally { ctx.state.me = null; ctx.navigate("/app/login", { replace: true }); }
+    // Only the server can end the HttpOnly session: until it has, this must not look signed out.
+    try {
+      await api("/api/auth/logout", { method: "POST", body: {} });
+      ctx.state.me = null;
+      ctx.navigate("/app/login", { replace: true });
+    } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
   };
   return btn;
 }
