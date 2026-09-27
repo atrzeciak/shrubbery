@@ -127,7 +127,9 @@ a shallow clone carries none.
 Admin → Backup streams everything as one ZIP: the database as SQL, every file, and restore
 instructions. Keep a copy off Cloudflare. A test restores the dump on every commit, so the file is
 known to work. `read -rs COOKIE && export COOKIE && make backup` does the same from a terminal: paste
-the admin's `session=...` cookie at the silent prompt, so it stays out of shell history and `ps`.
+the admin's `session=...` cookie at the silent prompt, so it stays out of shell history and `ps`. The
+route asks for a passkey used in the last ten minutes, so sign in or confirm with the passkey in the
+browser first; an older cookie gets a 401 and no file.
 
 ### Watching the site
 

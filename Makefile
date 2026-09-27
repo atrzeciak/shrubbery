@@ -81,8 +81,8 @@ deploy-status:  ## Show the most recent deploy runs
 
 # The archive is what outlives the author; taking one by hand should be one word.
 .PHONY: backup
-backup:  ## Download a backup ZIP (needs an admin session cookie in $$COOKIE)
-	@test -n "$${COOKIE:-}" || { echo "paste the admin session cookie: read -rs COOKIE && export COOKIE && make backup"; exit 1; }
+backup:  ## Download a backup ZIP (needs, in $$COOKIE, the session of an admin who used a passkey in the last 10 minutes)
+	@test -n "$${COOKIE:-}" || { echo "use a passkey in the browser, then within 10 minutes paste its session cookie: read -rs COOKIE && export COOKIE && make backup"; exit 1; }
 	@# On stdin, not argv: a year-long admin session must not show in ps or land in shell history.
 	printf 'cookie = "%s"\n' "$$COOKIE" | curl -fsS -K - -o "backup-$$(date -u +%Y-%m-%d).zip" $(SITE)/api/admin/backup
 	@ls -lh backup-*.zip | tail -1
