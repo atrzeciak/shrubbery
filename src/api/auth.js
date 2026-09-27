@@ -47,7 +47,8 @@ async function postCodeRequest(request, env) {
   // Always create the code row for a well-formed, rate-limit-passing address — only the
   // history write and the actual mail send are conditional on the address being known/invited.
   // Otherwise /api/auth/code could distinguish known from unknown addresses by error code.
-  const { code, stmt } = await prepareCode(db, { email, nonce }, now);
+  // The flow goes into the nonce, so a join-form code cannot open a login and vice versa.
+  const { code, stmt } = await prepareCode(db, { email, nonce: `login:${nonce}` }, now);
   const stmts = [stmt];
   if (lang) stmts.push(historyStmt(db, { actor: account ? account.id : null, action: "code_sent", targetType: "email", targetId: email, details: {}, ipHash: await hashIp(env, ip, now) }));
   await db.batch(stmts);
@@ -102,7 +103,7 @@ async function postCode(request, env) {
   if (!nonce || !/^\d{6}$/.test(code) || !EMAIL_RE.test(email)) throw new ApiError(400, "bad_request");
   const db = env.DB, now = nowSec(), ip = clientIp(request);
   const ipHash = await hashIp(env, ip, now);
-  const v = await verifyCode(db, { email, nonce, code }, now);
+  const v = await verifyCode(db, { email, nonce: `login:${nonce}`, code }, now);
   if (!v.ok) {
     await historyStmt(db, { actor: null, action: "login_failed", targetType: "email", targetId: email, details: { reason: v.error }, ipHash }).run();
     throw new ApiError(400, v.error);

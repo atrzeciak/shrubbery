@@ -63,7 +63,7 @@ async function postRequest(request, env) {
   const headers = existingNonce ? {} : { "set-cookie": cookie(NONCE_COOKIE, nonce, NONCE_TTL) };
   // Same enumeration rule as login: the code row is always created; the mail only goes out
   // when the address is not already a member's login.
-  const { code, stmt } = await prepareCode(env.DB, { email: f.email, nonce }, now);
+  const { code, stmt } = await prepareCode(env.DB, { email: f.email, nonce: `join:${nonce}` }, now);
   await env.DB.batch([stmt]);
   if (!(await q.accountByEmail(env.DB, f.email).first())) await sendCode(env, f.email, code, f.lang);
   return json({ ok: true }, 200, headers);
@@ -76,7 +76,7 @@ async function postConfirm(request, env) {
   const nonce = readCookie(request, NONCE_COOKIE);
   if (!nonce || !/^\d{6}$/.test(code)) throw new ApiError(400, "bad_request");
   const now = nowSec();
-  const v = await verifyCode(env.DB, { email: f.email, nonce, code }, now);
+  const v = await verifyCode(env.DB, { email: f.email, nonce: `join:${nonce}`, code }, now);
   if (!v.ok) throw new ApiError(400, v.error);
   const [used] = await env.DB.batch([v.stmt]);
   if (!used.meta.changes) throw new ApiError(400, "expired");

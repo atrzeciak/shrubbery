@@ -123,6 +123,23 @@ describe("join request", () => {
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE revoked_at IS NULL").first()).n).toBe(0);
     expect(sent.some((m) => m.to === "ola@x.org" && m.text.includes("example.org/app/"))).toBe(false);
   });
+
+  // Both nonces are cookies the client sets, so the cookie name alone cannot keep the flows apart.
+  it("a code works only in the flow that minted it", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    await q.insertInvitation(env.DB, { id: "i_ola", email: "ola@x.org", lang: "en", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    const c = new Client(env);
+    await c.json("/api/join/request", { method: "POST", body: FORM });
+    c.cookies.set("session_nonce", c.cookies.get("join_nonce"));
+    expect((await c.json("/api/auth/code", { method: "POST", body: { email: "ola@x.org", code: lastCode(sent) } })).status).toBe(400);
+    expect(await q.accountByEmail(env.DB, "ola@x.org").first()).toBeNull();
+    const d = new Client(env);
+    await d.json("/api/auth/email", { method: "POST", body: { email: "ola@x.org" } });
+    await d.json("/api/auth/code/request", { method: "POST", body: { email: "ola@x.org" } });
+    d.cookies.set("join_nonce", d.cookies.get("session_nonce"));
+    expect((await d.json("/api/join/confirm", { method: "POST", body: { ...FORM, code: lastCode(sent) } })).status).toBe(400);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM join_requests").first()).n).toBe(0);
+  });
 });
 
 describe("admin review", () => {
