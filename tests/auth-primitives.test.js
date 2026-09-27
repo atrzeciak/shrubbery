@@ -138,4 +138,9 @@ describe("rate limits", () => {
     expect(await allow(db, "code:b@x.org", 5, 3600, T + 10)).toBe(true);
     expect(await allow(db, "code:a@x.org", 5, 3600, T + 3600)).toBe(true);
   });
+
+  it("counts hits sent at once: exactly `limit` of them pass", async () => {
+    const rs = await Promise.all(Array.from({ length: 20 }, () => allow(db, "code:a@x.org", 5, 3600, T)));
+    expect(rs.filter(Boolean).length).toBe(5);
+  });
 });

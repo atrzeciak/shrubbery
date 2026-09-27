@@ -73,10 +73,12 @@ export const revokeInvitation = (db, id, at) => db.prepare("UPDATE invitations S
 export const extendInvitation = (db, id, expiresAt) => db.prepare("UPDATE invitations SET expires_at = ? WHERE id = ?").bind(expiresAt, id);
 
 // rate limits
-export const rateLimitGet = (db, key) => db.prepare("SELECT window_start, count FROM rate_limits WHERE key = ?").bind(key);
-export const rateLimitPut = (db, key, windowStart, count) =>
-  db.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET window_start = excluded.window_start, count = excluded.count")
-    .bind(key, windowStart, count);
+// One write that counts the hit and returns the new count; a window older than windowSeconds restarts at 1.
+export const rateLimitHit = (db, key, now, windowSeconds) =>
+  db.prepare(`INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET
+      count = CASE WHEN excluded.window_start - window_start >= ? THEN 1 ELSE count + 1 END,
+      window_start = CASE WHEN excluded.window_start - window_start >= ? THEN excluded.window_start ELSE window_start END
+    RETURNING count`).bind(key, now, windowSeconds, windowSeconds);
 
 // history (append-only: no UPDATE or DELETE on this table anywhere in this file)
 export const insertHistory = (db, h) =>
