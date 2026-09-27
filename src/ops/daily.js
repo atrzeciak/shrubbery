@@ -41,7 +41,9 @@ export async function runOps(env, now = new Date(), fetchImpl = fetch) {
       errorSince: status.error_since,
     }).run();
 
-    if (now.getUTCDate() === 1) {
+    // A run that already checked today has already written the letter: a second fire mails nobody.
+    const firstRunToday = Math.floor((previous.checked_at ?? 0) / 86400) !== Math.floor(at / 86400);
+    if (now.getUTCDate() === 1 && firstRunToday) {
       const { results: admins } = await q.listAdmins(env.DB).all();
       for (const a of admins) {
         try {

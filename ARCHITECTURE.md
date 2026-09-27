@@ -120,6 +120,8 @@ Both mail passes guard against a cron that fires twice by reading the history ro
 write, keyed by day — the site's day, resolved through `SITE_TZ`, not the trigger's UTC one. Each
 row is written straight after its mail, so a run that died partway, or one that follows another,
 mails nobody twice; two runs at the very same moment could still both send a mail that is in flight.
+The monthly letter from `runOps` goes only on the first run of the 1st: a later run that day finds
+`ops_status.checked_at` already on it.
 
 ## 6. Data model
 

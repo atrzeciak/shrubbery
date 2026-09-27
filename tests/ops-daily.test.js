@@ -57,6 +57,13 @@ describe("runOps", () => {
     expect(sent.find((m) => m.to === "second@x.org").text).toContain("went to 2 people");
   });
 
+  it("sends the letter once when the trigger fires twice on the first", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    await runOps(env, SEP_1, noFetch);
+    await runOps(env, new Date(SEP_1.getTime() + 60_000), noFetch);
+    expect(sent).toHaveLength(1);
+  });
+
   it("tells a lone admin that they are the only person this letter reaches", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     await runOps(env, SEP_1, noFetch);
