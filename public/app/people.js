@@ -13,6 +13,7 @@ export function avatarEl(g, id, size = 40) {
   const p = g.byId.get(id);
   const url = avatarUrl(g, id);
   const style = `width:${size}px;height:${size}px`;
-  return url ? h("img", { class: "avatar", src: url, alt: "", width: size, height: size, style })
+  // Lazy, so a long list fetches only the rows in view; before src, since Firefox ignores it set after.
+  return url ? h("img", { loading: "lazy", class: "avatar", src: url, alt: "", width: size, height: size, style })
              : h("div", { class: "avatar initials", style, "aria-hidden": "true", text: initials(p) });
 }

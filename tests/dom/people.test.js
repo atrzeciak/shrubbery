@@ -22,6 +22,9 @@ describe("avatars", () => {
   });
   it("avatarEl shows the picture when there is one and initials otherwise", () => {
     const img = avatarEl(g, "p1", 72);
+    // Members draws one per row: only those scrolled to are fetched. Set before src, or Firefox ignores it.
+    expect(img.getAttribute("loading")).toBe("lazy");
+    expect(img.getAttributeNames().indexOf("loading")).toBeLessThan(img.getAttributeNames().indexOf("src"));
     expect(img.tagName).toBe("IMG");
     expect(img.getAttribute("src")).toBe("/api/people/p1/avatar?v=1700000000");
     expect(img.style.width).toBe("72px");
