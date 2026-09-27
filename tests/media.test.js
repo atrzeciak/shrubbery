@@ -69,6 +69,8 @@ describe("upload", () => {
   it("photo validation: oversized pixels/bytes and PDFs rejected; documents accept pdf and jpeg scans", async () => {
     const c = await linkedMember();
     expect((await upload(c, "kind=photo&owner=p_me", fakeJpeg(2049, 10))).status).toBe(400);
+    expect((await upload(c, "kind=photo&owner=p_me", fakeJpeg(10, 10, 2_097_152))).status).toBe(400);    // one byte-cap over
+    expect((await upload(c, "kind=document&owner=p_me", pdfBytes(10_485_760), "application/pdf")).status).toBe(400);
     expect((await upload(c, "kind=photo&owner=p_me", pdfBytes(), "application/pdf")).status).toBe(400);
     expect((await upload(c, "kind=document&owner=p_me", pdfBytes(), "application/pdf")).status).toBe(201);
     expect((await upload(c, "kind=document&owner=p_me", fakeJpeg(4000, 3000))).status).toBe(201);

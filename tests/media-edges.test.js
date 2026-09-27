@@ -65,11 +65,12 @@ describe("a file's page", () => {
     expect((await c.json(`/api/media/${body.id}`)).status).toBe(404);
   });
 
-  it("refuses a thumbnail that is empty or not a JPEG", async () => {
+  it("refuses a thumbnail that is empty, not a JPEG or over its byte cap", async () => {
     const c = await linkedMember();
     const { body } = await upload(c);
     expect((await c.fetch(`/api/media/${body.id}/thumb`, { method: "PUT", body: new Uint8Array(0), headers: { "content-type": "image/jpeg" } })).status).toBe(400);
     expect((await c.fetch(`/api/media/${body.id}/thumb`, { method: "PUT", body: new Uint8Array([1, 2, 3, 4]), headers: { "content-type": "image/jpeg" } })).status).toBe(400);
+    expect((await c.fetch(`/api/media/${body.id}/thumb`, { method: "PUT", body: fakeJpeg(10, 10, 102_400), headers: { "content-type": "image/jpeg" } })).status).toBe(400);
     expect((await c.json(`/api/media/${body.id}/thumb`)).status).toBe(404);
   });
 });
