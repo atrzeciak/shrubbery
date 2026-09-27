@@ -95,10 +95,13 @@ check_no_private_files() {
   done < <(git ls-files | grep -E '^(docs/|TODO\.md|scripts/out/|\.superpowers/|temp/|\.claude/)|(^|/)\.dev\.vars$|^wrangler\.toml$|^\.scrub-names$|^\.wrangler-real\.toml\.bak$|^backup-.*\.zip$' || true)
 }
 
+# Crawlers must reach the pages to read their noindex; a crawler barred at the door can still list
+# a bare URL it saw linked elsewhere.
 check_robots() {
   [[ -f "$PUBLIC/robots.txt" ]] || return 0
   grep -q '^User-agent: \*$' "$PUBLIC/robots.txt" || fail "robots.txt lacks 'User-agent: *'"
-  grep -q '^Disallow: /$' "$PUBLIC/robots.txt" || fail "robots.txt lacks 'Disallow: /'"
+  grep -q '^Disallow: /$' "$PUBLIC/robots.txt" && fail "robots.txt bars every page, so their noindex goes unread"
+  grep -q '^  X-Robots-Tag: noindex, nofollow$' "$PUBLIC/_headers" || fail "_headers lacks X-Robots-Tag: noindex, nofollow"
 }
 
 check_valid_html() {

@@ -12,6 +12,16 @@ describe("static assets", () => {
     expect(res.headers.get("content-security-policy")).toContain("img-src 'self'");   // the favicon
   });
 
+  // A crawler barred by robots.txt never reads a noindex, and can still list a bare URL it saw linked.
+  it("lets crawlers in to read noindex on every page, and keeps them off the API", async () => {
+    for (const path of ["/", "/en/", "/app/", "/nope"]) {
+      expect((await SELF.fetch(`https://example.org${path}`)).headers.get("x-robots-tag"), path).toBe("noindex, nofollow");
+    }
+    const robots = (await (await SELF.fetch("https://example.org/robots.txt")).text()).split("\n");
+    expect(robots).toContain("Disallow: /api/");
+    expect(robots).not.toContain("Disallow: /");
+  });
+
   it("serves /en/ and /style.css", async () => {
     expect((await SELF.fetch("https://example.org/en/")).status).toBe(200);
     const css = await SELF.fetch("https://example.org/style.css");
