@@ -39,6 +39,7 @@ describe("static assets", () => {
       const html = await res.text();
       expect(html).toContain('src="/app/app.js"');
       expect(res.headers.get("content-security-policy")).toContain("script-src 'self'");
+      expect(res.headers.get("content-security-policy")).toMatch(/img-src[^;]*blob:/);   // the upload preview
     }
     const js = await SELF.fetch("https://example.org/app/app.js");
     expect(js.status).toBe(200);
