@@ -28,6 +28,10 @@ describe("today", () => {
 
 describe("upcoming", () => {
   const today = "2026-06-15";
+  it("breaks ties by person id so the order is stable", () => {
+    const tie = upcoming([{ id: "z", birth_date: "1980-03-10" }, { id: "a", birth_date: "1970-03-10" }], "2026-03-10");
+    expect(tie.map((x) => x.person_id)).toEqual(["a", "z"]);
+  });
   it("finds birthdays and death anniversaries in the window with inDays/years", () => {
     const out = upcoming([P("a", "1960-06-22"), P("b", "1941-01-05", "2014-06-15", 1), P("c", "1990-07-20")], today, 30);
     expect(out).toEqual([
@@ -66,6 +70,9 @@ describe("plural", () => {
   it("selects the right English category", () => {
     expect(plural(1, "en", forms)).toBe("one");
     expect(plural(2, "en", forms)).toBe("other");
+  });
+  it("falls back to other when the language's category has no form", () => {
+    expect(plural(3, "pl", { one: "rok", other: "x" })).toBe("x");
   });
 });
 
