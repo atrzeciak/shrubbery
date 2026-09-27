@@ -5,11 +5,11 @@ import { allow } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
 import { sendCode, sendInvitation, sendJoinNotice } from "../mail.js";
 import { isDate, yearOf } from "../people/fields.js";
-import { ApiError, EMAIL_RE, accountIdentity, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
 import { personHistory } from "./people.js";
 
 const NONCE_COOKIE = "join_nonce", NONCE_TTL = 3600;
-const LIMIT = 3, HOUR = 3600, INVITE_TTL = 14 * 86400;
+const LIMIT = 3, HOUR = 3600;
 
 async function admin(request, env, write) {
   const ctx = await requireSession(request, env);

@@ -1,12 +1,10 @@
 import * as q from "../db/queries.js";
 import { isDate } from "../people/fields.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { ApiError, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
+import { ApiError, INVITE_TTL, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
 import { hashIp, historyStmt } from "../history.js";
 import { today as dayIn } from "../../public/app/events.js";
 import { sendGatheringMail } from "../mail.js";
-
-const INVITE_TTL = 14 * 86400;
 
 // A gathering needs a whole day, and one the calendar has.
 const isDay = (v) => typeof v === "string" && v.length === 10 && isDate(v);

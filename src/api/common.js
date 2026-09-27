@@ -7,6 +7,7 @@ export class ApiError extends Error {
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const normEmail = (v) => String(v || "").trim().toLowerCase();
+export const INVITE_TTL = 14 * 86400;
 export const appOrigin = (env) => env.APP_ORIGIN || "http://localhost:8787";
 export const rpIdOf = (env) => new URL(appOrigin(env)).hostname;
 // No family's zone belongs in the source, so the fallback is the neutral one and every deployment

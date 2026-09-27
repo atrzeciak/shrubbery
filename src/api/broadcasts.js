@@ -1,18 +1,16 @@
 import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { ApiError, accountIdentity, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, INVITE_TTL, accountIdentity, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
 import { documentAttachment } from "./attachment.js";
 import { hashIp, historyStmt } from "../history.js";
 import { sendBroadcast } from "../mail.js";
 
-const INVITE_TTL = 14 * 86400;
 const GROUPS = ["accounts", "invited", "others"];
 
 const text = (v, max) => String(v ?? "").trim().slice(0, max) || null;
 // The subject is handed to the mail provider as a header, where a bare CR or LF would end the line
 // and let whatever the admin typed next be read as headers of its own.
 const header = (v, max) => text(String(v ?? "").replace(/[\r\n]+/g, " "), max);
-const key = (email) => String(email ?? "").trim().toLowerCase();
 
 // Writing to the whole family is not a thing to do by accident, so it asks for a fresh passkey,
 // the same line a single invitation draws.
@@ -34,17 +32,17 @@ async function groupsOf(env, now) {
   // The tree still holds the address, so without this the person falls straight back into `others`
   // and the next letter both reaches them and invites them in again, undoing the only lever there
   // is. The groups carry the whole rule, so the send loop needs no second opinion on anybody.
-  const shut = new Set(withdrawn.map((w) => key(w.email)));
+  const shut = new Set(withdrawn.map((w) => normEmail(w.email)));
   const out = { accounts: new Map(), invited: new Map(), others: new Map() };
-  for (const a of accounts) out.accounts.set(key(a.email), { email: key(a.email), lang: a.lang });
+  for (const a of accounts) out.accounts.set(normEmail(a.email), { email: normEmail(a.email), lang: a.lang });
   for (const i of invitations) {
-    const k = key(i.email);
+    const k = normEmail(i.email);
     if (!out.accounts.has(k) && !shut.has(k)) out.invited.set(k, { email: k, lang: i.lang });
   }
   // What is left is everybody the site has no way of letting in, so each of them needs an
   // invitation of their own; the two groups above are already holding a key.
   for (const p of people) {
-    const k = key(p.email);
+    const k = normEmail(p.email);
     if (k && !out.accounts.has(k) && !out.invited.has(k) && !shut.has(k)) out.others.set(k, { email: k, lang: "pl", invite: true });
   }
   return out;

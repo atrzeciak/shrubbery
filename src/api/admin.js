@@ -2,10 +2,9 @@ import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { sendAdminGranted, sendInvitation } from "../mail.js";
-import { ApiError, EMAIL_RE, accountIdentity, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
 import { ATTACHMENT_MAX_BYTES, documentAttachment } from "./attachment.js";
 
-const INVITE_TTL = 14 * 86400;
 const PAGE = 50;
 
 async function listDocuments(request, env) {
