@@ -22,6 +22,7 @@ export async function initI18n(accountLang) {
 export function t(key, vars = {}) {
   let s = dict[key];
   if (s == null) return key;
-  for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+  // A function, not a string: a string replacement reads $& and $$ in the value as patterns.
+  for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, () => String(v));
   return s;
 }

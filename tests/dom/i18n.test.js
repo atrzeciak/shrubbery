@@ -3,6 +3,14 @@ import { setLang, getLang, initI18n, t } from "../../public/app/i18n.js";
 
 afterEach(() => history.replaceState(null, "", "/"));
 
+describe("t", () => {
+  // A value is data, not a replacement pattern: "$&" or "$$" in a place or a name must come out as typed.
+  it("puts a value in exactly as given, dollar signs and all", async () => {
+    await setLang("en");
+    expect(t("gathering.where", { place: "Bar $$ $& Grill" })).toBe("Where: Bar $$ $& Grill");
+  });
+});
+
 describe("setLang", () => {
   it("loads the dictionary, marks the document and remembers the choice", async () => {
     await setLang("en");
