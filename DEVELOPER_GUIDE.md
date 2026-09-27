@@ -2,7 +2,10 @@
 
 ## Standing one up
 
-You need a Cloudflare account (the free plan is enough) and a domain on it.
+You need a Cloudflare account on the Workers Paid plan and a domain on it. The free plan allows 50
+D1 queries and 50 subrequests per request and 10 ms of CPU; the backup reads every file in one
+request, and a gathering announcement or a letter to the family sends one mail per person, so both
+stop partway once the family outgrows those numbers.
 
 ```sh
 cp wrangler.example.toml wrangler.toml       # then edit: domain, database, bucket
