@@ -142,6 +142,9 @@ describe("assertion shapes", () => {
     await rejects(assertWith({ signature: 42 }), "bad_encoding");
     await rejects(assertWith({ authenticatorData: "not base64url!" }), "bad_encoding");
     await rejects(assertWith({ clientDataJSON: null }), "bad_encoding");
+    // Right alphabet, impossible length: one character past a whole group.
+    await rejects(assertWith({ clientDataJSON: "A" }), "bad_encoding");
+    await rejects(assertWith({ signature: "AAAAA" }), "bad_encoding");
     await rejects(verifyRegistration({ ...SITE, attestationObject: {}, clientDataJSON: clientData("webauthn.create", ch), expectedChallenge: ch }), "bad_encoding");
   });
 

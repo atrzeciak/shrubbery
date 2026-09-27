@@ -135,7 +135,7 @@ async function checkRpIdHash(auth, rpId) {
 // is malformed input and has to fail as such, not as an atob exception the router reports as a 500.
 function decodeField(value) {
   if (typeof value !== "string" || !/^[A-Za-z0-9_-]*$/.test(value)) throw new WebAuthnError("bad_encoding");
-  return b64urlDecode(value);
+  try { return b64urlDecode(value); } catch { throw new WebAuthnError("bad_encoding"); }
 }
 
 export async function verifyRegistration({ attestationObject, clientDataJSON, expectedChallenge, expectedOrigin, rpId }) {
