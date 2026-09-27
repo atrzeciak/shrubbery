@@ -381,6 +381,18 @@ describe("history", () => {
   });
 });
 
+describe("switching tabs", () => {
+  // The redraw a tab click starts is not drawn through the router, which catches a failing view:
+  // the tab has to say so itself, or the panel stays empty with nothing on the page.
+  it("says what went wrong when the tab it switches to cannot load", async () => {
+    const { root, ctx } = await open("Invitations");
+    mockApi({ ...baseRoutes(), "GET /api/admin/accounts": { status: 500, body: { error: "internal" } } });
+    byText("[role=tab]", "Accounts", root).click();
+    for (let i = 0; i < 5; i++) await tick();
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
+  });
+});
+
 describe("backup", () => {
   it("describes the archive and reports the last backup, a failure, or neither", async () => {
     const { root } = await open("Backup");

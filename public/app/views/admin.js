@@ -17,7 +17,8 @@ export async function render(root, ctx) {
   const panel = h("div");
   for (const name of TABS) {
     const b = h("button", { type: "button", role: "tab", "aria-selected": String(tab === name), text: t(`admin.tab.${name}`) });
-    b.onclick = () => { tab = name; render(root, ctx); };
+    // Not drawn through the router, which catches a failing view: the tab says so itself.
+    b.onclick = () => { tab = name; render(root, ctx).catch((e) => ctx.toast(ctx.errorText(e), "error")); };
     tabs.append(b);
   }
   root.append(tabs, panel);

@@ -28,6 +28,17 @@ async function draw(ctx = me(), path = "/app/tree", routes = {}) {
   return { calls, root, ctx, mode: async (k) => { const b = byText("[role=tab]", k, root); if (b.getAttribute("aria-selected") !== "true") { b.click(); await tick(); await tick(); } } };
 }
 
+describe("switching the tree mode", () => {
+  it("says what went wrong when the tree cannot be loaded again", async () => {
+    const { ctx, mode } = await draw();
+    await mode("Around a person");
+    mockApi({ "GET /api/people": { status: 500, body: { error: "internal" } } });
+    await mode("Whole family");
+    for (let i = 0; i < 3; i++) await tick();
+    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
+  });
+});
+
 const names = (root) => qa("svg .node", root).map((n) => n.getAttribute("aria-label"));
 const ptr = (el, type, pointerId, clientX, clientY) => el.dispatchEvent(new PointerEvent(type, { pointerId, clientX, clientY, bubbles: true, cancelable: true }));
 
