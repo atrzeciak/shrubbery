@@ -8,8 +8,6 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # Read from your own wrangler.toml, which is git-ignored: this file names no site.
-DB      := $(shell sed -n 's/^database_name *= *"\(.*\)"/\1/p' wrangler.toml 2>/dev/null)
-BUCKET  := $(shell sed -n 's/^bucket_name *= *"\(.*\)"/\1/p' wrangler.toml 2>/dev/null)
 SITE    := $(shell sed -n 's/^APP_ORIGIN *= *"\(.*\)"/\1/p' wrangler.toml 2>/dev/null)
 # The remote and the branch it calls default, detected rather than assumed: a clone whose remote is
 # not called origin still releases. Override either on the command line.
@@ -71,11 +69,11 @@ health:  ## Print the live health endpoint
 
 .PHONY: migrations
 migrations:  ## List D1 migrations and whether they have been applied remotely
-	npx wrangler d1 migrations list $(DB) --remote
+	npx wrangler d1 migrations list DB --remote
 
 .PHONY: migrate
 migrate:  ## Apply pending D1 migrations to the live database (CI does this on deploy)
-	npx wrangler d1 migrations apply $(DB) --remote
+	npx wrangler d1 migrations apply DB --remote
 
 .PHONY: deploy-status
 deploy-status:  ## Show the most recent deploy runs
