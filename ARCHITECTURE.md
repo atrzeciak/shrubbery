@@ -135,7 +135,7 @@ The monthly letter from `runOps` goes only on the first run of the 1st: a later 
 
 ## 6. Data model
 
-D1, migrations `0001`–`0014` in `src/db/migrations/`, append-only.
+D1, migrations `0001`–`0015` in `src/db/migrations/`, append-only.
 
 | Table | Holds |
 | ----- | ----- |

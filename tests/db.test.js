@@ -94,6 +94,13 @@ describe("queries", () => {
     expect((await q.personRefCount(env.DB, "p1").first()).n).toBe(1);
   });
 
+  it("0015: no index repeats the rsvps primary key, and login codes carry no passkey_at", async () => {
+    const idx = (await db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'rsvps'").all()).results.map((r) => r.name);
+    expect(idx).not.toContain("rsvps_gathering");
+    const cols = (await db.prepare("PRAGMA table_info(login_codes)").all()).results.map((r) => r.name);
+    expect(cols).not.toContain("passkey_at");
+  });
+
   it("0004: owned media blocks person deletion, tags do not", async () => {
     await seedPerson(env, { id: "own", first_name: "O", last_name: "P" });
     await seedPerson(env, { id: "tag", first_name: "T", last_name: "P" });
