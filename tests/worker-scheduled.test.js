@@ -72,4 +72,21 @@ describe("the nightly scheduled handler", () => {
     expect(logged.some((e) => /the mail provider is down/.test(e.message))).toBe(true);
     expect((await status()).checked_at).toBeGreaterThan(0);
   });
+
+  it("deletes login codes past their expiry and rate-limit windows over a day old, and nothing live", async () => {
+    // Neither table is read past those points, and both would otherwise grow with every stranger's request.
+    const now = SCHEDULED_TIME / 1000;
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)").bind("code:ip:old", now - 2 * 86400),
+      env.DB.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)").bind("code:ip:live", now - 600),
+      q.insertCode(env.DB, { id: "old", email: "a@x.org", codeHash: "h", sessionNonce: "n", createdAt: now - 1200, expiresAt: now - 1 }),
+      q.insertCode(env.DB, { id: "live", email: "a@x.org", codeHash: "h", sessionNonce: "n", createdAt: now - 60, expiresAt: now + 540 }),
+    ]);
+    await runScheduled(env);
+
+    const keys = (await env.DB.prepare("SELECT key FROM rate_limits").all()).results.map((r) => r.key);
+    const codes = (await env.DB.prepare("SELECT id FROM login_codes").all()).results.map((r) => r.id);
+    expect(keys).toEqual(["code:ip:live"]);
+    expect(codes).toEqual(["live"]);
+  });
 });

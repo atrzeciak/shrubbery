@@ -14,6 +14,7 @@ import { routes as gatheringRoutes } from "./api/gatherings.js";
 import { routes as broadcastRoutes } from "./api/broadcasts.js";
 import { gatheringReminders, runDaily } from "./events/cron.js";
 import { runOps } from "./ops/daily.js";
+import * as q from "./db/queries.js";
 
 export const API = [...authRoutes, ...meRoutes, ...peopleRoutes, ...adminRoutes, ...adminPeopleRoutes, ...newsRoutes, ...joinRoutes, ...mediaRoutes, ...backupRoutes, ...healthRoutes, ...gatheringRoutes, ...broadcastRoutes];
 
@@ -52,5 +53,8 @@ export default {
     ctx.waitUntil(runDaily(env, now));
     ctx.waitUntil(runOps(env, now));
     ctx.waitUntil(gatheringReminders(env, now));
+    // Every limit window is an hour, so a day-old one can no longer count against anybody.
+    const sec = Math.floor(now / 1000);
+    ctx.waitUntil(env.DB.batch([q.purgeLoginCodes(env.DB, sec), q.purgeRateLimits(env.DB, sec - 86400)]));
   },
 };

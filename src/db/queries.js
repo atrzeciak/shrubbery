@@ -73,6 +73,9 @@ export const revokeInvitation = (db, id, at) => db.prepare("UPDATE invitations S
 export const extendInvitation = (db, id, expiresAt) => db.prepare("UPDATE invitations SET expires_at = ? WHERE id = ?").bind(expiresAt, id);
 
 // rate limits
+export const purgeLoginCodes = (db, now) => db.prepare("DELETE FROM login_codes WHERE expires_at <= ?").bind(now);
+export const purgeRateLimits = (db, before) => db.prepare("DELETE FROM rate_limits WHERE window_start < ?").bind(before);
+
 // One write that counts the hit and returns the new count; a window older than windowSeconds restarts at 1.
 export const rateLimitHit = (db, key, now, windowSeconds) =>
   db.prepare(`INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET

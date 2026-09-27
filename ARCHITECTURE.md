@@ -19,7 +19,7 @@ flowchart LR
 
 | Component | Directory | Responsibility |
 | --------- | --------- | -------------- |
-| Router and cron | `src/worker.js` | Matches routes; runs the three nightly passes |
+| Router and cron | `src/worker.js` | Matches routes; runs the four nightly passes |
 | Route groups | `src/api/` | One module per area, each exporting `routes` |
 | Queries | `src/db/queries.js` | Every SQL statement the routes run; the backup dump generates its own |
 | Auth | `src/auth/` | Sessions, one-time codes, WebAuthn verification |
@@ -106,7 +106,7 @@ holding a session or learning anything.
 
 ## 5. Scheduled work
 
-One cron, 05:00 UTC, three independent passes in `src/worker.js`, each in its own `waitUntil` so one
+One cron, 05:00 UTC, four independent passes in `src/worker.js`, each in its own `waitUntil` so one
 failing cannot take the others with it:
 
 | Pass | Module | Does |
@@ -114,6 +114,7 @@ failing cannot take the others with it:
 | `runDaily` | `events/cron.js` | Birthday and anniversary mail at T−7 and T−0, scope-checked |
 | `runOps` | `ops/daily.js` | Writes `ops_status`: domain, card, backup age, warnings |
 | `gatheringReminders` | `events/cron.js` | Gathering mail a week before and on the day |
+| purge | `worker.js` | Deletes expired login codes and rate-limit windows over a day old |
 
 Both mail passes guard against a cron that fires twice by reading the history rows they themselves
 write, keyed by day — the site's day, resolved through `SITE_TZ`, not the trigger's UTC one. A
@@ -128,7 +129,7 @@ D1, migrations `0001`–`0014` in `src/db/migrations/`, append-only.
 | `accounts` | Who may sign in; role, language, reminder opt-in, `founder`, `protected` |
 | `sessions`, `passkeys`, `login_codes` | Authentication state |
 | `webauthn_challenges` | Each passkey challenge handed out, good for one sign-in, step-up or registration within five minutes; expired rows go when the next is issued. The `wa_challenge` cookie only names it |
-| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IPv6 key holds the /64 — what stops a stranger asking for login codes all day |
+| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IPv6 key holds the /64 — what stops a stranger asking for login codes all day. Windows over a day old, and expired login codes, go nightly |
 | `people` | The tree: names, dates, `deceased`, optional address; `email` is the login address once an account is linked |
 | `parent_of`, `partner_of`, `person_links` | Relationships and external links |
 | `avatars` | Portrait JPEGs, stored as blobs in D1 |
