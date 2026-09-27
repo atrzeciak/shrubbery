@@ -4,13 +4,13 @@ import * as q from "../src/db/queries.js";
 import { prepareSession, resolveSession, sessionCookie, clearSessionCookie, hasFreshPasskey, STEP_UP_WINDOW } from "../src/auth/sessions.js";
 import { generateCode, prepareCode, verifyCode, CODE_MAX_ATTEMPTS } from "../src/auth/codes.js";
 import { allow } from "../src/auth/ratelimit.js";
+import { resetDb } from "./helpers/env.js";
 
 const db = env.DB;
 const T = 1_800_000_000;
-const TABLES = ["history", "rate_limits", "invitations", "login_codes", "sessions", "passkeys", "accounts"];
 
 beforeEach(async () => {
-  await db.batch(TABLES.map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await resetDb(env);
   await q.insertAccount(db, { id: "a1", email: "a@x.org", role: "family", lang: "pl", createdAt: T, invitedBy: null }).run();
 });
 
