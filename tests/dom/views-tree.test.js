@@ -29,13 +29,17 @@ async function draw(ctx = me(), path = "/app/tree", routes = {}) {
 }
 
 describe("switching the tree mode", () => {
-  it("says what went wrong when the tree cannot be loaded again", async () => {
-    const { ctx, mode } = await draw();
+  // The graph is already in hand; a tab is a different drawing of it, not a reason to ask again.
+  it("draws the other mode from the graph it has, without fetching everybody again", async () => {
+    const { root, calls, mode } = await draw();
     await mode("Around a person");
-    mockApi({ "GET /api/people": { status: 500, body: { error: "internal" } } });
+    const fetched = () => calls.filter((c) => c.path === "/api/people").length;
+    const before = fetched();
     await mode("Whole family");
-    for (let i = 0; i < 3; i++) await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("internal", "error");
+    expect(qa(".tree-wrap.family svg .node", root)).toHaveLength(people.length);
+    await mode("Around a person");
+    expect(q(".tree-wrap.focus svg", root)).not.toBeNull();
+    expect(fetched()).toBe(before);
   });
 });
 

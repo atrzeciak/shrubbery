@@ -238,12 +238,18 @@ export async function render(root, ctx) {
   style = styleOf();
   const g = await loadGraph();
   style.fit(g);
+  draw(root, ctx, g);
+}
+
+// A tab switch redraws from the graph already loaded rather than fetching everybody again.
+function draw(root, ctx, g) {
+  clear(root);
   const me = ctx.state.me.account;
   const m = location.pathname.match(/^\/app\/tree\/([A-Za-z0-9_-]+)/);
   const focus = m && g.byId.has(m[1]) ? m[1] : defaultFocus(g, me);
   const onPerson = (id) => openSheet(personCard(g, id, ctx, { onPerson }), g.byId.get(id).display_name);
   const toggle = h("div", { class: "tabs", role: "tablist" },
-    ...["focus", "family"].map((k) => { const b = h("button", { type: "button", role: "tab", "aria-selected": String(mode === k), text: t(`tree.mode.${k}`) }); b.onclick = () => { mode = k; localStorage.setItem("treeMode", k); render(root, ctx).catch((e) => ctx.toast(ctx.errorText(e), "error")); }; return b; }));
+    ...["focus", "family"].map((k) => { const b = h("button", { type: "button", role: "tab", "aria-selected": String(mode === k), text: t(`tree.mode.${k}`) }); b.onclick = () => { mode = k; localStorage.setItem("treeMode", k); draw(root, ctx, g); }; return b; }));
   root.append(h("h1", { text: t("tree.title") }), toggle);
   if (!g.people.length) { root.append(h("p", { class: "card muted", text: t("tree.empty") })); return; }
   if (mode === "focus") {
