@@ -80,6 +80,13 @@ export const rateLimitHit = (db, key, now, windowSeconds) =>
       window_start = CASE WHEN excluded.window_start - window_start >= ? THEN excluded.window_start ELSE window_start END
     RETURNING count`).bind(key, now, windowSeconds, windowSeconds);
 
+// webauthn challenges: each one is good for one ceremony, and only until it expires
+export const insertChallenge = (db, challenge, expiresAt) =>
+  db.prepare("INSERT INTO webauthn_challenges (challenge, expires_at) VALUES (?, ?)").bind(challenge, expiresAt);
+export const consumeChallenge = (db, challenge, now) =>
+  db.prepare("DELETE FROM webauthn_challenges WHERE challenge = ? AND expires_at > ?").bind(challenge, now);
+export const purgeChallenges = (db, now) => db.prepare("DELETE FROM webauthn_challenges WHERE expires_at <= ?").bind(now);
+
 // history (append-only: no UPDATE or DELETE on this table anywhere in this file)
 export const insertHistory = (db, h) =>
   db.prepare("INSERT INTO history (at, actor_account_id, action, target_type, target_id, details, ip_hash) VALUES (?, ?, ?, ?, ?, ?, ?)")

@@ -59,13 +59,21 @@ async function postCodeRequest(request, env) {
 
 async function postChallenge(request, env) {
   if (!(await allow(env.DB, `challenge:ip:${ipPrefix(clientIp(request))}`, CHALLENGE_LIMIT, HOUR))) throw new ApiError(429, "rate_limited");
-  const challenge = newChallenge();
+  const challenge = newChallenge(), now = nowSec();
+  await env.DB.batch([q.purgeChallenges(env.DB, now), q.insertChallenge(env.DB, challenge, now + CHALLENGE_TTL)]);
   return json({ challenge, rpId: rpIdOf(env) }, 200, { "set-cookie": cookie(CHALLENGE_COOKIE, challenge, CHALLENGE_TTL) });
+}
+
+// The cookie only names the challenge; the row proves the server issued it and nobody has used it yet.
+export async function takeChallenge(env, challenge) {
+  const r = await q.consumeChallenge(env.DB, challenge, nowSec()).run();
+  return r.meta.changes > 0;
 }
 
 // Verifies a browser assertion against the stored passkey. Throws 400/401 on any failure.
 export async function assertPasskey(env, cred, challenge) {
   if (!challenge || !cred || typeof cred.id !== "string" || !cred.response) throw new ApiError(400, "bad_request", clearChallenge());
+  if (!(await takeChallenge(env, challenge))) throw new ApiError(401, "unauthorized", clearChallenge());
   const pk = await q.passkeyByCredentialId(env.DB, cred.id).first();
   if (!pk) throw new ApiError(401, "unauthorized", clearChallenge());
   try {

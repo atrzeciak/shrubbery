@@ -4,7 +4,7 @@ import { hashIp, historyStmt, historyStmtIfPasskeyGone } from "../history.js";
 import { clearSessionCookie } from "../auth/sessions.js";
 import { verifyRegistration, WebAuthnError } from "../auth/webauthn.js";
 import { ApiError, appOrigin, readJson, requireAdmin, requireSession, rpIdOf, siteTz } from "./common.js";
-import { CHALLENGE_COOKIE, clearChallenge } from "./auth.js";
+import { CHALLENGE_COOKIE, clearChallenge, takeChallenge } from "./auth.js";
 import { domainRenewsAt, warningsFor } from "../ops/checks.js";
 
 async function ownHistory(request, env, account, action, details, now) {
@@ -97,7 +97,7 @@ async function addPasskey(request, env) {
   const body = await readJson(request);
   const challenge = readCookie(request, CHALLENGE_COOKIE);
   const cred = body.credential;
-  if (!challenge || !cred || !cred.response) throw new ApiError(400, "bad_request", clearChallenge());
+  if (!challenge || !cred || !cred.response || !(await takeChallenge(env, challenge))) throw new ApiError(400, "bad_request", clearChallenge());
   let reg;
   try {
     reg = await verifyRegistration({ ...cred.response, expectedChallenge: challenge, expectedOrigin: appOrigin(env), rpId: rpIdOf(env) });

@@ -7,8 +7,8 @@ import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client } from "./h
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
-async function registerPasskey(env, accountId, alg = "ES256") {
-  const auth = await createAuthenticator({ alg });
+async function registerPasskey(env, accountId, alg = "ES256", staticCounter = false) {
+  const auth = await createAuthenticator({ alg, staticCounter });
   const ch = "seed-challenge";
   const cred = await auth.create(ch);
   const reg = await verifyRegistration({ expectedOrigin: "https://example.org", rpId: "example.org", ...cred.response, expectedChallenge: ch });
@@ -285,6 +285,44 @@ describe("passkey step", () => {
     expect((await c.json("/api/auth/passkey/login", { method: "POST", body: { email: "a@x.org", credential: cred } })).status).toBe(401);
     // challenge cookie was consumed → second attempt has no challenge
     expect((await c.json("/api/auth/passkey/login", { method: "POST", body: { email: "b@x.org", credential: cred } })).status).toBe(400);
+  });
+
+  // Synced passkeys report counter 0 every time, so only the server's record of the challenge stops a replay.
+  it("an assertion signs in once, even from a passkey whose counter never moves", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
+    const auth = await registerPasskey(env, "a1", "ES256", true);
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
+    const body = { email: "a@x.org", credential: await auth.get(ch.body.challenge) };
+    expect((await c.json("/api/auth/passkey/login", { method: "POST", body })).status).toBe(200);
+    const replay = new Client(env);
+    replay.cookies.set("session_nonce", "x");
+    replay.cookies.set("wa_challenge", ch.body.challenge);
+    expect((await replay.json("/api/auth/passkey/login", { method: "POST", body })).status).toBe(401);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM sessions").first()).n).toBe(1);
+  });
+
+  it("a challenge the server never issued signs nobody in", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
+    const auth = await registerPasskey(env, "a1", "ES256", true);
+    const c = new Client(env);
+    c.cookies.set("session_nonce", "x");
+    c.cookies.set("wa_challenge", "made-up");
+    const body = { email: "a@x.org", credential: await auth.get("made-up") };
+    expect((await c.json("/api/auth/passkey/login", { method: "POST", body })).status).toBe(401);
+  });
+
+  it("a step-up assertion counts once, even from a passkey whose counter never moves", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
+    const auth = await registerPasskey(env, "a1", "ES256", true);
+    const c = new Client(env);
+    await loginWithCode(c, "a@x.org");
+    const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
+    const body = { credential: await auth.get(ch.body.challenge) };
+    expect((await c.json("/api/auth/passkey/step-up", { method: "POST", body })).status).toBe(200);
+    c.cookies.set("wa_challenge", ch.body.challenge);
+    expect((await c.json("/api/auth/passkey/step-up", { method: "POST", body })).status).toBe(401);
   });
 
   it("step-up sets passkey_at on a code-only session; only the account's own passkey counts", async () => {

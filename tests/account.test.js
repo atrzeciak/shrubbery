@@ -62,6 +62,15 @@ describe("passkeys", () => {
     expect((await c.json("/api/me/passkeys", { method: "POST", body: { name: "x", credential: cred } })).status).toBe(400);
   });
 
+  it("rejects a registration whose challenge the server never issued", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
+    const c = await login("a@x.org");
+    c.cookies.set("wa_challenge", "made-up");
+    const cred = await (await createAuthenticator()).create("made-up");
+    expect((await c.json("/api/me/passkeys", { method: "POST", body: { name: "x", credential: cred } })).status).toBe(400);
+    expect((await q.countPasskeys(env.DB, "a1").first()).n).toBe(0);
+  });
+
   it("admin needs a fresh passkey to add another one, and cannot remove the last one", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "family" });
     const c = await login("adm@x.org");

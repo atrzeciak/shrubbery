@@ -121,12 +121,13 @@ repeated run mails nobody twice.
 
 ## 6. Data model
 
-D1, migrations `0001`–`0013` in `src/db/migrations/`, append-only.
+D1, migrations `0001`–`0014` in `src/db/migrations/`, append-only.
 
 | Table | Holds |
 | ----- | ----- |
 | `accounts` | Who may sign in; role, language, reminder opt-in, `founder`, `protected` |
 | `sessions`, `passkeys`, `login_codes` | Authentication state |
+| `webauthn_challenges` | Each passkey challenge handed out, good for one sign-in, step-up or registration within five minutes; expired rows go when the next is issued. The `wa_challenge` cookie only names it |
 | `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IPv6 key holds the /64 — what stops a stranger asking for login codes all day |
 | `people` | The tree: names, dates, `deceased`, optional address; `email` is the login address once an account is linked |
 | `parent_of`, `partner_of`, `person_links` | Relationships and external links |
