@@ -77,7 +77,8 @@ export function tableInsertOrder(tables) {
 const isInternal = (name) => name.startsWith("sqlite_") || name.startsWith("_cf_");
 
 export async function* dumpSql(db) {
-  yield "PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n";
+  // No BEGIN/COMMIT: a D1 import refuses both, so the sqlite3 restore runs in autocommit.
+  yield "PRAGMA foreign_keys=OFF;\n";
   const { results: all } = await db.prepare(
     `SELECT type, name, sql FROM sqlite_master
       WHERE sql IS NOT NULL ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name`).all();
@@ -92,5 +93,4 @@ export async function* dumpSql(db) {
       if (results.length < PAGE) break;
     }
   }
-  yield "COMMIT;\n";
 }

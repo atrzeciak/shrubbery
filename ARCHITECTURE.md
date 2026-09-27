@@ -174,15 +174,17 @@ Bindings: `DB` (D1), `MEDIA` (R2), `ASSETS`, `EMAIL`. Secrets: `IP_HASH_SECRET`,
 and thumbnail from R2, and restore instructions. It is written by hand in `src/backup/` — no
 dependency, auditable in one sitting.
 
-Two hard-won details:
+Three hard-won details:
 
 - The dump skips `sqlite_*` and `_cf_*` tables. A real D1 carries `_cf_KV`, which answers
   `SQLITE_AUTH` to any read; walking into it aborted the archive on its first byte and handed the
   admin a 0-byte file. **Local D1 is not a faithful stand-in for remote D1.**
 - `backup_at` is written only in the stream's `flush()`, so it records an archive that finished, not
   one that started. A failure records its time and reason instead, and raises a warning.
-- D1 refuses a statement over 100,000 bytes, and a blob in hex is twice its size. A blob over 40 KiB
-  goes in as its first slice, then one `UPDATE … WHERE rowid = N` appends each further slice.
+- The dump is written for a D1 import. It carries no `BEGIN`/`COMMIT`, which D1 refuses, so the
+  sqlite3 restore runs in autocommit. D1 also refuses a statement over 100,000 bytes, and a blob in
+  hex is twice its size: a blob over 40 KiB goes in as its first slice, then one
+  `UPDATE … WHERE rowid = N` appends each further slice.
 
 ## 9. Testing
 

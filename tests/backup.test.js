@@ -252,14 +252,9 @@ describe("backup", () => {
     const dropOrder = tableInsertOrder(tables).reverse();
     await env.DB.batch(dropOrder.map((t) => env.DB.prepare(`DROP TABLE "${t.name}"`)));
 
-    // Replay every statement dumpSql yields, in the order it yields them — one prepare()/run() per
-    // chunk, since each chunk is exactly one statement except the opening pragma/transaction chunk
-    // and the closing COMMIT, neither of which a per-statement replay needs.
-    for (const chunk of chunks) {
-      const statement = chunk.trim();
-      if (!statement || statement.startsWith("PRAGMA") || statement === "COMMIT;") continue;
-      await env.DB.prepare(statement).run();
-    }
+    // Replay every statement dumpSql yields, in the order it yields them, one prepare()/run() per
+    // chunk: each chunk is exactly one statement, and D1 has to accept every one of them.
+    for (const chunk of chunks) await env.DB.prepare(chunk.trim()).run();
 
     expect(await snapshot(env.DB)).toEqual(before);
   });

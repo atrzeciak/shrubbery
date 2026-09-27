@@ -31,14 +31,14 @@ describe("sqlValue", () => {
 });
 
 describe("dumpSql", () => {
-  it("writes the schema, then every row, in a transaction", async () => {
+  it("writes the schema, then every row, with no transaction statement, which a D1 import refuses", async () => {
     await seedPerson(env, { id: "p1", first_name: "Anna", last_name: "O'Brien" });
     const sql = await dumpText(env.DB);
-    expect(sql.startsWith("PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n")).toBe(true);
+    expect(sql.startsWith("PRAGMA foreign_keys=OFF;\nCREATE ")).toBe(true);
+    expect(sql).not.toMatch(/^(BEGIN|COMMIT)/m);
     expect(sql).toContain("CREATE TABLE people");
     expect(sql).toContain("INSERT INTO \"people\"");
     expect(sql).toContain("'O''Brien'");
-    expect(sql.trimEnd().endsWith("COMMIT;")).toBe(true);
     expect(sql).not.toContain("sqlite_sequence");                    // SQLite's own bookkeeping
   });
 
@@ -89,7 +89,6 @@ describe("dumpSql", () => {
     const sql = await dumpText(remoteLikeDb());
     expect(sql).not.toContain("_cf_KV");
     expect(sql).toContain('INSERT INTO "people"');
-    expect(sql.trimEnd().endsWith("COMMIT;")).toBe(true);
   });
 
   it("pages through tables larger than one page without skipping or duplicating", async () => {
