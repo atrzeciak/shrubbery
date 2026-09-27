@@ -36,7 +36,7 @@ async function sendEmail(ctx, routes, address = "Anna@Example.org ") {
 }
 
 async function toCodeStep(ctx) {
-  await sendEmail(ctx, { "POST /api/auth/email": {}, "POST /api/auth/code/request": {} });
+  await sendEmail(ctx, { "POST /api/auth/code/request": {} });
   expect(q("#code")).not.toBeNull();
 }
 
@@ -54,20 +54,17 @@ describe("email step", () => {
     expect(button("Continue")).not.toBeNull();
   });
 
-  it("without passkeys, registers the address, asks for a code, and moves to the code step", async () => {
+  it("without passkeys, asks for a code and moves to the code step", async () => {
     const ctx = await start();
-    const calls = await sendEmail(ctx, { "POST /api/auth/email": {}, "POST /api/auth/code/request": {} });
-    expect(calls).toEqual([
-      { method: "POST", path: "/api/auth/email", body: { email: "anna@example.org" } },
-      { method: "POST", path: "/api/auth/code/request", body: { email: "anna@example.org" } },
-    ]);
+    const calls = await sendEmail(ctx, { "POST /api/auth/code/request": {} });
+    expect(calls).toEqual([{ method: "POST", path: "/api/auth/code/request", body: { email: "anna@example.org" } }]);
     expect(q("form p").textContent).toContain("anna@example.org");
     expect(q("#code")).not.toBeNull();
   });
 
   it("shows the error and lets the visitor try again when the address is refused", async () => {
     const ctx = await start();
-    await sendEmail(ctx, { "POST /api/auth/email": { status: 429, body: { error: "rate_limited" } } });
+    await sendEmail(ctx, { "POST /api/auth/code/request": { status: 429, body: { error: "rate_limited" } } });
     expect(q(".error").textContent).toBe("rate_limited");
     expect(button("Dalej").disabled).toBe(false);
     expect(q("#email")).not.toBeNull();
@@ -76,8 +73,8 @@ describe("email step", () => {
   it("with passkeys, offers the passkey step instead of sending a code", async () => {
     withPasskeys();
     const ctx = await start();
-    const calls = await sendEmail(ctx, { "POST /api/auth/email": {} });
-    expect(calls.map((c) => c.path)).toEqual(["/api/auth/email"]);
+    const calls = await sendEmail(ctx, {});
+    expect(calls).toEqual([]);
     expect(q("h2").textContent).toBe("Klucz dostępu");
   });
 });
@@ -86,7 +83,7 @@ describe("passkey step", () => {
   async function toPasskeyStep(get) {
     withPasskeys(get);
     const ctx = await start();
-    await sendEmail(ctx, { "POST /api/auth/email": {} });
+    await sendEmail(ctx, {});
     expect(button("Użyj klucza dostępu")).not.toBeNull();
     return ctx;
   }

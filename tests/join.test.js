@@ -175,7 +175,6 @@ describe("join request", () => {
     expect((await c.json("/api/auth/code", { method: "POST", body: { email: "ola@x.org", code: lastCode(sent) } })).status).toBe(400);
     expect(await q.accountByEmail(env.DB, "ola@x.org").first()).toBeNull();
     const d = new Client(env);
-    await d.json("/api/auth/email", { method: "POST", body: { email: "ola@x.org" } });
     await d.json("/api/auth/code/request", { method: "POST", body: { email: "ola@x.org" } });
     d.cookies.set("join_nonce", d.cookies.get("session_nonce"));
     expect((await d.json("/api/join/confirm", { method: "POST", body: { ...FORM, code: lastCode(sent) } })).status).toBe(400);

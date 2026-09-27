@@ -36,7 +36,7 @@ needs a session cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 
 | Area | Routes |
 | ---- | ------ |
-| Auth | `POST /auth/email`, `/auth/code/request`, `/auth/code`, `/auth/logout`, `/auth/passkey/challenge`, `/auth/passkey/login`, `/auth/passkey/step-up` |
+| Auth | `POST /auth/code/request`, `/auth/code`, `/auth/logout`, `/auth/passkey/challenge`, `/auth/passkey/login`, `/auth/passkey/step-up` |
 | Self | `GET/PATCH /me`, `GET/POST /me/passkeys`, `PATCH/DELETE /me/passkeys/:id`, `GET /me/sessions`, `DELETE /me/sessions/:id`, `POST /me/sessions/revoke-all`, `GET/PATCH /me/person`, `PUT /me/person/avatar` |
 | People | `GET /people`, `GET /people/:id`, `GET/PUT /people/:id/avatar`, `GET /people/:id/media` |
 | Media | `POST /media`, `GET/PATCH/DELETE /media/:id`, `GET/PUT /media/:id/thumb` |

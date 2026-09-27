@@ -93,7 +93,6 @@ describe("invitations", () => {
     // revoked invitation can no longer log in
     const stranger = new Client(env);
     sent.length = 0;
-    await stranger.json("/api/auth/email", { method: "POST", body: { email: "new@x.org" } });
     await stranger.json("/api/auth/code/request", { method: "POST", body: { email: "new@x.org" } });
     expect(sent).toHaveLength(0);
   });
@@ -265,7 +264,6 @@ describe("accounts", () => {
     expect((await fam2.json("/api/me")).status).toBe(401);
     sent.length = 0;
     const disabled = new Client(env);
-    await disabled.json("/api/auth/email", { method: "POST", body: { email: "f@x.org" } });
     await disabled.json("/api/auth/code/request", { method: "POST", body: { email: "f@x.org" } });
     expect(sent).toHaveLength(0);
     expect((await c.json("/api/admin/accounts/adm/disable", { method: "POST", body: {} })).status).toBe(409);
@@ -279,7 +277,6 @@ describe("accounts", () => {
     await seedAccount(env, { id: "f1", email: "f@x.org" });
     expect((await c.json("/api/admin/accounts/f1/disable", { method: "POST", body: {} })).status).toBe(200);
     const disabled = new Client(env);
-    await disabled.json("/api/auth/email", { method: "POST", body: { email: "f@x.org" } });
     await disabled.json("/api/auth/code/request", { method: "POST", body: { email: "f@x.org" } });
     const before = sent.length;
     expect((await c.json("/api/admin/accounts/f1/enable", { method: "POST", body: {} })).status).toBe(200);

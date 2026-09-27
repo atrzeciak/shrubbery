@@ -22,7 +22,6 @@ const STEPS = {
       btn.disabled = true;
       err.textContent = "";
       try {
-        await api("/api/auth/email", { method: "POST", body: { email } });
         if (passkeysSupported()) { step = "passkey"; draw(); }
         else {
           await api("/api/auth/code/request", { method: "POST", body: { email } });

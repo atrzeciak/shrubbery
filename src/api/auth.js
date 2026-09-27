@@ -17,22 +17,13 @@ const CODE_LIMIT = 5, CODE_IP_LIMIT = 30, CHALLENGE_LIMIT = 20, HOUR = 3600;
 
 export const clearChallenge = () => ({ "set-cookie": cookie(CHALLENGE_COOKIE, "", 0) });
 
-async function postEmail(request) {
-  const body = await readJson(request);
-  const email = normEmail(body.email);
-  if (!EMAIL_RE.test(email) || email.length > 254) throw new ApiError(400, "bad_request");
-  const existingNonce = readCookie(request, NONCE_COOKIE);
-  const nonce = existingNonce || randomB64url(16);
-  const headers = existingNonce ? {} : { "set-cookie": cookie(NONCE_COOKIE, nonce, NONCE_TTL) };
-  return json({ ok: true }, 200, headers);
-}
-
 async function postCodeRequest(request, env, ctx) {
   const body = await readJson(request);
   const email = normEmail(body.email);
   if (!EMAIL_RE.test(email) || email.length > 254) throw new ApiError(400, "bad_request");
-  const nonce = readCookie(request, NONCE_COOKIE);
-  if (!nonce) throw new ApiError(400, "bad_request");
+  // The nonce ties the code to this browser; the first request of a sign-in mints it.
+  const existingNonce = readCookie(request, NONCE_COOKIE);
+  const nonce = existingNonce || randomB64url(16);
   const db = env.DB, now = nowSec(), ip = clientIp(request);
   // IP first: a request refused for its IP must not spend the address's budget.
   if (!(await allow(db, await ipKey(env, "code", ip, now), CODE_IP_LIMIT, HOUR, now)) || !(await allow(db, `code:email:${email}`, CODE_LIMIT, HOUR, now))) {
@@ -56,7 +47,7 @@ async function postCodeRequest(request, env, ctx) {
   await db.batch(stmts);
   // After the answer, so a known address takes no longer than an unknown one and fails the same way.
   if (lang) ctx.waitUntil(sendCode(env, email, code, lang).catch((e) => console.error(e)));
-  return json({ ok: true });
+  return json({ ok: true }, 200, existingNonce ? {} : { "set-cookie": cookie(NONCE_COOKIE, nonce, NONCE_TTL) });
 }
 
 async function postChallenge(request, env) {
@@ -90,9 +81,8 @@ export async function assertPasskey(env, cred, challenge) {
 async function postPasskeyLogin(request, env) {
   const body = await readJson(request);
   const email = normEmail(body.email);
-  const nonce = readCookie(request, NONCE_COOKIE);
   const challenge = readCookie(request, CHALLENGE_COOKIE);
-  if (!nonce || !challenge) throw new ApiError(400, "bad_request", clearChallenge());
+  if (!challenge) throw new ApiError(400, "bad_request", clearChallenge());
   const db = env.DB, now = nowSec(), ip = clientIp(request);
   const { pk, counter } = await assertPasskey(env, body.credential, challenge);
   const account = await q.accountById(db, pk.account_id).first();
@@ -189,7 +179,6 @@ async function postLogout(request, env) {
 }
 
 export const routes = [
-  ["POST", /^\/api\/auth\/email$/, postEmail],
   ["POST", /^\/api\/auth\/code\/request$/, postCodeRequest],
   ["POST", /^\/api\/auth\/passkey\/challenge$/, postChallenge],
   ["POST", /^\/api\/auth\/passkey\/login$/, postPasskeyLogin],

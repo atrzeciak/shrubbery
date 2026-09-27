@@ -20,36 +20,39 @@ async function registerPasskey(env, accountId, alg = "ES256", staticCounter = fa
 }
 
 async function loginWithCode(c, email) {
-  expect((await c.json("/api/auth/email", { method: "POST", body: { email } })).status).toBe(200);
   expect((await c.json("/api/auth/code/request", { method: "POST", body: { email } })).status).toBe(200);
   const r = await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } });
   expect(r.status).toBe(200);
   return r;
 }
 
-describe("email step", () => {
-  it("answers identically for unknown and known addresses; sends nothing, writes nothing", async () => {
-    await seedAccount(env, { id: "a1", email: "anna@x.org", lang: "en" });
+describe("starting a sign-in", () => {
+  it("a code request needs no earlier step: it sets the nonce itself, and its code signs in", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
-    const unknown = await c.json("/api/auth/email", { method: "POST", body: { email: "nobody@x.org" } });
-    expect(unknown.status).toBe(200);
-    expect(unknown.body).toEqual({ ok: true });
-    const known = await c.json("/api/auth/email", { method: "POST", body: { email: "Anna@X.org " } });
-    expect(known.body).toEqual({ ok: true });
-    expect(sent).toHaveLength(0);
-    expect(c.cookies.has("session_nonce")).toBe(true);
-    const hist = (await q.listHistory(env.DB, { beforeId: null, limit: 10, actions: null, accountId: null }).all()).results;
-    expect(hist).toHaveLength(0);
+    const r = await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
+    expect(r.status).toBe(200);
+    expect(c.cookies.get("session_nonce")).toMatch(/^[A-Za-z0-9_-]{16,}$/);
+    expect((await c.json("/api/auth/code", { method: "POST", body: { email: "a@x.org", code: lastCode(sent) } })).status).toBe(200);
+    // A resend keeps the nonce, or the code already in the inbox would stop working.
+    const again = new Client(env);
+    await again.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
+    const nonce = again.cookies.get("session_nonce");
+    await again.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
+    expect(again.cookies.get("session_nonce")).toBe(nonce);
+  });
+
+  it("has no separate address step", async () => {
+    expect((await new Client(env).json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } })).status).toBe(404);
   });
 
   it("rejects malformed email, refuses foreign origins and lets the site's own through", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
-    expect((await c.json("/api/auth/email", { method: "POST", body: { email: "nope" } })).status).toBe(400);
-    const foreign = await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" }, headers: { origin: "https://evil.example" } });
-    expect(foreign.status).toBe(403);
-    const own = await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" }, headers: { origin: "https://example.org" } });
-    expect(own.status).toBe(200);
+    const ask = (email, headers) => c.json("/api/auth/code/request", { method: "POST", body: { email }, headers });
+    expect((await ask("nope")).status).toBe(400);
+    expect((await ask("a@x.org", { origin: "https://evil.example" })).status).toBe(403);
+    expect((await ask("a@x.org", { origin: "https://example.org" })).status).toBe(200);
   });
 });
 
@@ -57,7 +60,6 @@ describe("code request step", () => {
   it("known address gets one mail and a code_sent history entry", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org", lang: "en" });
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const r = await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
     expect(r.status).toBe(200);
     expect(r.body).toEqual({ ok: true });
@@ -72,7 +74,6 @@ describe("code request step", () => {
 
   it("unknown address gets no mail and no history, but still 200", async () => {
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "ghost@x.org" } });
     const r = await c.json("/api/auth/code/request", { method: "POST", body: { email: "ghost@x.org" } });
     expect(r.status).toBe(200);
     expect(r.body).toEqual({ ok: true });
@@ -85,25 +86,20 @@ describe("code request step", () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     await q.disableAccount(env.DB, "a1", 1).run();
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
     expect(sent).toHaveLength(0);
   });
 
-  it("rate-limits the 6th request for the same address, and requires the nonce cookie", async () => {
+  it("rate-limits the 6th request for the same address", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     for (let i = 0; i < 5; i++) expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status).toBe(200);
     expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status).toBe(429);
-    const noNonce = new Client(env);
-    expect((await noNonce.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status).toBe(400);
   });
 
   // A household, or the guests on the host's Wi-Fi, sign in behind one address.
   it("lets 30 different addresses ask from one IP in an hour, and refuses the 31st", async () => {
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     for (let i = 1; i <= 30; i++) expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: `p${i}@x.org` } })).status).toBe(200);
     expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: "p31@x.org" } })).status).toBe(429);
   });
@@ -111,7 +107,6 @@ describe("code request step", () => {
   it("limits one address even when every request comes from a different IP", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const from = async (i) => { c.ip = `198.51.100.${i}`; return (await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status; };
     for (let i = 1; i <= 5; i++) expect(await from(i)).toBe(200);
     expect(await from(6)).toBe(429);
@@ -120,12 +115,10 @@ describe("code request step", () => {
   it("requests refused for their IP do not spend the address's budget", async () => {
     await seedAccount(env, { id: "b1", email: "b@x.org", lang: "en" });
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     for (let i = 0; i < 30; i++) await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
     for (let i = 0; i < 5; i++) expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: "b@x.org" } })).status).toBe(429);
     const b = new Client(env);
     b.ip = "198.51.100.7";
-    await b.json("/api/auth/email", { method: "POST", body: { email: "b@x.org" } });
     expect((await b.json("/api/auth/code/request", { method: "POST", body: { email: "b@x.org" } })).status).toBe(200);
     expect(sent.map((m) => m.to)).toEqual(["b@x.org"]);
   });
@@ -135,7 +128,6 @@ describe("code request step", () => {
 it("keeps no IP address in a rate-limit key", async () => {
   const c = new Client(env);
   c.ip = "2001:db8:1:2::7";
-  await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
   await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
   await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
   await c.json("/api/join/request", { method: "POST", body: { first_name: "Anna", last_name: "Z", birth_date: "1985", parent_text: "B", email: "new@x.org", message: "", lang: "en" } });
@@ -166,7 +158,6 @@ describe("the mail a code goes out in", () => {
   it("is sent after the answer, for a login code and a join code alike", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org", lang: "en" });
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const login = await answerWhileMailHeld(c, "/api/auth/code/request", { email: "a@x.org" });
     expect(login.res.status).toBe(200);
     expect(login.before).toBe(0);
@@ -179,7 +170,6 @@ describe("the mail a code goes out in", () => {
     await seedAccount(env, { id: "a1", email: "a@x.org", lang: "en" });
     env.EMAIL.send = async () => { throw new Error("provider down"); };
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const { value: r, logged } = await capturingErrors(() => c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } }));
     expect(r.status).toBe(200);
     expect(r.body).toEqual({ ok: true });
@@ -194,7 +184,6 @@ describe("code step", () => {
   it("five wrong codes burn the right one too, and no session comes of it", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
     const code = lastCode(sent), wrong = code === "000000" ? "111111" : "000000";
     for (let i = 0; i < 5; i++) {
@@ -259,7 +248,6 @@ describe("code step", () => {
   it("wrong code → invalid_code and login_failed; a browser without the nonce cannot use the code", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
     const code = lastCode(sent);
     const wrong = code === "000000" ? "000001" : "000000";
@@ -276,8 +264,6 @@ describe("code step", () => {
 
   it("an unknown address behaves identically to a known one at the code step (no enumeration oracle)", async () => {
     const c = new Client(env);
-    const email = await c.json("/api/auth/email", { method: "POST", body: { email: "ghost@x.org" } });
-    expect(email.status).toBe(200);
     const req = await c.json("/api/auth/code/request", { method: "POST", body: { email: "ghost@x.org" } });
     expect(req.status).toBe(200);
     expect(sent).toHaveLength(0);
@@ -289,7 +275,7 @@ describe("code step", () => {
 
   it("a guess with no code behind it writes nothing to history, whatever its size", async () => {
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    await c.json("/api/auth/code/request", { method: "POST", body: { email: "other@x.org" } });   // the nonce cookie
     const long = await c.json("/api/auth/code", { method: "POST", body: { email: `${"a".repeat(300)}@x.org`, code: "000000" } });
     expect(long.status).toBe(400);
     expect(long.body).toEqual({ error: "bad_request" });
@@ -326,7 +312,6 @@ describe("passkey step", () => {
       await seedAccount(env, { id: "a1", email: "a@x.org" });
       const auth = await registerPasskey(env, "a1", alg);
       const c = new Client(env);
-      await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
       const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
       expect(ch.status).toBe(200);
       expect(ch.body.rpId).toBe("example.org");
@@ -352,7 +337,6 @@ describe("passkey step", () => {
     const auth = await registerPasskey(env, "a1");
     await q.disableAccount(env.DB, "a1", 1).run();
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
     const cred = await auth.get(ch.body.challenge);
     const login = await c.json("/api/auth/passkey/login", { method: "POST", body: { email: "a@x.org", credential: cred } });
@@ -364,7 +348,6 @@ describe("passkey step", () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const auth = await registerPasskey(env, "a1");
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
     const cred = await auth.get(ch.body.challenge);
     cred.response.signature = "%%%";
@@ -377,7 +360,6 @@ describe("passkey step", () => {
     await seedAccount(env, { id: "b1", email: "b@x.org" });
     const authB = await registerPasskey(env, "b1");
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
     const cred = await authB.get(ch.body.challenge);
     expect((await c.json("/api/auth/passkey/login", { method: "POST", body: { email: "a@x.org", credential: cred } })).status).toBe(401);
@@ -390,7 +372,6 @@ describe("passkey step", () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const auth = await registerPasskey(env, "a1", "ES256", true);
     const c = new Client(env);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
     const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
     const body = { email: "a@x.org", credential: await auth.get(ch.body.challenge) };
     expect((await c.json("/api/auth/passkey/login", { method: "POST", body })).status).toBe(200);

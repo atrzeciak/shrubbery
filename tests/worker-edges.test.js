@@ -11,7 +11,6 @@ describe("the router", () => {
   it("answers 500 with a neutral body, and logs, when a handler blows up", async () => {
     const broken = { ...env, DB: { prepare() { throw new Error("D1 is gone"); } } };
     const c = new Client(broken);
-    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });       // the nonce cookie; no database needed yet
     const { value: r, logged } = await capturingErrors(() => c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } }));
     expect(r.status).toBe(500);
     expect(r.body).toEqual({ error: "internal" });
@@ -35,7 +34,7 @@ describe("who an invitation comes from", () => {
 });
 
 describe("reading a JSON body", () => {
-  const post = (body) => new Client(env).json("/api/auth/email", { method: "POST", body: new TextEncoder().encode(body) });
+  const post = (body) => new Client(env).json("/api/auth/code/request", { method: "POST", body: new TextEncoder().encode(body) });
 
   it("refuses a body that is not JSON", async () => {
     expect((await post("{nope")).status).toBe(400);

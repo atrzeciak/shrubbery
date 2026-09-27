@@ -69,7 +69,6 @@ export class Client {
 // Signed in the way a person does it: address, code request, the code from the last mail.
 export async function loginAs(env, sent, email) {
   const c = new Client(env);
-  await c.json("/api/auth/email", { method: "POST", body: { email } });
   await c.json("/api/auth/code/request", { method: "POST", body: { email } });
   expect((await c.json("/api/auth/code", { method: "POST", body: { email, code: lastCode(sent) } })).status).toBe(200);
   return c;
