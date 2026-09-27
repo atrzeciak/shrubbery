@@ -20,12 +20,6 @@
   ],
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "wrangler dev",
-    "test": "vitest run",
-    "lint": "eslint .",
-    "verify": "scripts/verify.sh"
-  },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.21.3",
     "@vitest/coverage-istanbul": "4.1",
