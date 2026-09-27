@@ -1,14 +1,6 @@
 // The database as plain SQL: `sqlite3 nowa.db < dane.sql` rebuilds it anywhere, with no Cloudflare and
 // no tool that has to still exist in twenty years.
 
-const HEX = "0123456789abcdef";
-
-function hex(bytes) {
-  let out = "";
-  for (const b of bytes) out += HEX[(b >> 4) & 0xf] + HEX[b & 0xf];
-  return out;
-}
-
 // D1 returns BLOBs as Uint8Array remotely and as a plain array locally; both mean bytes.
 function asBytes(v) {
   if (v instanceof ArrayBuffer) return new Uint8Array(v);
@@ -22,9 +14,9 @@ export function sqlValue(v) {
   if (typeof v === "number") return String(v);
   if (typeof v === "bigint") return v.toString();
   // A raw NUL cuts the line in the sqlite3 shell and the restore loses every table after it.
-  if (typeof v === "string") return v.includes("\0") ? `CAST(X'${hex(new TextEncoder().encode(v))}' AS TEXT)` : `'${v.replaceAll("'", "''")}'`;
+  if (typeof v === "string") return v.includes("\0") ? `CAST(X'${new TextEncoder().encode(v).toHex()}' AS TEXT)` : `'${v.replaceAll("'", "''")}'`;
   const bytes = asBytes(v);
-  if (bytes) return `X'${hex(bytes)}'`;
+  if (bytes) return `X'${bytes.toHex()}'`;
   return `'${String(v).replaceAll("'", "''")}'`;
 }
 
