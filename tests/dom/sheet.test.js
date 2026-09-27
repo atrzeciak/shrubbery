@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { openSheet, closeSheet } from "../../public/app/sheet.js";
+import { openViewer } from "../../public/app/viewer.js";
 import { h } from "../../public/app/dom.js";
 import { lang, q, qa } from "./helpers.js";
 
@@ -60,11 +61,33 @@ describe("openSheet", () => {
     const push = vi.spyOn(history, "pushState");
     openSheet(h("p"), "Ann", { onClose });
     expect(push).toHaveBeenCalledTimes(1);
+    history.replaceState(null, "");                                  // Back has left the card's entry
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(q('[role="dialog"]')).toBeNull();
     expect(document.body.classList.contains("sheet-open")).toBe(false);
     expect(onClose).toHaveBeenCalledTimes(1);
     push.mockRestore();
+  });
+
+  // A photo opened from a card takes a history entry of its own on top of the card's. Leaving the
+  // photo, by x, Escape or Back, lands on the card's entry again, and the card must stay open.
+  it("stays open under a photo viewer that is closed by x, Escape or Back", () => {
+    const onClose = vi.fn();
+    const back = vi.spyOn(history, "back").mockImplementation(() => {});
+    openSheet(h("p"), "Ann", { onClose });
+    const sheetState = history.state;
+    const leavePhoto = () => { history.replaceState(sheetState, ""); window.dispatchEvent(new PopStateEvent("popstate")); };
+    openViewer([{ src: "/a" }]);
+    q(".viewer-btn").click();
+    leavePhoto();
+    openViewer([{ src: "/a" }]);
+    key("Escape");
+    leavePhoto();
+    openViewer([{ src: "/a" }]);
+    leavePhoto();
+    expect(q(".sheet")).not.toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    back.mockRestore();
   });
 
   it("keeps one entry for a sheet that replaces a sheet, and hands it back only when the user closes", () => {

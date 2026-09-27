@@ -1,7 +1,7 @@
 import { h } from "./dom.js";
 import { t } from "./i18n.js";
 
-let el = null, onCloseCb = null, opener = null, entry = false;
+let el = null, onCloseCb = null, opener = null, entry = false, token = null;
 
 // A card the back button can dismiss: opening pushes a history entry, so Back closes the card and
 // leaves the list behind it exactly where the reader left it, rather than walking off the page and
@@ -11,7 +11,9 @@ let el = null, onCloseCb = null, opener = null, entry = false;
 function pushEntry() {
   if (entry) return;
   entry = true;
-  history.pushState({ sheet: true }, "", location.href);
+  // Unique across reloads, so a stale entry left by an earlier page is never taken for this one.
+  token = `${Date.now()}-${Math.random()}`;
+  history.pushState({ sheet: token }, "", location.href);
   window.addEventListener("popstate", onPop);
 }
 
@@ -23,6 +25,8 @@ function dropEntry(consume) {
 }
 
 function onPop() {
+  // Landing back on this sheet's own entry means something opened over it, a photo, was left.
+  if (history.state?.sheet === token) return;
   const cb = onCloseCb;
   entry = false;
   window.removeEventListener("popstate", onPop);

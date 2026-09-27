@@ -18,12 +18,13 @@ export function openViewer(items, index = 0) {
     if (closed) return;
     closed = true;
     el.remove();
-    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("popstate", onPopstate);
     if (!fromPopstate) history.back();
   };
   const onKey = (ev) => {
-    if (ev.key === "Escape") close();
+    // Captured and stopped here, so the same Escape does not also close a card underneath.
+    if (ev.key === "Escape") { ev.stopImmediatePropagation(); close(); }
     if (ev.key === "ArrowLeft") show(i - 1);
     if (ev.key === "ArrowRight") show(i + 1);
   };
@@ -45,7 +46,7 @@ export function openViewer(items, index = 0) {
   });
   // A swipe fires a click right after pointerup; don't let it also close the viewer.
   el.onclick = (ev) => { if (ev.target === el && !swiped) close(); };
-  document.addEventListener("keydown", onKey);
+  document.addEventListener("keydown", onKey, true);
   history.pushState({ viewer: true }, "", location.href);
   window.addEventListener("popstate", onPopstate);
   document.body.append(el);
