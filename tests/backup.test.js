@@ -89,9 +89,16 @@ describe("backup", () => {
 
   it("refuses everyone but a stepped-up admin", async () => {
     await seedAccount(env, { id: "f1", email: "fam@x.org" });
+    await seedAccount(env, { id: "a2", email: "adm2@x.org", role: "admin" });
     const fam = await login("fam@x.org");
-    expect((await fam.json("/api/admin/backup/check")).status).toBe(403);
-    expect((await new Client(env).json("/api/admin/backup/check")).status).toBe(401);
+    const adm = await login("adm2@x.org");                             // an admin, but no fresh passkey
+    for (const path of ["/api/admin/backup", "/api/admin/backup/check"]) {
+      expect((await new Client(env).json(path)).status).toBe(401);
+      expect((await fam.json(path)).status).toBe(403);
+      const r = await adm.json(path);
+      expect(r.status).toBe(401);
+      expect(r.body).toEqual({ error: "step_up_required" });
+    }
   });
 
   it("reports what the archive will hold", async () => {
