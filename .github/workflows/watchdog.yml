@@ -2,7 +2,8 @@ name: watchdog
 
 # Runs on GitHub, deliberately not on Cloudflare: nothing inside Cloudflare can report that Cloudflare
 # stopped. A failed run is notified by GitHub to whoever last changed the cron schedule below — not to
-# the repository owner — and that notification is the whole alerting mechanism.
+# the repository owner — and that notification is the whole alerting mechanism. GitHub switches this off
+# after 60 quiet days in a public repository: see DEVELOPER_GUIDE.md, "Watching the site".
 on:
   schedule:
     - cron: "0 7 * * *"

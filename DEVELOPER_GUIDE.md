@@ -133,7 +133,9 @@ Three things watch it, deliberately from different places:
 2. **A monthly letter** to every admin on the first. Its *absence* is the signal.
 3. **A GitHub Actions watchdog** from outside Cloudflare, since nothing inside Cloudflare can report
    that Cloudflare stopped. A failed scheduled run mails whoever last edited the cron line — if that
-   is not the right person, edit that line so it is.
+   is not the right person, edit that line so it is. GitHub switches a scheduled workflow off after
+   60 days with no activity in a public repository, and a switched-off watchdog fails silently.
+   Actions → watchdog → Enable workflow, or any push, starts it again.
 
 ### Telling the family about a gathering
 
