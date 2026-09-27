@@ -30,9 +30,10 @@ help:  ## Show this help
 install:  ## Install dependencies exactly as the CI does
 	npm ci
 
+# Stop at the first failure locally; CI runs vitest directly and still reports every one.
 .PHONY: test
-test:  ## Run the test suite
-	npx vitest run
+test:  ## Run the test suite, stopping at the first failure
+	npx vitest run --bail=1
 
 # Correctness only, no formatting rules: the formatting here is deliberate in places, and a tool
 # that rewrote it would bury the next real change in noise.
