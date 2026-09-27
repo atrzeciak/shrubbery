@@ -26,7 +26,7 @@ async function postEmail(request) {
   return json({ ok: true }, 200, headers);
 }
 
-async function postCodeRequest(request, env) {
+async function postCodeRequest(request, env, ctx) {
   const body = await readJson(request);
   const email = normEmail(body.email);
   if (!EMAIL_RE.test(email) || email.length > 254) throw new ApiError(400, "bad_request");
@@ -53,7 +53,8 @@ async function postCodeRequest(request, env) {
   const stmts = [stmt];
   if (lang) stmts.push(historyStmt(db, { actor: account ? account.id : null, action: "code_sent", targetType: "email", targetId: email, details: {}, ipHash: await hashIp(env, ip, now) }));
   await db.batch(stmts);
-  if (lang) await sendCode(env, email, code, lang);
+  // After the answer, so a known address takes no longer than an unknown one and fails the same way.
+  if (lang) ctx.waitUntil(sendCode(env, email, code, lang).catch((e) => console.error(e)));
   return json({ ok: true });
 }
 

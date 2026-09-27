@@ -52,7 +52,7 @@ async function firstAdminId(env) {
   return a.id;
 }
 
-async function postRequest(request, env) {
+async function postRequest(request, env, ctx) {
   const body = await readJson(request);
   if (typeof body.website === "string" && body.website.trim()) return json({ ok: true });
   const f = cleanForm(body);
@@ -65,7 +65,8 @@ async function postRequest(request, env) {
   // when the address is not already a member's login.
   const { code, stmt } = await prepareCode(env.DB, { email: f.email, nonce: `join:${nonce}` }, now);
   await env.DB.batch([stmt]);
-  if (!(await q.accountByEmail(env.DB, f.email).first())) await sendCode(env, f.email, code, f.lang);
+  // After the answer, as for a login code: waiting on the mail would tell a member from a stranger.
+  if (!(await q.accountByEmail(env.DB, f.email).first())) ctx.waitUntil(sendCode(env, f.email, code, f.lang).catch((e) => console.error(e)));
   return json({ ok: true }, 200, headers);
 }
 

@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import worker from "../src/worker.js";
 import * as q from "../src/db/queries.js";
 import { verifyRegistration } from "../src/auth/webauthn.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
 import { makeEnv, resetDb, seedAccount, seedPerson, lastCode, Client } from "./helpers/env.js";
+import { capturingErrors } from "./helpers/logging.js";
 
 let env, sent;
 beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
@@ -117,6 +120,52 @@ describe("code request step", () => {
     await b.json("/api/auth/email", { method: "POST", body: { email: "b@x.org" } });
     expect((await b.json("/api/auth/code/request", { method: "POST", body: { email: "b@x.org" } })).status).toBe(200);
     expect(sent.map((m) => m.to)).toEqual(["b@x.org"]);
+  });
+});
+
+// Only a known address used to wait for the mail provider, so timing told members from strangers,
+// and only a known address could turn a provider failure into a 500.
+describe("the mail a code goes out in", () => {
+  async function answerWhileMailHeld(c, path, body) {
+    let release;
+    const held = new Promise((r) => { release = r; });
+    const send = env.EMAIL.send;
+    env.EMAIL.send = async (m) => { await held; return send(m); };
+    const cookie = [...c.cookies].map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("; ");
+    const req = new Request(`https://example.org${path}`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": c.ip, cookie }, body: JSON.stringify(body) });
+    const ctx = createExecutionContext();
+    const res = await Promise.race([worker.fetch(req, env, ctx), new Promise((r) => { setTimeout(() => r("held back by the mail"), 300); })]);
+    const before = sent.length;
+    release();
+    await waitOnExecutionContext(ctx);
+    env.EMAIL.send = send;
+    return { res, before };
+  }
+
+  it("is sent after the answer, for a login code and a join code alike", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org", lang: "en" });
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    const login = await answerWhileMailHeld(c, "/api/auth/code/request", { email: "a@x.org" });
+    expect(login.res.status).toBe(200);
+    expect(login.before).toBe(0);
+    const join = await answerWhileMailHeld(new Client(env), "/api/join/request", { first_name: "Anna", last_name: "Z", birth_date: "1985", parent_text: "B", email: "new@x.org", message: "", lang: "en" });
+    expect(join.res.status).toBe(200);
+    expect(sent.map((m) => m.to)).toEqual(["a@x.org", "new@x.org"]);
+  });
+
+  it("failing to send is logged, and the answer is the same as for an unknown address", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org", lang: "en" });
+    env.EMAIL.send = async () => { throw new Error("provider down"); };
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    const { value: r, logged } = await capturingErrors(() => c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } }));
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ ok: true });
+    expect(logged.map((e) => e.message)).toEqual(["provider down"]);
+    const j = await capturingErrors(() => new Client(env).json("/api/join/request", { method: "POST", body: { first_name: "Anna", last_name: "Z", birth_date: "1985", parent_text: "B", email: "new@x.org", message: "", lang: "en" } }));
+    expect(j.value.status).toBe(200);
+    expect(j.logged.map((e) => e.message)).toEqual(["provider down"]);
   });
 });
 

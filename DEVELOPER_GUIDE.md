@@ -186,7 +186,7 @@ than a date somebody retypes once a year. Empty or unreadable says so out loud r
 | Banner says the daily check has never run | Normal on a fresh deploy or restore until 05:00 UTC. Still there the next day means the cron is not firing. |
 | Banner says the site does not know the renewal date | `DOMAIN_RENEWS_AT` is empty. It is read on every request, so filling it in takes effect on deploy. |
 | Backup downloads as a 0-byte file | The stream failed. The site now records the time and reason; look at the backup panel. |
-| Nobody can sign in | The `EMAIL` binding or its verified sender. Login codes go out over it. |
+| Nobody can sign in | The `EMAIL` binding or its verified sender. Login codes go out over it after the answer, so a failed send shows only in the logs (`make tail`), never to the person. |
 | `SQLITE_AUTH` from a query | You are reading a Cloudflare-internal table (`_cf_*`). They exist only on remote D1. |
 | Admin write returns `step_up_required` | Correct: confirm with your passkey, then retry. An admin with none adds the first one without step-up. |
 
