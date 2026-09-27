@@ -1,7 +1,7 @@
 import * as q from "../db/queries.js";
 import { historyStmt } from "../history.js";
 import { sendEventNotice, sendGatheringMail } from "../mail.js";
-import { upcoming, today as dayIn } from "../../public/app/events.js";
+import { upcoming, today as dayIn, daysBetween } from "../../public/app/events.js";
 import { siteTz } from "../api/common.js";
 import { buildScope } from "./scope.js";
 
@@ -55,7 +55,7 @@ export async function gatheringReminders(env, now = new Date()) {
     const today = dayIn(now, tz);
     const gathering = await q.nextGathering(db, today).first();
     if (!gathering) return;
-    const days = Math.round((Date.parse(`${gathering.on_date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+    const days = daysBetween(today, gathering.on_date);
     if (days !== 7 && days !== 0) return;
     const accounts = (await q.listNotifyAccounts(db).all()).results;
     if (!accounts.length) return;

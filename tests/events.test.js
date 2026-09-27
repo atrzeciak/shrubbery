@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fullDate, today, upcoming, plural } from "../public/app/events.js";
+import { fullDate, today, upcoming, plural, daysBetween } from "../public/app/events.js";
 import { siteTz } from "../src/api/common.js";
 
 const P = (id, birth_date = null, death_date = null, deceased = 0) => ({ id, birth_date, death_date, deceased });
@@ -66,6 +66,15 @@ describe("plural", () => {
   it("selects the right English category", () => {
     expect(plural(1, "en", forms)).toBe("one");
     expect(plural(2, "en", forms)).toBe("other");
+  });
+});
+
+describe("daysBetween", () => {
+  it("counts calendar days, across a leap day and a year's end, and backwards", () => {
+    expect(daysBetween("2028-02-28", "2028-03-01")).toBe(2);
+    expect(daysBetween("2026-12-31", "2027-01-01")).toBe(1);
+    expect(daysBetween("2026-09-27", "2026-09-27")).toBe(0);
+    expect(daysBetween("2026-09-27", "2026-09-20")).toBe(-7);
   });
 });
 

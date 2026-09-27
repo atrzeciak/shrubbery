@@ -2,7 +2,7 @@ import { api } from "../api.js";
 import { t } from "../i18n.js";
 import { h, clear, fmtAgo } from "../dom.js";
 import { loadGraph } from "../people.js";
-import { upcoming, today as dayIn, plural } from "../events.js";
+import { upcoming, today as dayIn, plural, daysBetween } from "../events.js";
 
 export function sentence(item) {
   const d = item.details || {};
@@ -51,7 +51,7 @@ export async function render(root, ctx) {
     let meeting = null;
     const data = await gatheringP;           // null when it failed: not worth losing the birthdays over
     if (data?.gathering && !data.gathering.cancelled_at) {
-      const days = Math.round((Date.parse(`${data.gathering.on_date}T00:00:00Z`) - Date.parse(`${dayIn(new Date(), tz)}T00:00:00Z`)) / 86400000);
+      const days = daysBetween(dayIn(new Date(), tz), data.gathering.on_date);
       if (days >= 0) meeting = { on_date: data.gathering.on_date, days };
     }
     if (events.length || meeting) {

@@ -11,6 +11,7 @@ export function today(date, tz) {
 
 const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 const toUTC = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+export const daysBetween = (from, to) => Math.round((toUTC(to) - toUTC(from)) / 86400000);
 
 function occurrence(dateStr, year) {
   const m = dateStr.slice(5, 7);
@@ -29,7 +30,7 @@ export function upcoming(people, today, days = 30) {
       const years = year - +dateStr.slice(0, 4);
       if (years < 1) continue;
       const when = occurrence(dateStr, year);
-      const inDays = Math.round((toUTC(when) - toUTC(today)) / 86400000);
+      const inDays = daysBetween(today, when);
       if (inDays >= 0 && inDays <= days) { out.push({ person_id: p.id, type, date: dateStr, when, inDays, years }); return; }
     }
   };
