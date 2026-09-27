@@ -109,7 +109,12 @@ export function uploadForm(personId, ctx, reload) {
       if (verdict.kind === "document") {
         await api(`/api/media?${qs}`, { method: "POST", body: chosen });
       } else {
-        const full = await toJpeg(chosen, 2048, 0.85);
+        // The server takes 2 MiB; a grainy scan can exceed it at 0.85, so step down as the avatar does.
+        let full = await toJpeg(chosen, 2048, 0.85);
+        for (const quality of [0.7, 0.55]) {
+          if (full.size <= 2 * 1024 * 1024) break;
+          full = await toJpeg(chosen, 2048, quality);
+        }
         const r = await api(`/api/media?${qs}`, { method: "POST", body: full });
         // Thumb is best-effort: has_thumb stays 0 and the gallery falls back to the full image.
         try {

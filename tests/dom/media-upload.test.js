@@ -139,6 +139,22 @@ describe("uploadForm", () => {
     expect(ctx.toast).toHaveBeenCalledWith("Plik zapisany.");
     expect(reload).toHaveBeenCalledTimes(1);
   });
+  // A grainy scan can still come out over the server's 2 MiB at 0.85: it steps the quality down, as
+  // the avatar picker does, instead of sending a file the server refuses.
+  it("re-encodes a photo at lower quality while it is over the 2 MiB the server takes", async () => {
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:p");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const { toBlob } = stubCanvas({ width: 4000, height: 3000 });
+    const big = new Blob([new Uint8Array(2 * 1024 * 1024 + 1)], { type: "image/jpeg" });
+    toBlob.mockImplementationOnce(function (cb) { cb(big); });
+    const calls = mockApi({ "POST /api/media": { id: "m8" }, "PUT /api/media/m8/thumb": {} });
+    mount();
+    pickFile(q("input[type=file]"), photo());
+    q(".media-fields .btn").click();
+    await tick(); await tick();
+    expect(toBlob.mock.calls.map((c) => c[2])).toEqual([0.85, 0.7, 0.8]);
+    expect(calls.find((c) => c.method === "POST").body.size).toBeLessThanOrEqual(2 * 1024 * 1024);
+  });
   it("does not enlarge a small photo", async () => {
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:p");
     const { toBlob } = stubCanvas({ width: 300, height: 200 });
