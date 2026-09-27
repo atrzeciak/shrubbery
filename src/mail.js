@@ -87,7 +87,7 @@ const INVITES = {
       "",
       "Maybe one day we can get the whole family together in one place. For now, at least here.",
       "",
-      `Go to {app} and enter your address: ${email}. A code will arrive,`,
+      `Go to {app}?lang=en and enter your address: ${email}. A code will arrive,`,
       "you type it in, and you are there — no password, no account to create. The site is",
       "private and search engines cannot find it.",
       "",
@@ -455,7 +455,7 @@ const GATHERINGS = {
         ? "Let us know whether you can make it — it takes a moment: {app}gathering"
         : "Who is coming, and whether you are — {app}gathering",
       "",
-      "If you do not have an account yet, go to {app} and enter your address. A code will arrive,",
+      "If you do not have an account yet, go to {app}?lang=en and enter your address. A code will arrive,",
       "you type it in, and you are there. No password.",
       "",
       signature,

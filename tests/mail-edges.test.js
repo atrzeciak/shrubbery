@@ -83,3 +83,22 @@ describe("header values", () => {
     expect(m.subject).not.toMatch(/[\r\n]/);
   });
 });
+
+// The sign-in page takes its language from ?lang= before anything is known about the reader, so a
+// letter in English has to send them to the English one.
+describe("the sign-in link a newcomer follows", () => {
+  const gathering = { on_date: "2027-06-12", place: "Dom", note: null };
+  it("opens the sign-in page in English from an English letter", async () => {
+    for (const send of [
+      (env) => sendInvitation(env, "a@x.org", "en"),
+      (env) => sendGatheringMail(env, "a@x.org", "en", gathering, "announce"),
+    ]) expect((await captured(send)).text).toContain("https://example.org/app/?lang=en");
+  });
+
+  it("leaves the Polish letters' link as it was", async () => {
+    for (const send of [
+      (env) => sendInvitation(env, "a@x.org", "pl"),
+      (env) => sendGatheringMail(env, "a@x.org", "pl", gathering, "announce"),
+    ]) expect((await captured(send)).text).not.toContain("?lang");
+  });
+});
