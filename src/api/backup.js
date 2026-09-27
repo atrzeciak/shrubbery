@@ -5,7 +5,6 @@ import { dumpSql } from "../backup/dump.js";
 import { zipStream } from "../backup/zip.js";
 import { requireAdmin, requireSession } from "./common.js";
 import { host } from "../mail.js";
-import { domainRenewsAt, warningsFor } from "../ops/checks.js";
 
 const restoreNote = (env) => {
   const db = env.DB_NAME || 'twoja-baza';
@@ -85,21 +84,12 @@ export async function backupCheck(request, env) {
   const nearLimits = [];
   if (files + 2 > 60000) nearLimits.push("zip_entries");
   if (files > 900) nearLimits.push("r2_reads");
-  // Same rule as /api/me: the renewal date is configuration, read now, not last night's copy of it.
-  const domainExpiresAt = domainRenewsAt(env.DOMAIN_RENEWS_AT);
   return json({
     files,
     media_bytes: results.reduce((n, m) => n + (m.size || 0), 0),
     backup_at: status?.backup_at ?? null,
     backup_failed_at: status?.backup_failed_at ?? null,
     backup_error: status?.backup_error ?? null,
-    // Recomputed rather than read from the stored column, so a download that died a minute ago shows
-    // up here instead of waiting for the nightly run to notice.
-    warnings: warningsFor({ ...status, domain_expires_at: domainExpiresAt }, nowSec()),
-    checked_at: status?.checked_at ?? null,
-    domain_expires_at: domainExpiresAt,
-    card_expires_at: status?.card_expires_at ?? null,
-    subscription_renews_at: status?.subscription_renews_at ?? null,
     ...(nearLimits.length ? { near_limits: nearLimits } : {}),
   });
 }

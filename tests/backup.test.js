@@ -72,7 +72,6 @@ describe("backup", () => {
     expect(row.backup_at).toBe(null);                 // and it must not look like a backup was taken
     const check = (await c.json("/api/admin/backup/check")).body;
     expect(check.backup_failed_at).toBe(row.backup_failed_at);
-    expect(check.warnings).toContain("backup_failed");
   });
 
   it("clears the failure once a download finishes", async () => {
@@ -107,29 +106,6 @@ describe("backup", () => {
     const r = await c.json("/api/admin/backup/check");
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ files: 1, media_bytes: 512, backup_at: null });
-  });
-
-  it("reports the operational warnings alongside the archive's size", async () => {
-    const c = await steppedUpAdmin();
-    const now = Math.floor(Date.now() / 1000);
-    await env.DB.prepare("UPDATE ops_status SET checked_at = ?, backup_at = ? WHERE id = 1").bind(now, now).run();
-    env.DOMAIN_RENEWS_AT = new Date((now + 10 * 86400) * 1000).toISOString().slice(0, 10);
-    const r = await c.json("/api/admin/backup/check");
-    expect(r.body.warnings).toEqual(["domain_soon"]);
-    expect(r.body.domain_expires_at).toBe(Date.parse(`${env.DOMAIN_RENEWS_AT}T00:00:00Z`) / 1000);
-  });
-
-  it("survives a warnings column that is not JSON, rather than 500ing the whole panel", async () => {
-    const c = await steppedUpAdmin();
-    // The backup button lives in this same response: an unreadable column must not take it down too.
-    // The panel no longer parses that column at all — it works the warnings out from the row's own
-    // facts — so corruption there cannot reach it. Pinned so nothing quietly starts reading it again.
-    for (const bad of ["not json at all", '{"warnings":1}', '"a string"', "null"]) {
-      await env.DB.prepare("UPDATE ops_status SET warnings = ? WHERE id = 1").bind(bad).run();
-      const r = await c.json("/api/admin/backup/check");
-      expect(r.status, bad).toBe(200);
-      expect(Array.isArray(r.body.warnings), bad).toBe(true);
-    }
   });
 
   it("streams a zip holding the dump, the media and the restore note, and records the date", async () => {
