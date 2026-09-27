@@ -76,8 +76,8 @@ describe("dumpSql", () => {
             if (sql.includes("sqlite_master")) return { results: master };
             const name = sql.match(/FROM "([^"]+)"/)[1];
             if (name.startsWith("_cf_")) throw new Error("D1_ERROR: not authorized: SQLITE_AUTH");
-            const [, offset] = args;
-            return { results: offset === 0 ? [{ id: "p1" }] : [] };
+            const [after] = args;
+            return { results: after === 0 ? [{ __rowid: 1, id: "p1" }] : [] };
           },
         };
         return stmt;
@@ -92,13 +92,44 @@ describe("dumpSql", () => {
   });
 
   it("pages through tables larger than one page without skipping or duplicating", async () => {
-    // Seed 250 people to cross several PAGE boundaries
-    for (let i = 0; i < 250; i++) {
+    // Seed 1,100 people to cross two page boundaries
+    for (let i = 0; i < 1100; i++) {
       await seedPerson(env, { id: `p${i}`, first_name: `Person${i}` });
     }
     const sql = await dumpText(env.DB);
     // Count INSERT statements for people table
     const peopleInserts = (sql.match(/INSERT INTO "people"/g) || []).length;
-    expect(peopleInserts).toBe(250);  // All 250 rows appear exactly once
+    expect(peopleInserts).toBe(1100);  // All 1,100 rows appear exactly once
+  });
+
+  // Passes every read through to the real database and lets a test act after each one.
+  const watched = (db, onRead) => ({
+    prepare(sql) {
+      let args = [];
+      const stmt = {
+        bind(...a) { args = a; return stmt; },
+        async all() { const r = await db.prepare(sql).bind(...args).all(); await onRead(sql, r); return r; },
+      };
+      return stmt;
+    },
+  });
+
+  it("reads a table without blobs in pages large enough to stay far below D1's query cap", async () => {
+    for (let i = 0; i < 250; i++) await seedPerson(env, { id: `p${i}`, first_name: `Person${i}` });
+    const reads = [];
+    await dumpText(watched(env.DB, (sql) => { if (sql.includes('FROM "people"')) reads.push(sql); }));
+    expect(reads).toHaveLength(1);
+  });
+
+  it("keeps every row when an earlier one is deleted while the dump is running", async () => {
+    for (let i = 0; i < 45; i++) {
+      await seedPerson(env, { id: `p${i}` });
+      await env.DB.prepare("INSERT INTO avatars (person_id, jpeg, updated_at) VALUES (?, ?, ?)").bind(`p${i}`, new Uint8Array([i]), 1_800_000_000).run();
+    }
+    let deleted = false;
+    const sql = await dumpText(watched(env.DB, async (s) => {
+      if (!deleted && s.includes('FROM "avatars"')) { deleted = true; await env.DB.prepare("DELETE FROM avatars WHERE person_id = 'p0'").run(); }
+    }));
+    expect((sql.match(/INSERT INTO "avatars"/g) || []).length).toBe(45);   // p0 was read before it went
   });
 });

@@ -47,7 +47,9 @@ function* rowStatements(table, row) {
   for (const [c, slice] of rest) yield `UPDATE "${table}" SET "${c}" = CAST("${c}" || ${sqlValue(slice)} AS BLOB) WHERE rowid = ${rowid};\n`;
 }
 
-const PAGE = 20;    // rows per query: avatars rows run up to 204800 bytes, so this stays small on purpose
+// Rows per query. A blob row runs up to 204800 bytes, so those tables stay small; the rest go in large
+// pages, because D1 allows a Worker invocation 1,000 queries and the log tables only grow.
+const pageFor = (table) => (/\bBLOB\b/i.test(table.sql) ? 20 : 500);
 
 // PRAGMA foreign_keys=OFF only holds for the session that runs it, and a restore may replay each
 // INSERT as its own call (`wrangler d1 execute --remote`, or this test's D1 binding). So tables are
@@ -85,12 +87,14 @@ export async function* dumpSql(db) {
   const objects = all.filter((o) => !isInternal(o.name));
   for (const o of objects) yield `${o.sql};\n`;
   for (const table of tableInsertOrder(objects.filter((o) => o.type === "table"))) {
-    for (let offset = 0; ; offset += PAGE) {
-      const { results } = await db.prepare(`SELECT rowid AS "__rowid", * FROM "${table.name}" ORDER BY rowid LIMIT ? OFFSET ?`)
-        .bind(PAGE, offset).all();
-      if (!results.length) break;
+    // Paged by rowid rather than OFFSET: a row deleted mid-dump cannot shift the next page past a live one.
+    const page = pageFor(table);
+    for (let after = 0; ;) {
+      const { results } = await db.prepare(`SELECT rowid AS "__rowid", * FROM "${table.name}" WHERE rowid > ? ORDER BY rowid LIMIT ?`)
+        .bind(after, page).all();
       for (const row of results) yield* rowStatements(table.name, row);
-      if (results.length < PAGE) break;
+      if (results.length < page) break;
+      after = results[results.length - 1].__rowid;
     }
   }
 }
