@@ -28,9 +28,11 @@ describe("two uploads arriving together", () => {
     const objects = async () => (await env.MEDIA.list()).objects.length;
     const before = await objects();
     const real = env.DB;
-    c.env = { ...env, DB: { prepare: (sql) => (sql.includes("COUNT(*) AS n FROM media") ? { bind: () => ({ first: async () => ({ n: 0 }) }) } : real.prepare(sql)), batch: (st) => real.batch(st) } };
+    let intercepted = 0;     // proves the count was faked, so the 409 came from the insert and not the early check
+    c.env = { ...env, DB: { prepare: (sql) => (sql.includes("COUNT(*) AS n FROM media") ? { bind: () => ({ first: async () => { intercepted++; return { n: 0 }; } }) } : real.prepare(sql)), batch: (st) => real.batch(st) } };
     const r = await upload(c);
     expect(r.status).toBe(409);
+    expect(intercepted).toBe(1);
     expect(r.body).toEqual({ error: "conflict", person: "Ja T" });
     expect(await objects()).toBe(before);
     expect((await q.countOwnedMedia(env.DB, "p_me").first()).n).toBe(6);
