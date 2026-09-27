@@ -17,7 +17,7 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
-export function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+export function clear(el) { el.replaceChildren(); }
 
 const SVG = "http://www.w3.org/2000/svg";
 export function s(tag, props = {}, ...children) {
