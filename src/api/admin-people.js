@@ -47,6 +47,7 @@ async function deletePerson(request, env, ctx, m) {
     q.deleteTagsForPerson(env.DB, person.id),
     q.deleteLinksByPerson(env.DB, person.id),
     q.deleteAvatar(env.DB, person.id),
+    q.deleteRsvpsForPerson(env.DB, person.id),   // the rsvp_answered history rows stay
     q.deletePerson(env.DB, person.id),
     await personHistory(request, env, account.id, "person_deleted", person.id, { name: person.display_name }, now),
   ]);

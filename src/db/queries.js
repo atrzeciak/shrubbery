@@ -267,6 +267,7 @@ export const guestList = (db, gatheringId) =>
               ORDER BY p.display_name`).bind(gatheringId);
 export const deleteGathering = (db, id) => db.prepare("DELETE FROM gatherings WHERE id = ?").bind(id);
 export const deleteRsvpsFor = (db, id) => db.prepare("DELETE FROM rsvps WHERE gathering_id = ?").bind(id);
+export const deleteRsvpsForPerson = (db, personId) => db.prepare("DELETE FROM rsvps WHERE person_id = ?").bind(personId);
 // Who the site can actually write to about a gathering: living relatives with an address on file.
 export const livingWithEmail = (db) =>
   db.prepare("SELECT id, display_name, email FROM people WHERE deceased = 0 AND email IS NOT NULL AND email != ''");

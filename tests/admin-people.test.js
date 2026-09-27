@@ -72,6 +72,16 @@ describe("admin people", () => {
     expect((await c.json("/api/people/owner1/media")).body.media[0].id).toBe(mediaId);
   });
 
+  it("admin deletes a person someone answered a gathering for; the answer goes, its history stays", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await seedPerson(env, { id: "dup1", first_name: "Dup", last_name: "T" });
+    const g = await c.json("/api/admin/gatherings", { method: "POST", body: { on_date: "2027-06-12", place: "Dom" } });
+    expect((await c.json(`/api/admin/gatherings/${g.body.id}/rsvp/dup1`, { method: "PUT", body: { coming: 1, headcount: 1 } })).status).toBe(200);
+    expect((await c.json("/api/admin/people/dup1", { method: "DELETE" })).status).toBe(200);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM rsvps WHERE person_id = 'dup1'").first()).n).toBe(0);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM history WHERE action = 'rsvp_answered' AND target_id = 'dup1'").first()).n).toBe(1);
+  });
+
   it("parents: max two, no self, no duplicates; partners: upsert with kind, delete", async () => {
     const { c } = await adminWithFreshPasskey();
     for (const id of ["a", "b", "d", "kid"]) await seedPerson(env, { id, first_name: id, last_name: "T" });
