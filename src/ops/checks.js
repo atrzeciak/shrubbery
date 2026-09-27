@@ -17,7 +17,10 @@ const seconds = (iso) => {
 // can rely on, and a lookup that silently stops answering is worse than a date somebody has to retype
 // once a year. Anything missing or unparseable is null, and null is reported as domain_unknown.
 export function domainRenewsAt(value) {
-  return seconds(String(value ?? "").trim());
+  // Only a date that reads back as itself: Date.parse guesses at "10.02.2027" and rolls "2027-02-30" over.
+  const s = String(value ?? "").trim();
+  const at = seconds(s);
+  return at !== null && new Date(at * 1000).toISOString().slice(0, 10) === s ? at : null;
 }
 
 const CF = "https://api.cloudflare.com/client/v4";

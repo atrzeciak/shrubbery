@@ -21,6 +21,12 @@ describe("domainRenewsAt", () => {
     expect(domainRenewsAt("   ")).toBe(null);
     expect(domainRenewsAt("kiedys")).toBe(null);
   });
+
+  // Date.parse guesses at these rather than refusing them, and each guess is a wrong date the
+  // letter would state with confidence: "I do not know" is the only honest answer.
+  it("is null for anything but a real YYYY-MM-DD day", () => {
+    for (const v of ["10.02.2027", "2027", "2027-02-30", "2027-04-31", "2027-4-2"]) expect(domainRenewsAt(v), v).toBe(null);
+  });
 });
 
 describe("warningsFor, when a backup download died", () => {
