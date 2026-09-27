@@ -109,7 +109,9 @@ describe("sessions and language", () => {
     const other = list.find((s) => !s.current);
     expect((await c1.json(`/api/me/sessions/${other.id}`, { method: "DELETE" })).status).toBe(200);
     expect((await c2.json("/api/me")).status).toBe(401);
-    expect((await c1.json("/api/me/sessions/revoke-all", { method: "POST", body: {} })).status).toBe(200);
+    const all = await c1.json("/api/me/sessions/revoke-all", { method: "POST", body: {} });
+    expect(all.status).toBe(200);
+    expect(all.res.headers.get("clear-site-data")).toBe('"cache"');
     expect(c1.cookies.has("session")).toBe(false);
     expect((await c1.json("/api/me")).status).toBe(401);
   });

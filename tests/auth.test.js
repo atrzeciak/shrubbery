@@ -209,7 +209,9 @@ describe("code step", () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
     await loginWithCode(c, "a@x.org");
-    expect((await c.json("/api/auth/logout", { method: "POST", body: {} })).status).toBe(200);
+    const out = await c.json("/api/auth/logout", { method: "POST", body: {} });
+    expect(out.status).toBe(200);
+    expect(out.res.headers.get("clear-site-data")).toBe('"cache"');   // photos and documents it cached go too
     expect(c.cookies.has("session")).toBe(false);
     expect((await c.json("/api/me")).status).toBe(401);
   });

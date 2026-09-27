@@ -182,7 +182,8 @@ async function postLogout(request, env) {
       historyStmt(env.DB, { actor: r.account.id, action: "session_revoked", targetType: "account", targetId: r.account.id, details: { self: true }, ipHash: await hashIp(env, clientIp(request), now) }),
     ]);
   }
-  return json({ ok: true }, 200, { "set-cookie": clearSessionCookie() });
+  // Photos and documents are cached for a day; a shared computer must not keep serving them once signed out.
+  return json({ ok: true }, 200, { "set-cookie": clearSessionCookie(), "clear-site-data": '"cache"' });
 }
 
 export const routes = [

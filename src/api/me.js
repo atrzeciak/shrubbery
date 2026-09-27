@@ -172,7 +172,7 @@ async function revokeAllSessions(request, env) {
     q.revokeSessionsByAccount(env.DB, account.id, now),
     await ownHistory(request, env, account, "session_revoked", { self: true, all: true }, now),
   ]);
-  return json({ ok: true }, 200, { "set-cookie": clearSessionCookie() });
+  return json({ ok: true }, 200, { "set-cookie": clearSessionCookie(), "clear-site-data": '"cache"' });
 }
 
 export const routes = [
