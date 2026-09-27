@@ -77,7 +77,7 @@ async function postConfirm(request, env) {
   if (!nonce || !/^\d{6}$/.test(code)) throw new ApiError(400, "bad_request");
   const now = nowSec();
   const v = await verifyCode(env.DB, { email: f.email, nonce, code }, now);
-  if (!v.ok) { if (v.stmt) await v.stmt.run(); throw new ApiError(400, v.error); }
+  if (!v.ok) throw new ApiError(400, v.error);
   const [used] = await env.DB.batch([v.stmt]);
   if (!used.meta.changes) throw new ApiError(400, "expired");
   if (await q.accountByEmail(env.DB, f.email).first()) throw new ApiError(409, "conflict");

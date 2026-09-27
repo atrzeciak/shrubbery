@@ -23,13 +23,12 @@ export async function prepareCode(db, { email, nonce }, now = nowSec()) {
   return { code, stmt };
 }
 
-// Returns the write (bumpCodeAttempts / markCodeUsed) as an unexecuted statement so
-// callers can batch it together with their own history write.
+// The attempt is spent before the comparison, in one conditional write, so guesses sent at once
+// cannot all read the same count. On success the caller runs the returned markCodeUsed.
 export async function verifyCode(db, { email, nonce, code }, now = nowSec()) {
   const row = await q.latestOpenCode(db, email, nonce, now).first();
-  if (!row || row.attempts >= CODE_MAX_ATTEMPTS) return { ok: false, error: "expired", stmt: null };
-  if (row.code_hash !== (await hashCode(email, nonce, String(code)))) {
-    return { ok: false, error: "invalid_code", stmt: q.bumpCodeAttempts(db, row.id) };
-  }
+  const spent = row && (await q.bumpCodeAttempts(db, row.id, CODE_MAX_ATTEMPTS).run()).meta.changes;
+  if (!spent) return { ok: false, error: "expired", stmt: null };
+  if (row.code_hash !== (await hashCode(email, nonce, String(code)))) return { ok: false, error: "invalid_code", stmt: null };
   return { ok: true, id: row.id, stmt: q.markCodeUsed(db, row.id, now) };
 }

@@ -16,7 +16,7 @@ beforeEach(async () => {
 
 const reqWithCookie = (token) => new Request("https://example.org/api/me", { headers: { cookie: `session=${token}` } });
 
-// verifyCode no longer writes; it returns the bump/mark-used statement for the caller to batch.
+// verifyCode spends the attempt itself; on success it returns markCodeUsed for the caller to run.
 async function verifyAndCommit(...args) {
   const r = await verifyCode(...args);
   if (r.stmt) await r.stmt.run();
@@ -108,6 +108,16 @@ describe("codes", () => {
       expect(r.error).toBe("invalid_code");
     }
     expect(await verifyAndCommit(db, { email: "a@x.org", nonce: "n2", code: c2.code }, T + 1)).toEqual({ ok: false, error: "expired", stmt: null });
+  });
+
+  it("counts guesses sent at once: no more than 5 are ever compared", async () => {
+    const { code, stmt } = await prepareCode(db, { email: "a@x.org", nonce: "n1" }, T);
+    await stmt.run();
+    const wrong = Array.from({ length: 20 }, (_, i) => String((Number(code) + 1 + i) % 1_000_000).padStart(6, "0"));
+    const rs = await Promise.all(wrong.map((c) => verifyAndCommit(db, { email: "a@x.org", nonce: "n1", code: c }, T + 1)));
+    expect(rs.filter((r) => r.error === "invalid_code").length).toBeLessThanOrEqual(CODE_MAX_ATTEMPTS);
+    expect(rs.every((r) => !r.ok)).toBe(true);
+    expect(await verifyAndCommit(db, { email: "a@x.org", nonce: "n1", code }, T + 1)).toEqual({ ok: false, error: "expired", stmt: null });
   });
 
   it("markCodeUsed is single-use even called directly: the second run changes nothing", async () => {

@@ -51,7 +51,8 @@ export const insertCode = (db, c) =>
     .bind(c.id, c.email, c.codeHash, c.sessionNonce, c.createdAt, c.expiresAt);
 export const latestOpenCode = (db, email, nonce, now) =>
   db.prepare("SELECT * FROM login_codes WHERE email = ? AND session_nonce = ? AND used_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1").bind(email, nonce, now);
-export const bumpCodeAttempts = (db, id) => db.prepare("UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?").bind(id);
+export const bumpCodeAttempts = (db, id, max) =>
+  db.prepare("UPDATE login_codes SET attempts = attempts + 1 WHERE id = ? AND used_at IS NULL AND attempts < ?").bind(id, max);
 export const markCodeUsed = (db, id, at) => db.prepare("UPDATE login_codes SET used_at = ? WHERE id = ? AND used_at IS NULL").bind(at, id);
 
 // invitations

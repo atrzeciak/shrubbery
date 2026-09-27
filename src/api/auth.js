@@ -104,7 +104,7 @@ async function postCode(request, env) {
   const ipHash = await hashIp(env, ip, now);
   const v = await verifyCode(db, { email, nonce, code }, now);
   if (!v.ok) {
-    await db.batch([v.stmt, historyStmt(db, { actor: null, action: "login_failed", targetType: "email", targetId: email, details: { reason: v.error }, ipHash })].filter(Boolean));
+    await historyStmt(db, { actor: null, action: "login_failed", targetType: "email", targetId: email, details: { reason: v.error }, ipHash }).run();
     throw new ApiError(400, v.error);
   }
   // markCodeUsed runs alone first, before anything else: the code is single-use, and a
