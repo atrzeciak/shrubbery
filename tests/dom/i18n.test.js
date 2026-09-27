@@ -27,19 +27,17 @@ describe("setLang", () => {
 });
 
 describe("initI18n", () => {
-  it("prefers the account language over the URL over the remembered choice", async () => {
+  it("prefers the URL over the remembered choice", async () => {
     localStorage.setItem("lang", "en");
     history.replaceState(null, "", "/app/?lang=pl");
-    await initI18n("en");
-    expect(getLang()).toBe("en");
-    await initI18n(null);
+    await initI18n();
     expect(getLang()).toBe("pl");
     history.replaceState(null, "", "/app/");
     localStorage.setItem("lang", "en");
-    await initI18n(null);
+    await initI18n();
     expect(getLang()).toBe("en");
     localStorage.clear();
-    await initI18n(null);
+    await initI18n();
     expect(getLang()).toBe("pl");
   });
 });

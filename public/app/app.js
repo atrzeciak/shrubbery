@@ -259,7 +259,7 @@ onStepUp(async () => {
 
 (async () => {
   try {
-    await initI18n(null);
+    await initI18n();
     await refreshMe();
   } catch (e) {
     // Without this the reader is left with a header and nothing under it, and no reason why.

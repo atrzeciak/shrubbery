@@ -13,10 +13,10 @@ export async function setLang(lang) {
   localStorage.setItem("lang", lang);
 }
 
-// Order: explicit account language > ?lang= on the URL > remembered choice > Polish.
-export async function initI18n(accountLang) {
+// Order: ?lang= on the URL > remembered choice > Polish. The account's language follows via setLang.
+export async function initI18n() {
   const url = new URLSearchParams(location.search).get("lang");
-  await setLang(accountLang || url || localStorage.getItem("lang") || "pl");
+  await setLang(url || localStorage.getItem("lang") || "pl");
 }
 
 export function t(key, vars = {}) {
