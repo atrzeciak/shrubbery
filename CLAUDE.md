@@ -55,7 +55,8 @@ Two vitest projects: `workers` runs `tests/*.test.js` in the Workers runtime; `d
 `tests/dom/*.test.js` under `happy-dom` for `public/app/`. `tests/dom/setup.js` stubs `fetch`
 (i18n files from disk, everything else to `mockApi(routes)` from `tests/dom/helpers.js`, which
 records the calls). `make coverage` prints the per-file table; lines sit near 100% and a change
-should keep them there. Tests must never add hooks or exports to app code for their own sake.
+should keep them there. Tests must never add hooks, switches or test-only code paths to app code.
+A pure helper (input to output, no side effects) may be exported so a test can call it directly.
 
 ## Project Structure
 
