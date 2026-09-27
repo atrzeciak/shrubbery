@@ -68,7 +68,11 @@ function offerReload(message) {
 // A page shows what it drew when the reader was last here; coming back to the tab is the moment to
 // draw it again, so a tree left open all day catches up with whoever has been editing it. Not
 // while a card is open or somebody is typing: a redraw would throw away what they were doing.
-const busy = () => document.body.classList.contains("sheet-open")
+// Typed-into counts as busy until the page is next drawn: focus leaves the field the moment a button is
+// pressed, and Safari hands it to the body, while the words themselves are still unsaved.
+let dirty = false;
+main.addEventListener("input", () => { dirty = true; });
+const busy = () => dirty || document.body.classList.contains("sheet-open")
   || !!(document.activeElement && (document.activeElement.matches("input, textarea, select") || document.activeElement.isContentEditable));
 
 async function onReturn() {
@@ -196,6 +200,7 @@ function opsBanner() {
 }
 
 export async function render({ restore = false } = {}) {
+  dirty = false;
   const my = ++renderToken;
   const path = currentPath();
   const previous = renderedPath;

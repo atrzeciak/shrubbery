@@ -357,6 +357,23 @@ describe("coming back to the tab", () => {
     await until(() => asked() === before + 1);
     expect(asked()).toBe(before + 1);
   });
+
+  // Focus moves on as soon as a button is pressed, and on Safari straight to the body: what was typed
+  // is still unsaved, so the page must not be drawn over it.
+  it("keeps a page someone has typed into, even once focus has left the field", async () => {
+    const { calls } = await boot({ path: "/app/members", routes: routes() });
+    await until(() => names().length === 1);
+    const asked = () => calls.filter((c) => c.path === "/api/people").length;
+    const before = asked();
+    const field = q("#members-q");
+    field.focus();
+    field.value = "Ann";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.blur();
+    await returnToTab();
+    expect(asked()).toBe(before);
+    expect(q("#newer").hidden).toBe(false);
+  });
 });
 
 describe("a newer version", () => {
