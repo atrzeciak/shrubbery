@@ -507,4 +507,10 @@ describe("choosing a style", () => {
     const { root } = await draw(me(), "/app/tree/p1?style=cards");
     expect(qa("rect.box", root)).toHaveLength(qa(".node", root).length);
   });
+
+  // Every object has these, so a lookup that walks the prototype finds a function, not a style.
+  it.each(["constructor", "toString", "__proto__"])("falls back to the box for ?style=%s", async (name) => {
+    const { root } = await draw(me(), `/app/tree/p1?style=${name}`);
+    expect(qa("rect.box", root)).toHaveLength(qa(".node", root).length);
+  });
 });

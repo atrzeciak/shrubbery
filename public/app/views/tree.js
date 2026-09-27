@@ -10,7 +10,11 @@ import { styles } from "../tree-style.js";
 
 const STYLE = "box";                                    // "classic" brings the tall cards back
 // Chosen on every render, so ?style= on any tree URL shows the other drawing without a deploy.
-const styleOf = () => styles[new URLSearchParams(location.search).get("style")] || styles[STYLE];
+// Own keys only: ?style=constructor would otherwise find Object's constructor, not a style.
+const styleOf = () => {
+  const name = new URLSearchParams(location.search).get("style");
+  return Object.hasOwn(styles, name) ? styles[name] : styles[STYLE];
+};
 let style = styles[STYLE];
 let mode = localStorage.getItem("treeMode") || "focus";
 
