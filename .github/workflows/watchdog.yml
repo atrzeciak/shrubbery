@@ -20,16 +20,18 @@ jobs:
     steps:
       - name: The site answers and is still itself
         run: |
-          body="$(curl -sS --max-time 20 --fail ${SITE}/)"
+          body="$(curl -s --max-time 20 --fail ${SITE}/)" \
+            || { echo "the site did not answer (curl exit $?)"; exit 1; }
           echo "$body" | grep -q "$SITE_NAME" || { echo "landing page does not look like the site"; exit 1; }
 
       - name: The Worker and the database are alive
         run: |
-          curl -sS --max-time 20 --fail ${SITE}/api/health | grep -q '"ok":true' \
+          curl -s --max-time 20 --fail ${SITE}/api/health | grep -q '"ok":true' \
             || { echo "health check did not report ok"; exit 1; }
 
       - name: The site is still checking itself
         run: |
-          body="$(curl -sS --max-time 20 --fail ${SITE}/api/health)"
+          body="$(curl -s --max-time 20 --fail ${SITE}/api/health)" \
+            || { echo "the site did not answer (curl exit $?)"; exit 1; }
           echo "$body" | grep -q '"checks_stale":false' \
             || { echo "the daily cron has stopped running: nothing has checked the domain, the card or the backup age for over 3 days"; exit 1; }
