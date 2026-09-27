@@ -39,12 +39,14 @@ describe("email step", () => {
     expect(hist).toHaveLength(0);
   });
 
-  it("rejects malformed email and refuses foreign origins", async () => {
+  it("rejects malformed email, refuses foreign origins and lets the site's own through", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);
     expect((await c.json("/api/auth/email", { method: "POST", body: { email: "nope" } })).status).toBe(400);
     const foreign = await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" }, headers: { origin: "https://evil.example" } });
     expect(foreign.status).toBe(403);
+    const own = await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" }, headers: { origin: "https://example.org" } });
+    expect(own.status).toBe(200);
   });
 });
 
