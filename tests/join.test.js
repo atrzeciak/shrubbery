@@ -210,4 +210,14 @@ describe("admin review", () => {
     expect((await c.json(`/api/admin/join-requests/${id2}/reject`, { method: "POST", body: { note: "unknown" } })).status).toBe(200);
     expect((await env.DB.prepare("SELECT status, note FROM join_requests WHERE id = ?").bind(id2).first())).toEqual({ status: "rejected", note: "unknown" });
   });
+
+  it("a person an approved request created can still be deleted, and the invitation then links nobody", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await pending();
+    const id = (await c.json("/api/admin/join-requests")).body.requests[0].id;
+    const ap = await c.json(`/api/admin/join-requests/${id}/approve`, { method: "POST", body: { create: true } });
+    expect((await c.json(`/api/admin/people/${ap.body.person_id}`, { method: "DELETE" })).status).toBe(200);
+    const ola = await login("ola@x.org");
+    expect((await ola.json("/api/me")).body.person).toBeNull();
+  });
 });

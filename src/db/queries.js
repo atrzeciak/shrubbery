@@ -128,11 +128,12 @@ export function updatePerson(db, id, fields, updatedAt, updatedBy) {
   return db.prepare(`UPDATE people SET ${sets} WHERE id = ?`).bind(...keys.map((k) => fields[k]), updatedAt, updatedBy, id);
 }
 export const deletePerson = (db, id) => db.prepare("DELETE FROM people WHERE id = ?").bind(id);
+// A decided request keeps its person forever; deleting the person forgets the match, not the request.
+export const clearJoinRequestPerson = (db, personId) => db.prepare("UPDATE join_requests SET matched_person_id = NULL WHERE matched_person_id = ?").bind(personId);
 export const personRefCount = (db, id) =>
   db.prepare(`SELECT (SELECT COUNT(*) FROM parent_of WHERE parent_id = ?1 OR child_id = ?1)
                    + (SELECT COUNT(*) FROM partner_of WHERE a_id = ?1 OR b_id = ?1)
                    + (SELECT COUNT(*) FROM accounts WHERE person_id = ?1)
-                   + (SELECT COUNT(*) FROM join_requests WHERE matched_person_id = ?1)
                    + (SELECT COUNT(*) FROM media WHERE owner_person_id = ?1) AS n`).bind(id);
 
 // person links (social handles)
