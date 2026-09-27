@@ -48,6 +48,8 @@ REPO_URL = "github.com/you/your-repo"
 DOMAIN_RENEWS_AT = ""
 
 [triggers]
+# The hour is UTC. Pick one that is early morning in SITE_TZ in both winter and summer: 05:00 suits
+# Europe, but in a zone six hours behind UTC it lands before midnight and a spring date is skipped.
 crons = ["0 5 * * *"]
 
 [[send_email]]
