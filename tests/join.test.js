@@ -107,6 +107,22 @@ describe("join request", () => {
     await login("ola@x.org");
     expect(sent.filter((m) => m.to === "adm@x.org" && /Anna Zielińska/.test(m.subject))).toHaveLength(0);
   });
+
+  // A revoked invitation is an admin saying "not this address". The tree still holds it, so the
+  // form must not read the revocation as "never invited" and let the person straight back in.
+  it("a revoked address is not auto-approved: it waits for an admin like a stranger", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    await seedPerson(env, { id: "p_ola", first_name: "Anna", last_name: "Zielińska", email: "ola@x.org" });
+    await q.insertInvitation(env.DB, { id: "i_ola", email: "ola@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await env.DB.prepare("UPDATE invitations SET revoked_at = 2 WHERE id = 'i_ola'").run();
+    const c = new Client(env);
+    await c.json("/api/join/request", { method: "POST", body: FORM });
+    const ok = await c.json("/api/join/confirm", { method: "POST", body: { ...FORM, code: lastCode(sent) } });
+    expect(ok.body).toEqual({ ok: true, auto: false });
+    expect((await env.DB.prepare("SELECT status FROM join_requests").first()).status).toBe("pending");
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE revoked_at IS NULL").first()).n).toBe(0);
+    expect(sent.some((m) => m.to === "ola@x.org" && m.text.includes("example.org/app/"))).toBe(false);
+  });
 });
 
 describe("admin review", () => {

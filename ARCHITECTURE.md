@@ -147,9 +147,10 @@ Two decisions worth knowing:
   read beforehand — two simultaneous uploads would otherwise both pass.
 - **`gatherings.announced_at` and `nudged_at` make each mail-out unrepeatable.** Announcing writes to
   every living relative with an address and creates an invitation for anyone without an account;
-  nudging reaches only those who have not answered. Both refuse a second attempt with `409`, and
-  neither can be sent for a cancelled gathering. Deleting a gathering removes its answers but leaves
-  the history rows that record it existed.
+  nudging reaches only those who have not answered. Both skip an address an admin shut out (a
+  disabled account, or a revoked invitation with nothing issued since), refuse a second attempt with
+  `409`, and cannot be sent for a cancelled gathering. Deleting a gathering removes its answers but
+  leaves the history rows that record it existed.
 
 ## 7. Configuration
 

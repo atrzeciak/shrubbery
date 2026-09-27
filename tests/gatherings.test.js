@@ -235,6 +235,29 @@ describe("telling the family about it", () => {
     expect(results.map((r) => r.email)).toEqual(["ola@x.org"]);   // me@x.org already has an account
   });
 
+  // Revoking an invitation and disabling an account are the only doors an admin can shut. The tree
+  // still holds both addresses, so without this the mail walks past both and its invitation hands
+  // the key back.
+  it("never writes to an address that was shut out, and never invites it back", async () => {
+    await reachable();
+    const adm = await admin();
+    await seedPerson(env, { id: "p_gone", first_name: "Gone", email: "gone@x.org" });
+    await q.insertInvitation(env.DB, { id: "i_gone", email: "gone@x.org", lang: "pl", invitedBy: "adm", createdAt: 1, expiresAt: 4_000_000_000 }).run();
+    await env.DB.prepare("UPDATE invitations SET revoked_at = 2 WHERE id = 'i_gone'").run();
+    await seedPerson(env, { id: "p_off", first_name: "Off", email: "off@x.org" });
+    await seedAccount(env, { id: "off", email: "off@x.org" });
+    await env.DB.prepare("UPDATE accounts SET disabled_at = 1 WHERE id = 'off'").run();
+    const id = await makeGathering(adm);
+
+    for (const kind of ["announce", "nudge"]) {
+      sent.length = 0;
+      expect((await adm.json(`/api/admin/gatherings/${id}/${kind}`, { method: "POST", body: {} })).body.sent).toBe(2);
+      expect(sent.map((m) => m.to).sort()).toEqual(["me@x.org", "ola@x.org"]);
+    }
+    const back = await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations WHERE email IN ('gone@x.org', 'off@x.org') AND revoked_at IS NULL").first();
+    expect(back).toEqual({ n: 0 });
+  });
+
   it("announces once; a second attempt is refused rather than mailing twice", async () => {
     await reachable();
     const adm = await admin();

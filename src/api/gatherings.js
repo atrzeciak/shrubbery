@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url, randomB64url as inviteId } from "../util.js";
-import { ApiError, accountIdentity, readJson, requireRole, requireSession, siteTz } from "./common.js";
+import { ApiError, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
 import { hashIp, historyStmt } from "../history.js";
 import { today as dayIn } from "../../public/app/events.js";
 import { sendGatheringMail } from "../mail.js";
@@ -146,8 +146,12 @@ async function mailOut(request, env, m, { once, mark, recipients, kind }) {
   const now = nowSec();
   const identity = await accountIdentity(env, account.id);
   const { results } = await recipients(env, gathering).all();
+  // The tree still holds the address of anybody an admin shut out; broadcasts.js draws the same line.
+  const { results: withdrawn } = await q.withdrawnEmails(env.DB).all();
+  const shut = new Set(withdrawn.map((w) => normEmail(w.email)));
   let sent = 0;
   for (const person of results) {
+    if (shut.has(normEmail(person.email))) continue;
     try {
       // An address with no account is a relative who cannot answer: carry them in with the mail.
       if (!(await q.accountByEmail(env.DB, person.email).first())

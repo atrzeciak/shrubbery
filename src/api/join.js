@@ -87,8 +87,10 @@ async function postConfirm(request, env) {
   const stmts = [q.deletePendingJoinRequests(env.DB, f.email)];
   // An invitation already outstanding (e.g. a prior join request was just approved for this
   // email) means the person is already on their way in — fall through to "pending" rather
-  // than mailing a second invitation.
-  if (match && !(await q.accountByPerson(env.DB, match.id).first()) && !(await q.activeInvitationByEmail(env.DB, f.email, now).first())) {
+  // than mailing a second invitation. A revoked invitation reads as none to that check, so an
+  // address an admin shut out waits for an admin too.
+  const shut = (await q.withdrawnEmails(env.DB).all()).results.some((w) => normEmail(w.email) === f.email);
+  if (match && !shut && !(await q.accountByPerson(env.DB, match.id).first()) && !(await q.activeInvitationByEmail(env.DB, f.email, now).first())) {
     const inviterId = await firstAdminId(env);
     stmts.push(
       q.insertJoinRequest(env.DB, { id, ...f, created_at: now, status: "auto", matched_person_id: match.id }),

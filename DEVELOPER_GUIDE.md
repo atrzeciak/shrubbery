@@ -144,6 +144,9 @@ write to real relatives and neither can be taken back:
   an invitation created, so the mail can tell them how to get in.
 - **Nudge** — appears only after announcing, and reaches only people who have not answered.
 
+Neither writes to anyone whose account you disabled or whose invitation you revoked, and neither
+invites them back in.
+
 The week-before and day-of reminders need no button: they come from the daily cron, honour the same
 reminder opt-in as birthdays, and are protected by the same guard against a cron that fires twice.
 
