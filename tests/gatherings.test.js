@@ -281,6 +281,17 @@ describe("telling the family about it", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("announces in each reader's own language", async () => {
+    await reachable();
+    await env.DB.prepare("UPDATE accounts SET lang = 'en' WHERE email = 'me@x.org'").run();
+    const adm = await admin();
+    const id = await makeGathering(adm);
+    sent.length = 0;
+    await adm.json(`/api/admin/gatherings/${id}/announce`, { method: "POST", body: {} });
+    expect(sent.find((m) => m.to === "me@x.org").subject).toMatch(/^Family gathering/);
+    expect(sent.find((m) => m.to === "ola@x.org").subject).not.toMatch(/^Family gathering/);
+  });
+
   it("writes once to an address that several relatives share", async () => {
     await reachable();
     await env.DB.prepare("UPDATE people SET email = 'OLA@x.org' WHERE id = 'p_zosia'").run();   // same mailbox, other case

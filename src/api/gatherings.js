@@ -159,14 +159,16 @@ async function mailOut(request, env, m, { mark, recipients, kind }) {
     skip.add(normEmail(person.email));
     try {
       // An address with no account is a relative who cannot answer: carry them in with the mail.
-      if (!(await q.accountByEmail(env.DB, person.email).first())
-          && !(await q.activeInvitationByEmail(env.DB, person.email, now).first())) {
+      const reader = await q.accountByEmail(env.DB, person.email).first();
+      const invitation = reader ? null : await q.activeInvitationByEmail(env.DB, person.email, now).first();
+      if (!reader && !invitation) {
         await q.insertInvitation(env.DB, {
           id: inviteId(16), email: person.email, lang: "pl", invitedBy: account.id,
           createdAt: now, expiresAt: now + INVITE_TTL,
         }).run();
       }
-      await sendGatheringMail(env, person.email, "pl", gathering, kind, identity?.name || null);
+      const lang = reader?.lang || invitation?.lang || "pl";
+      await sendGatheringMail(env, person.email, lang, gathering, kind, identity?.name || null);
       sent++;
     } catch (e) {
       console.error(e);           // one dead mailbox must not silence the rest of the family
