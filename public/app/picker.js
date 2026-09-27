@@ -14,8 +14,11 @@ export function personPicker(g, people, { id, initial = null, placeholder }) {
   const list = h("ul", { class: "picker", hidden: true });
   const onChange = [];
   const choose = (p) => { chosen = p; el.value = p.display_name; list.hidden = true; for (const f of onChange) f(); };
+  let active = -1;         // the row the arrow keys are on; -1 is none
+  const mark = () => [...list.children].forEach((li, i) => li.setAttribute("aria-selected", String(i === active)));
   const fill = () => {
     const q = el.value.trim().toLowerCase();
+    active = -1;
     clear(list);
     const hits = q.length >= 2 ? people.filter((p) => p.display_name.toLowerCase().includes(q)) : [];
     for (const p of hits) list.append(h("li", { onmousedown: (e) => { e.preventDefault(); choose(p); } }, h("span", { text: p.display_name }), " ", h("span", { class: "muted", text: detail(p) })));
@@ -24,6 +27,20 @@ export function personPicker(g, people, { id, initial = null, placeholder }) {
   el.addEventListener("input", () => { if (chosen && el.value !== chosen.display_name) chosen = null; fill(); for (const f of onChange) f(); });
   el.addEventListener("focus", fill);
   el.addEventListener("blur", () => { list.hidden = true; });
-  el.addEventListener("keydown", (e) => { if (e.key === "Escape") list.hidden = true; if (e.key === "Enter" && list.children.length === 1) { e.preventDefault(); list.firstChild.dispatchEvent(new Event("mousedown")); } });
+  el.addEventListener("keydown", (e) => {
+    const rows = list.children;
+    // An open list takes the Escape: the card it sits in must not close with it.
+    if (e.key === "Escape" && !list.hidden) { e.stopPropagation(); list.hidden = true; return; }
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && rows.length) {
+      e.preventDefault();
+      list.hidden = false;
+      active = (active + (e.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length;
+      mark();
+      return;
+    }
+    // Enter takes the row the arrows are on, or the only one there is: two people with one name need the arrows.
+    const pick = active >= 0 ? rows[active] : rows.length === 1 ? rows[0] : null;
+    if (e.key === "Enter" && pick) { e.preventDefault(); pick.dispatchEvent(new Event("mousedown")); }
+  });
   return { el: h("div", { class: "picker-wrap" }, el, list), value: () => chosen?.id || null, text: () => el.value.trim(), onChange: (f) => onChange.push(f) };
 }
