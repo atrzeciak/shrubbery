@@ -15,7 +15,6 @@ const graph = { people, parents: [{ parent_id: "p1", child_id: "p3" }, { parent_
 const requests = [
   { id: "r1", status: "pending", first_name: "Anna", last_name: "Kowalska", birth_date: "1985-01-01", email: "same@x.org", parent_text: "Anna Nowak", message: null, created_at: 1e9, match: "p4" },
   { id: "r2", status: "pending", first_name: "Piotr", last_name: "Lis", birth_date: "1990-02-02", email: "piotr@x.org", parent_text: "unknown", message: "Hello there", created_at: 1e9, match: null },
-  { id: "r3", status: "auto", first_name: "Old", last_name: "One", birth_date: "1990-02-02", email: "old@x.org", parent_text: "x", message: null, created_at: 1e9, match: null },
 ];
 const documents = [{ id: "d1", caption: "Deed", year: 1990, size: 2048 }, { id: "d2", caption: null, year: null, size: 100 }];
 const invitations = [
@@ -69,7 +68,7 @@ const rows = (li) => qa(".picker li", li);
 beforeEach(async () => { await lang("en"); vi.stubGlobal("confirm", vi.fn(() => true)); vi.stubGlobal("prompt", vi.fn(() => "no thanks")); });
 
 describe("invitations: join requests", () => {
-  it("lists pending requests only, with the match line and the message", async () => {
+  it("lists the pending requests with the match line and the message", async () => {
     const { root } = await open("Invitations");
     const items = qa("li", qa("ul.list", root)[0]);
     expect(items.map((li) => q("strong", li).textContent)).toEqual(["Anna Kowalska", "Piotr Lis"]);

@@ -175,7 +175,7 @@ export const insertJoinRequest = (db, r) =>
 export const joinRequestById = (db, id) => db.prepare("SELECT * FROM join_requests WHERE id = ?").bind(id);
 export const deletePendingJoinRequests = (db, email) => db.prepare("DELETE FROM join_requests WHERE email = ? AND status = 'pending'").bind(email);
 export const listJoinRequests = (db) =>
-  db.prepare("SELECT * FROM join_requests ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC LIMIT 200");
+  db.prepare("SELECT * FROM join_requests WHERE status = 'pending' ORDER BY created_at DESC LIMIT 200");
 export const decideJoinRequest = (db, id, status, personId, decidedBy, at, note) =>
   db.prepare("UPDATE join_requests SET status = ?, matched_person_id = ?, decided_by = ?, decided_at = ?, note = ? WHERE id = ? AND status = 'pending'").bind(status, personId, decidedBy, at, note, id);
 export const grantedJoinRequestByEmail = (db, email) =>

@@ -224,6 +224,7 @@ describe("admin review", () => {
     const id2 = (await c.json("/api/admin/join-requests")).body.requests.find((r) => r.status === "pending").id;
     expect((await c.json(`/api/admin/join-requests/${id2}/reject`, { method: "POST", body: { note: "unknown" } })).status).toBe(200);
     expect((await env.DB.prepare("SELECT status, note FROM join_requests WHERE id = ?").bind(id2).first())).toEqual({ status: "rejected", note: "unknown" });
+    expect((await c.json("/api/admin/join-requests")).body.requests).toEqual([]);   // decided ones leave the list
   });
 
   it("will not approve a request whose address has since become a member", async () => {

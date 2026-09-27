@@ -36,9 +36,8 @@ const PANELS = {
     const [{ requests }, g, { documents }, { invitations }] = await Promise.all([
       api("/api/admin/join-requests"), loadGraph(), api("/api/admin/documents"), api("/api/admin/invitations")]);
     const reqList = h("ul", { class: "list card" });
-    const open = requests.filter((r) => r.status === "pending");
-    if (!open.length) reqList.append(h("li", { class: "muted", text: t("admin.requests.empty") }));
-    for (const r of open) {
+    if (!requests.length) reqList.append(h("li", { class: "muted", text: t("admin.requests.empty") }));
+    for (const r of requests) {
       const pick = personPicker(g, g.people, { id: `req-person-${r.id}`, initial: r.match, placeholder: t("admin.requests.create") });
       const approve = h("button", { class: "btn", type: "button", text: t("admin.requests.approve") });
       const reject = h("button", { class: "btn danger", type: "button", text: t("admin.requests.reject") });
