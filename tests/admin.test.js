@@ -27,9 +27,11 @@ describe("authorization", () => {
   });
 
   // Every admin route, not a sample: turning one guard from fresh passkey to role alone must fail here.
-  it("every admin route refuses strangers and family, and every write but gatherings wants a fresh passkey", async () => {
+  it("every admin route refuses strangers and family, and every write but arranging a gathering wants a fresh passkey", async () => {
+    const arranging = (method, path) =>
+      path.startsWith("/api/admin/gatherings") && method !== "DELETE" && !/\/(announce|nudge)$/.test(path);
     const roleOnly = ([method, path]) =>
-      path.startsWith("/api/admin/gatherings") || (method === "GET" && !path.startsWith("/api/admin/backup"));
+      arranging(method, path) || (method === "GET" && !path.startsWith("/api/admin/backup"));
     const routes = API.filter(([, pattern]) => pattern.source.includes("admin"))
       .map(([method, pattern]) => [method, pattern.source.slice(1, -1).replaceAll("\\/", "/").replaceAll("([A-Za-z0-9_-]+)", "x")]);
     expect(routes.length).toBeGreaterThan(30);

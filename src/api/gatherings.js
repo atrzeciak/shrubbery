@@ -13,9 +13,10 @@ const text = (v, max) => {
   return s || null;
 };
 
-// A gathering is not a destructive administrative act, so it asks for the admin role but not a fresh
-// passkey — the same line the media routes draw.
+// Arranging a gathering asks for the admin role alone. Mailing the family and deleting everyone's
+// answers cannot be taken back, so those ask for a fresh passkey, as a letter or an invitation does.
 const adminCtx = (request, env) => adminSession(request, env, false);
+const adminWrite = (request, env) => adminSession(request, env, true);
 
 function guestsAndTotals(rows) {
   const totals = { coming: 0, not_coming: 0, unanswered: 0 };
@@ -120,7 +121,7 @@ async function answerFor(request, env, gatheringId, personId, account) {
 // visible so nobody turns up to it. Deleting is for one that should never have existed. The history
 // rows are left alone either way: the gathering goes, the record of who arranged it does not.
 async function deleteGathering(request, env, ctx, m) {
-  const { account } = await adminCtx(request, env);
+  const { account } = await adminWrite(request, env);
   const gathering = found(await q.gatheringById(env.DB, m[1]).first());
   const now = nowSec();
   await env.DB.batch([
@@ -137,7 +138,7 @@ async function deleteGathering(request, env, ctx, m) {
 // Writing to the family is not something to do by accident or twice, so each of these can happen
 // exactly once and records that it did.
 async function mailOut(request, env, m, { mark, recipients, kind }) {
-  const { account } = await adminCtx(request, env);
+  const { account } = await adminWrite(request, env);
   const gathering = found(await q.gatheringById(env.DB, m[1]).first());
   if (gathering.cancelled_at) throw new ApiError(409, "cancelled");
   const now = nowSec();

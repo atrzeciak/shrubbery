@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
-import { createAuthenticator } from "./helpers/authenticator.js";
-import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs } from "./helpers/env.js";
+import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs, adminAs } from "./helpers/env.js";
 import { gatheringReminders } from "../src/events/cron.js";
 
 let env, sent;
@@ -9,15 +8,7 @@ beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
 const login = (email) => loginAs(env, sent, email);
 
-async function admin(email = "adm@x.org") {
-  await seedAccount(env, { id: "adm", email, role: "family" });
-  const c = await login(email);
-  const auth = await createAuthenticator();
-  const ch = await c.json("/api/auth/passkey/challenge", { method: "POST", body: {} });
-  await c.json("/api/me/passkeys", { method: "POST", body: { name: "key", credential: await auth.create(ch.body.challenge) } });
-  await q.setRole(env.DB, "adm", "admin").run();
-  return c;
-}
+const admin = async () => (await adminAs(env, sent)).c;
 
 // The family as the site knows it: some living, some dead, one of them signed in.
 async function family() {
@@ -214,6 +205,26 @@ describe("gatherings", () => {
     const mem = await login("me@x.org");
     expect((await mem.json(`/api/admin/gatherings/${id}`, { method: "DELETE" })).status).toBe(403);
     expect((await adm.json("/api/admin/gatherings/nosuchthing", { method: "DELETE" })).status).toBe(404);
+  });
+
+  // Mailing the family and deleting everyone's answers cannot be taken back, so a code login that
+  // carries the admin role is not enough; arranging the gathering is.
+  it("announce, nudge and delete need a fresh passkey; creating and editing do not", async () => {
+    await family();
+    await env.DB.prepare("UPDATE people SET email = 'ola@x.org' WHERE id = 'p_ola'").run();
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const adm = await login("adm@x.org");
+    const id = await makeGathering(adm);
+    expect((await adm.json(`/api/admin/gatherings/${id}`, { method: "PATCH", body: { place: "Siemiatycze" } })).status).toBe(200);
+    sent.length = 0;
+    for (const [path, method] of [["/announce", "POST"], ["/nudge", "POST"], ["", "DELETE"]]) {
+      const r = await adm.json(`/api/admin/gatherings/${id}${path}`, { method, body: method === "POST" ? {} : undefined });
+      expect(r.status).toBe(401);
+      expect(r.body).toEqual({ error: "step_up_required" });
+    }
+    expect(sent).toEqual([]);
+    expect(await q.gatheringById(env.DB, id).first()).toMatchObject({ announced_at: null, nudged_at: null });
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM invitations").first()).n).toBe(0);
   });
 
   // The same rule the news feed follows: the guest list is about who is coming, never how to reach them.
