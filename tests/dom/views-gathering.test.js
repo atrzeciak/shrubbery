@@ -114,6 +114,23 @@ describe("with a gathering", () => {
     expect(calls.at(-2).body).toEqual({ coming: 1, headcount: 5 });
   });
 
+  // Setting the count and then tapping Yes saves twice, and each save redraws: the two redraws must
+  // not both land on the page.
+  it("draws the page once when two saves overlap", async () => {
+    let mine = guests[0];
+    await draw(family(), {
+      "GET /api/gatherings": () => feed(gathering(), [mine]),
+      "PUT /api/gatherings/g1/rsvp": (body) => { mine = { ...mine, ...body }; return { ok: true }; },
+    });
+    const count = q(".rsvp input[type=number]");
+    count.value = "4";
+    count.dispatchEvent(new Event("change"));
+    byText("button", "Yes", q(".rsvp")).click();
+    for (let i = 0; i < 6; i++) await tick();
+    expect(qa(".rsvp").length).toBe(1);
+    expect(qa("ul.list").length).toBe(1);
+  });
+
   it("ignores a count change while the answer is no", async () => {
     const mine = [{ ...guests[0], coming: 0, headcount: 0 }];
     const { calls } = await draw(family(), { "GET /api/gatherings": feed(gathering(), mine) });

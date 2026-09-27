@@ -58,8 +58,10 @@ export async function render(root, ctx) {
   root.append(body);
 
   const draw = async () => {
-    clear(body);
     const data = await api("/api/gatherings");
+    // Cleared only now, just before drawing: two saves close together each redraw, and a clear done
+    // before the wait would let both draws land on the page.
+    clear(body);
     const g = data.gathering;
     if (!g) {
       body.append(h("p", { class: "muted", text: isAdmin ? t("gathering.none.admin") : t("gathering.none") }));
