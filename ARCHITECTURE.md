@@ -85,8 +85,8 @@ holding a session or learning anything.
 - **The founder** (`accounts.founder`) is fixed: they cannot be demoted, only they may protect
   another admin, and only their invitations speak in the first person.
 - **An invitation may carry one document** already in the archive (`invitations.attachment_media_id`
-  → a PDF in `media`, at most 4 MiB so the whole mail stays under the provider's 5 MiB). The
-  bytes are read from R2 at send time, so a re-send carries the current file; if the document has
+  → a PDF in `media`, at most 3.5 MiB, so the mail stays under the provider's 5 MiB once base64 has
+  grown it by a third). The bytes are read from R2 at send time, so a re-send carries the current file; if the document has
   since been removed, the re-send goes out without it rather than failing.
 - **An invited address is linked to its person at first login.** An approved join request names the
   person; otherwise the person in the tree carrying that email (`people.email`) is used, provided

@@ -2,8 +2,9 @@ import * as q from "../db/queries.js";
 import { ApiError } from "./common.js";
 import { keyFor } from "./media.js";
 
-// The mail provider caps a whole message at 5 MiB; this leaves room for the text and encoding.
-export const ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;
+// The mail provider caps a whole message at 5 MiB. Base64 grows a file by a third, so 3.5 MiB goes out
+// as about 4.8 MiB, which leaves room for the text; 4 MiB would already be 5.3.
+export const ATTACHMENT_MAX_BYTES = 3.5 * 1024 * 1024;
 
 // The document a letter carries, read fresh from R2 each time it is sent. `strict` is the compose
 // path: a bad choice is the admin's mistake and gets a 400. A re-send whose document has since gone

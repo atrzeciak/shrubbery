@@ -106,6 +106,15 @@ describe("invitation voice", () => {
     expect(sent[0].text.trimEnd().endsWith("Piotr Mazur")).toBe(true);
   });
 
+  it("offers only a PDF that still fits the provider's 5 MiB once base64 has grown it by a third", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await seedPerson(env, { id: "p_doc", first_name: "Anna", last_name: "Nowak" });
+    for (const [id, size] of [["fits", 3.5 * 1024 * 1024], ["too_big", 3.6 * 1024 * 1024]]) {
+      await q.insertMedia(env.DB, { id, ownerPersonId: "p_doc", kind: "document", caption: null, year: null, contentType: "application/pdf", size, uploadedBy: "adm", createdAt: 1_800_000_000 }).run();
+    }
+    expect((await c.json("/api/admin/documents")).body.documents.map((d) => d.id)).toEqual(["fits"]);
+  });
+
   it("an invitation can carry one PDF document from the archive, and a re-send carries it again", async () => {
     const { c } = await adminWithFreshPasskey();
     await seedPerson(env, { id: "p_doc", first_name: "Anna", last_name: "Nowak" });
