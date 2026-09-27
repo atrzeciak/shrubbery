@@ -100,7 +100,12 @@ describe("avatars", () => {
     expect(bodyBytes).toEqual(uploaded);
     const etag = res.headers.get("etag");
     expect(etag).toMatch(/^"\d+"$/);
+    // A revalidation answers from the timestamp alone; the JPEG, up to 200 KiB, stays in D1.
+    const real = env.DB, seen = [];
+    me.env = { ...env, DB: { prepare: (sql) => { seen.push(sql); return real.prepare(sql); }, batch: (st) => real.batch(st) } };
     expect((await me.fetch("/api/people/p_and/avatar", { headers: { "if-none-match": etag } })).status).toBe(304);
+    me.env = env;
+    expect(seen.filter((sql) => sql.includes("SELECT jpeg"))).toEqual([]);
     const res2 = await me.fetch("/api/people/p_and/avatar");
     expect(res2.status).toBe(200);
     const bodyBytes2 = new Uint8Array(await res2.arrayBuffer());

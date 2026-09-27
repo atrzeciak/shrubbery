@@ -70,12 +70,17 @@ function blobBytes(blob) {
 
 async function getAvatar(request, env, ctx, m) {
   await requireSession(request, env);
+  const headersFor = (updatedAt) => ({ etag: `"${updatedAt}"`, "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff", "content-disposition": "inline" });
+  // A revalidation is answered from the timestamp: the JPEG, up to 200 KiB, is read only when it is sent.
+  const ifNoneMatch = request.headers.get("if-none-match");
+  if (ifNoneMatch) {
+    const stamp = await q.avatarStamp(env.DB, m[1]).first();
+    if (!stamp) throw new ApiError(404, "not_found");
+    if (ifNoneMatch === `"${stamp.updated_at}"`) return new Response(null, { status: 304, headers: headersFor(stamp.updated_at) });
+  }
   const row = await q.avatarByPerson(env.DB, m[1]).first();
   if (!row) throw new ApiError(404, "not_found");
-  const etag = `"${row.updated_at}"`;
-  const headers = { etag, "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff", "content-disposition": "inline" };
-  if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
-  return new Response(blobBytes(row.jpeg), { status: 200, headers: { ...headers, "content-type": "image/jpeg" } });
+  return new Response(blobBytes(row.jpeg), { status: 200, headers: { ...headersFor(row.updated_at), "content-type": "image/jpeg" } });
 }
 
 async function myPerson(request, env) {
