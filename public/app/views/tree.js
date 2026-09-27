@@ -229,7 +229,13 @@ function panZoom(svg) {
       vb = { x: n.col * (W + GX) - w / 2, y: n.row * (H + GY) + H / 2 - hgt / 2, w, h: hgt };
       apply();
     },
-    reset: () => { vb = { ...svg.bounds, x: svg.bounds.minX, y: svg.bounds.minY }; apply(); },
+    // The whole tree, in a box shaped like the element: a viewBox of another shape is letterboxed by
+    // the browser, and zoomAt's pointer maths would then drift.
+    reset: () => {
+      const r = svg.getBoundingClientRect(), b = svg.bounds, k = Math.max(b.w / r.width, b.h / r.height);
+      vb = { x: b.minX - (r.width * k - b.w) / 2, y: b.minY - (r.height * k - b.h) / 2, w: r.width * k, h: r.height * k };
+      apply();
+    },
   };
 }
 

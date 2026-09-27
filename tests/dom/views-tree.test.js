@@ -203,6 +203,29 @@ describe("family mode", () => {
     expect(width()).toBeCloseTo(full);
   });
 
+  // The browser letterboxes a viewBox whose shape is not the element's; zooming must use the same
+  // mapping, or each step slides the drawing out from under the pointer.
+  it("after Fit, a wheel zoom keeps the point under the pointer where it was, and still shows everybody", async () => {
+    const { root, mode } = await draw();
+    await mode("Whole family");
+    const svg = q("svg", root);
+    byText("button", "Fit", root).click();
+    const vb = () => svg.getAttribute("viewBox").split(" ").map(Number);
+    const under = (cx, cy) => {                         // preserveAspectRatio="xMidYMid meet", 400 x 300
+      const [x, y, w, h] = vb(), k = Math.max(w / 400, h / 300);
+      return [x + (cx - (400 - w / k) / 2) * k, y + (cy - (300 - h / k) / 2) * k];
+    };
+    const [x, y, w, h] = vb(), b = svg.bounds;
+    expect(x <= b.minX && y <= b.minY && x + w >= b.minX + b.w && y + h >= b.minY + b.h).toBe(true);
+    const before = under(50, 40);
+    // happy-dom's WheelEvent drops clientX/clientY, so they are set on the event itself.
+    const wheel = Object.defineProperties(new WheelEvent("wheel", { deltaY: -100, cancelable: true }), { clientX: { value: 50 }, clientY: { value: 40 } });
+    svg.dispatchEvent(wheel);
+    const after = under(50, 40);
+    expect(after[0]).toBeCloseTo(before[0]);
+    expect(after[1]).toBeCloseTo(before[1]);
+  });
+
   it("pans on drag and swallows the click that ends a drag", async () => {
     const { root, mode } = await draw(me(), "/app/tree/p1", { "GET /api/people/p1/media": { media: [], counts: {} } });
     await mode("Whole family");
