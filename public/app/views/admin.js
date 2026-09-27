@@ -146,7 +146,7 @@ const PANELS = {
         text: granting ? t("admin.accounts.grant") : t("admin.accounts.revoke"), hidden: self || !!a.disabled_at || shielded,
       });
       const disable = h("button", { class: "btn danger", type: "button", text: t("admin.accounts.disable"), hidden: self || !!a.disabled_at || shielded });
-      const enable = h("button", { class: "btn secondary", type: "button", text: t("admin.accounts.enable"), hidden: !a.disabled_at });
+      const enable = h("button", { class: "btn secondary", type: "button", text: t("admin.accounts.enable"), hidden: !a.disabled_at || shielded });
       const signout = h("button", { class: "btn secondary", type: "button", text: t("admin.accounts.signout"), hidden: !!a.disabled_at });
       role.onclick = () => {
         if (!confirm(t(granting ? "admin.accounts.grant_confirm" : "admin.accounts.revoke_confirm", { who }))) return;

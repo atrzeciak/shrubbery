@@ -90,7 +90,8 @@ holding a session or learning anything.
   gathering payload carries no e-mail either; the news feed names an account that has no person
   yet by its e-mail, and says which address accepted an invitation.
 - **The founder** (`accounts.founder`) is fixed: they cannot be demoted, only they may protect
-  another admin, and only their invitations speak in the first person.
+  another admin, and only their invitations speak in the first person. A protected admin can be
+  demoted, disabled or enabled again by the founder alone.
 - **An invitation may carry one document** already in the archive (`invitations.attachment_media_id`
   → a PDF in `media`, at most 3.5 MiB, so the mail stays under the provider's 5 MiB once base64 has
   grown it by a third). The bytes are read from R2 at send time, so a re-send carries the current file; if the document has

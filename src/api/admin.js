@@ -135,6 +135,7 @@ async function disableAccount(request, env, ctx, m) {
 async function enableAccount(request, env, ctx, m) {
   const { account } = await adminSession(request, env, true);
   const target = found(await q.accountById(env.DB, m[1]).first());
+  if (target.protected && !account.founder) throw new ApiError(403, "forbidden");            // undoing the founder's disable
   const now = nowSec();
   await env.DB.batch([
     q.enableAccount(env.DB, target.id),

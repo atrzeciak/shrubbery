@@ -269,6 +269,15 @@ describe("accounts", () => {
     expect(visible(row(root, "me@x.org"))).toEqual(["Sign out everywhere", "Link to person"]);
   });
 
+  it("offers to enable a disabled protected admin to the founder alone", async () => {
+    const off = { ...accounts[3], disabled_at: 5 };
+    const list = { "GET /api/admin/accounts": { accounts: [accounts[0], off, accounts[5]] } };
+    const other = await open("Accounts", list, viewCtx(meFixture({ account: { id: "acc6", role: "admin", founder: 0 } })));
+    expect(visible(row(other.root, "guard@x.org"))).not.toContain("Enable account");
+    const mine = await open("Accounts", list);
+    expect(visible(row(mine.root, "guard@x.org"))).toContain("Enable account");
+  });
+
   it("grants and revokes admin after naming the person in the confirmation", async () => {
     const { root, calls, ctx } = await open("Accounts", { "PATCH /api/admin/accounts/acc2": { ok: true }, "PATCH /api/admin/accounts/acc6": { ok: true } });
     confirm.mockReturnValueOnce(false);

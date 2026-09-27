@@ -197,6 +197,18 @@ describe("accounts", () => {
     expect(acts).toEqual(["protection_changed", "role_changed"]);
   });
 
+  // The founder disables a protected admin whose mailbox was taken over; nobody else may undo that.
+  it("only the founder may enable a protected admin again", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await seedAccount(env, { id: "a2", email: "second@x.org", role: "admin" });
+    await env.DB.prepare("UPDATE accounts SET protected = 1, disabled_at = 5 WHERE id = 'a2'").run();
+    expect((await c.json("/api/admin/accounts/a2/enable", { method: "POST", body: {} })).status).toBe(403);
+    expect((await q.accountById(env.DB, "a2").first()).disabled_at).toBe(5);
+    await env.DB.prepare("UPDATE accounts SET founder = 1 WHERE id = 'adm'").run();
+    expect((await c.json("/api/admin/accounts/a2/enable", { method: "POST", body: {} })).status).toBe(200);
+    expect((await q.accountById(env.DB, "a2").first()).disabled_at).toBeNull();
+  });
+
   it("the founder cannot be demoted or disabled, by anyone", async () => {
     const { c } = await adminWithFreshPasskey();
     await seedAccount(env, { id: "f0", email: "founder@x.org", role: "admin" });
