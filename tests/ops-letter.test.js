@@ -134,4 +134,22 @@ describe("the monthly letter", () => {
   it("falls back to Polish for a language it does not have", async () => {
     expect((await letter("de", KNOWN)).text).toContain("Cześć,");
   });
+
+  it("reaches the same verdict in both languages", async () => {
+    const rungs = {
+      pl: ["jest co zrobić", "sprawdź, czy wszystko się odnowiło", "strona paru rzeczy o sobie nie wie", "wszystko opłacone i sprawdzone"],
+      en: ["something needs doing", "check that everything renewed", "there are things the site cannot check", "everything is paid up and checked"],
+    };
+    const rung = (lang, subject) => rungs[lang].findIndex((r) => subject.endsWith(r));
+    const cases = [
+      { ...KNOWN, warnings: ["backup_stale"] },
+      { ...KNOWN, card_expires_at: AT - DAY },
+      { ...KNOWN, subscription_renews_at: null },
+      KNOWN,
+    ];
+    for (const [i, status] of cases.entries()) {
+      expect(rung("pl", (await letter("pl", status)).subject), `pl ${i}`).toBe(i);
+      expect(rung("en", (await letter("en", status)).subject), `en ${i}`).toBe(i);
+    }
+  });
 });

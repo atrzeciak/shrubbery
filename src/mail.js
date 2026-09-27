@@ -239,8 +239,19 @@ const OPS_WARNINGS = {
   },
 };
 
+// A date that has already gone by is never good news, even when no warning covers it. The monthly
+// subscription has no warning at all by design, so a payment that failed leaves nothing behind but
+// a renewal date in the past — and that must not be printed as an all-clear.
+function opsState(s, todo) {
+  const gone = (at) => at != null && at < s.at;
+  if (todo.length) return "todo";
+  if (gone(s.domain_expires_at) || gone(s.card_expires_at) || gone(s.subscription_renews_at)) return "overdue";
+  if (s.domain_expires_at == null || s.card_expires_at == null || s.subscription_renews_at == null) return "unknown";
+  return "ok";
+}
+
 const OPS_LETTERS = {
-  pl: (s) => {
+  pl: (s, state, todo) => {
     const date = (at) => new Intl.DateTimeFormat("pl", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(at * 1000));
     const days = (n) => `${n} ${plural(n, "pl", { one: "dzień", few: "dni", many: "dni", other: "dni" })}`;
     const left = (at) => Math.floor(at / 86400) - Math.floor(s.at / 86400);   // calendar days (UTC), not 24 h from 05:00
@@ -278,26 +289,20 @@ const OPS_LETTERS = {
         : `Ostatnią kopię zapasową pobrano ${date(s.backup_at)}, ${days(n)} temu.`);
     }
 
-    // A date that has already gone by is never good news, even when no warning covers it. The monthly
-    // subscription has no warning at all by design, so a payment that failed leaves nothing behind but
-    // a renewal date in the past — and that must not be printed under "wszystko opłacone".
-    const gone = (at) => at != null && at < s.at;
-    const overdue = gone(s.domain_expires_at) || gone(s.card_expires_at) || gone(s.subscription_renews_at);
-    const unknown = s.domain_expires_at == null || s.card_expires_at == null || s.subscription_renews_at == null;
-    const todo = s.warnings.map((w) => OPS_WARNINGS.pl[w]).filter(Boolean);
-    const verdict = todo.length
-      ? ["Co trzeba zrobić:", ...todo.flatMap((line) => ["", line])]
-      : overdue
-        ? ["Któraś z dat powyżej już minęła. Sprawdź w panelu Cloudflare i u rejestratora, czy wszystko na pewno się odnowiło — jeśli płatność się nie udała, nikt mi o tym nie powie."]
-        : unknown
-          ? ["Z tego, co umiem sprawdzić, nic nie wymaga uwagi. Ale tego, czego nie wiem — a napisałem o tym wyżej — nie sprawdzi za Ciebie nikt."]
-          : ["Wszystko jest opłacone, sprawdzone i nic nie wymaga uwagi."];
+    const verdict = {
+      todo: ["Co trzeba zrobić:", ...todo.flatMap((line) => ["", line])],
+      overdue: ["Któraś z dat powyżej już minęła. Sprawdź w panelu Cloudflare i u rejestratora, czy wszystko na pewno się odnowiło — jeśli płatność się nie udała, nikt mi o tym nie powie."],
+      unknown: ["Z tego, co umiem sprawdzić, nic nie wymaga uwagi. Ale tego, czego nie wiem — a napisałem o tym wyżej — nie sprawdzi za Ciebie nikt."],
+      ok: ["Wszystko jest opłacone, sprawdzone i nic nie wymaga uwagi."],
+    }[state];
 
     return {
-      subject: todo.length ? "Nasze Korzenie: jest co zrobić"
-        : overdue ? "Nasze Korzenie: sprawdź, czy wszystko się odnowiło"
-        : unknown ? "Nasze Korzenie: strona paru rzeczy o sobie nie wie"
-        : "Nasze Korzenie: wszystko opłacone i sprawdzone",
+      subject: {
+        todo: "Nasze Korzenie: jest co zrobić",
+        overdue: "Nasze Korzenie: sprawdź, czy wszystko się odnowiło",
+        unknown: "Nasze Korzenie: strona paru rzeczy o sobie nie wie",
+        ok: "Nasze Korzenie: wszystko opłacone i sprawdzone",
+      }[state],
       text: [
         "Cześć,",
         "",
@@ -322,7 +327,7 @@ const OPS_LETTERS = {
     };
   },
 
-  en: (s) => {
+  en: (s, state, todo) => {
     const date = (at) => new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(at * 1000));
     const days = (n) => `${n} ${plural(n, "en", { one: "day", other: "days" })}`;
     const left = (at) => Math.floor(at / 86400) - Math.floor(s.at / 86400);   // calendar days (UTC), not 24 h from 05:00
@@ -360,24 +365,20 @@ const OPS_LETTERS = {
         : `The last backup was downloaded on ${date(s.backup_at)}, ${days(n)} ago.`);
     }
 
-    // See the Polish builder: a date already in the past is never an all-clear, warning or no warning.
-    const gone = (at) => at != null && at < s.at;
-    const overdue = gone(s.domain_expires_at) || gone(s.card_expires_at) || gone(s.subscription_renews_at);
-    const unknown = s.domain_expires_at == null || s.card_expires_at == null || s.subscription_renews_at == null;
-    const todo = s.warnings.map((w) => OPS_WARNINGS.en[w]).filter(Boolean);
-    const verdict = todo.length
-      ? ["What needs doing:", ...todo.flatMap((line) => ["", line])]
-      : overdue
-        ? ["One of the dates above has already passed. Check the Cloudflare dashboard and the registrar that everything really did renew — if a payment failed, nobody will tell me about it."]
-        : unknown
-          ? ["Of what I can check, nothing needs attention. But what I do not know — and I have said so above — nobody will check for you."]
-          : ["Everything is paid up, checked, and nothing needs attention."];
+    const verdict = {
+      todo: ["What needs doing:", ...todo.flatMap((line) => ["", line])],
+      overdue: ["One of the dates above has already passed. Check the Cloudflare dashboard and the registrar that everything really did renew — if a payment failed, nobody will tell me about it."],
+      unknown: ["Of what I can check, nothing needs attention. But what I do not know — and I have said so above — nobody will check for you."],
+      ok: ["Everything is paid up, checked, and nothing needs attention."],
+    }[state];
 
     return {
-      subject: todo.length ? "Our Roots: something needs doing"
-        : overdue ? "Our Roots: check that everything renewed"
-        : unknown ? "Our Roots: there are things the site cannot check"
-        : "Our Roots: everything is paid up and checked",
+      subject: {
+        todo: "Our Roots: something needs doing",
+        overdue: "Our Roots: check that everything renewed",
+        unknown: "Our Roots: there are things the site cannot check",
+        ok: "Our Roots: everything is paid up and checked",
+      }[state],
       text: [
         "Hello,",
         "",
@@ -404,7 +405,9 @@ const OPS_LETTERS = {
 };
 
 export async function sendOpsLetter(env, to, lang, status) {
-  const { subject, text } = (OPS_LETTERS[lang] || OPS_LETTERS.pl)(status);
+  const l = OPS_LETTERS[lang] ? lang : "pl";
+  const todo = status.warnings.map((w) => OPS_WARNINGS[l][w]).filter(Boolean);
+  const { subject, text } = OPS_LETTERS[l](status, opsState(status, todo), todo);
   await deliver(env, { to, from: { email: familyFrom(env), name: familyName(lang) }, subject, text });
 }
 
