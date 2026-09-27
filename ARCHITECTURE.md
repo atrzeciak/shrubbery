@@ -78,8 +78,11 @@ holding a session or learning anything.
 
 - **Two ways in:** a one-time code by mail, or a passkey (WebAuthn, verified in-house in
   `src/auth/webauthn.js` — no library). Sessions are opaque tokens in an `HttpOnly` cookie.
-- **Step-up:** destructive admin routes require a *fresh* passkey assertion, not merely an admin
-  role (`requireAdmin`). Administrative-but-not-destructive routes use `requireRole`. Routes reach
+- **Step-up:** admin writes require a *fresh* passkey assertion, one from the last ten minutes, not
+  merely an admin role (`requireAdmin`). Only the administrative-but-not-destructive ones use
+  `requireRole`: creating and editing a gathering and answering for a relative, and uploading,
+  captioning, tagging or moving anyone's file. Announcing, nudging and deleting a gathering, and
+  deleting a file the admin neither uploaded nor owns, are destructive and take the passkey. Routes reach
   both through `adminSession(request, env, write)` in `src/api/common.js`. An admin's first
   passkey is the one exception: step-up needs a passkey, so adding the first needs none.
 - **Privacy is editorial, not technical.** Everyone signed in sees everything; nothing sensitive is

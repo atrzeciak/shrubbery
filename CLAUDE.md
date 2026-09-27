@@ -94,5 +94,6 @@ screenshots/    images the README embeds; invented families only, never real dat
 - **Warnings are recomputed on read, never trusted from storage.** A row that froze when a cron died
   must not keep reading as calm.
 - **History is an append-only log.** Deleting a thing does not delete the record that it existed.
-- **Admin write routes require a fresh passkey** (`requireAdmin`); routes that are merely
-  administrative rather than destructive use `requireRole`.
+- **Admin write routes require a fresh passkey** (`requireAdmin`); the few that are merely
+  administrative rather than destructive (arranging a gathering; uploading, captioning, tagging or
+  moving a file) use `requireRole`.

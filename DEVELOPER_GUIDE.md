@@ -40,8 +40,10 @@ npx wrangler d1 execute <your-database> --remote --command \
    VALUES ('$(openssl rand -hex 8)', 'you@example.org', 'admin', 'pl', strftime('%s','now'), 1, 1)"
 ```
 
-Then sign in with a login code and add a passkey. Admin write routes need a fresh passkey, so
-without one you can read the admin screens but change nothing.
+Then sign in with a login code and add a passkey. Admin writes need a passkey used in the last ten
+minutes; without one you can read the admin screens, arrange a gathering and caption, tag or move
+files, but not invite, change accounts, edit the tree, write to the family, delete what others
+added, or take a backup.
 
 ### Secrets
 

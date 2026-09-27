@@ -79,8 +79,9 @@ the file you are in rather than reformatting it.
 - **Warnings are recomputed on read, never trusted from storage.** A row that froze when a cron
   died must not keep reading as calm.
 - **History is an append-only log.** Deleting a thing does not delete the record that it existed.
-- **Admin write routes require a fresh passkey** (`requireAdmin`). Routes that are merely
-  administrative rather than destructive use `requireRole`. `adminSession(request, env, write)` in
+- **Admin write routes require a fresh passkey** (`requireAdmin`). The few that are merely
+  administrative rather than destructive (arranging a gathering; uploading, captioning, tagging or
+  moving a file) use `requireRole`. `adminSession(request, env, write)` in
   `src/api/common.js` applies one or the other; if you add a route, decide which it is.
 - **Comments explain why, not what.** The what is in the code underneath them.
 
