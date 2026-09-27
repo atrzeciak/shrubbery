@@ -57,6 +57,16 @@ describe("runOps", () => {
     expect(sent.find((m) => m.to === "second@x.org").text).toContain("went to 2 people");
   });
 
+  it("tells the admins when the last backup download died partway", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const good = SEP_1.getTime() / 1000 - 20 * 86400;
+    await env.DB.prepare("UPDATE ops_status SET backup_at = ?, backup_failed_at = ? WHERE id = 1").bind(good, good + 86400).run();
+    await runOps(env, SEP_1, noFetch);
+    const row = await env.DB.prepare("SELECT warnings FROM ops_status WHERE id = 1").first();
+    expect(JSON.parse(row.warnings)).toContain("backup_failed");
+    expect(sent[0].text).toContain("nie doszło do końca");
+  });
+
   it("sends the letter once when the trigger fires twice on the first", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     await runOps(env, SEP_1, noFetch);

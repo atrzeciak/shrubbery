@@ -23,6 +23,7 @@ export async function runOps(env, now = new Date(), fetchImpl = fetch) {
     const status = {
       checked_at: at,                 // this run is the check, so warningsFor never calls it stale here
       backup_at: previous.backup_at ?? null,
+      backup_failed_at: previous.backup_failed_at ?? null,
       domain_expires_at: domainRenewsAt(env.DOMAIN_RENEWS_AT),
       card_expires_at: billing.card_expires_at,
       subscription_renews_at: billing.subscription_renews_at,
