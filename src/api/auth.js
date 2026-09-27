@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { clientIp, cookie, ipPrefix, json, nowSec, randomB64url, readCookie } from "../util.js";
-import { hashIp, historyStmt } from "../history.js";
+import { hashIp, historyStmt, requestHistory } from "../history.js";
 import { allow } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
 import { clearSessionCookie, prepareSession, resolveSession, sessionCookie } from "../auth/sessions.js";
@@ -179,7 +179,7 @@ async function postLogout(request, env) {
     const now = nowSec();
     await env.DB.batch([
       q.revokeSession(env.DB, r.session.id, r.account.id, now),
-      historyStmt(env.DB, { actor: r.account.id, action: "session_revoked", targetType: "account", targetId: r.account.id, details: { self: true }, ipHash: await hashIp(env, clientIp(request), now) }),
+      await requestHistory(env, request, { actor: r.account.id, action: "session_revoked", targetType: "account", targetId: r.account.id, details: { self: true } }, now),
     ]);
   }
   // Photos and documents are cached for a day; a shared computer must not keep serving them once signed out.

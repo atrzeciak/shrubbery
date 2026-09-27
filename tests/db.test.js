@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
-import { historyStmt, historyStmtIfPasskeyGone, hashIp } from "../src/history.js";
+import { historyStmt, historyStmtIfPasskeyGone, hashIp, requestHistory } from "../src/history.js";
 import { resetDb, seedPerson, seedAccount } from "./helpers/env.js";
 
 const db = env.DB;
@@ -76,6 +76,13 @@ describe("queries", () => {
     expect(a).toMatch(/^[0-9a-f]{64}$/);
     const env2 = { IP_HASH_SECRET: "other" };
     expect(await hashIp(env2, "203.0.113.5", T)).not.toBe(a);
+  });
+
+  it("requestHistory stamps the row with the time and the day's hash of the caller's address", async () => {
+    const request = new Request("https://x/", { headers: { "cf-connecting-ip": "203.0.113.5" } });
+    await (await requestHistory(env, request, { actor: "a1", action: "login", targetType: "account", targetId: "a1", details: { k: 1 } }, T)).run();
+    const row = await db.prepare("SELECT at, ip_hash, details FROM history").first();
+    expect(row).toEqual({ at: T, ip_hash: await hashIp(env, "203.0.113.5", T), details: '{"k":1}' });
   });
 
   it("0002: people tables exist and accounts.person_id is unique", async () => {

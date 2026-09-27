@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { clientIp, cookie, ipPrefix, json, nowSec, randomB64url, readCookie } from "../util.js";
-import { hashIp, historyStmt } from "../history.js";
+import { requestHistory } from "../history.js";
 import { allow } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
 import { sendCode, sendInvitation, sendJoinNotice } from "../mail.js";
@@ -32,7 +32,7 @@ function cleanForm(body) {
 }
 
 async function joinHistory(request, env, action, id, details, now, actor = null) {
-  return historyStmt(env.DB, { actor, action, targetType: "join_request", targetId: id, details, ipHash: await hashIp(env, clientIp(request), now) }, now);
+  return requestHistory(env, request, { actor, action, targetType: "join_request", targetId: id, details }, now);
 }
 
 async function notifyAdmins(env, name, auto) {

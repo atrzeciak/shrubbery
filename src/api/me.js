@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url, readCookie } from "../util.js";
-import { hashIp, historyStmt, historyStmtIfPasskeyGone } from "../history.js";
+import { hashIp, historyStmtIfPasskeyGone, requestHistory } from "../history.js";
 import { clearSessionCookie } from "../auth/sessions.js";
 import { verifyRegistration, WebAuthnError } from "../auth/webauthn.js";
 import { ApiError, appOrigin, readJson, requireAdmin, requireSession, rpIdOf, siteTz } from "./common.js";
@@ -8,7 +8,7 @@ import { CHALLENGE_COOKIE, clearChallenge, takeChallenge } from "./auth.js";
 import { domainRenewsAt, warningsFor } from "../ops/checks.js";
 
 async function ownHistory(request, env, account, action, details, now) {
-  return historyStmt(env.DB, { actor: account.id, action, targetType: "account", targetId: account.id, details, ipHash: await hashIp(env, clientIp(request), now) }, now);
+  return requestHistory(env, request, { actor: account.id, action, targetType: "account", targetId: account.id, details }, now);
 }
 
 async function ownHistoryIfPasskeyGone(request, env, account, action, details, passkeyId, now) {

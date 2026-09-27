@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
-import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { hashIp, historyStmt } from "../history.js";
+import { json, nowSec, randomB64url } from "../util.js";
+import { requestHistory } from "../history.js";
 import { sendAdminGranted, sendInvitation } from "../mail.js";
 import { ApiError, found, EMAIL_RE, accountIdentity, adminSession, INVITE_TTL, adminEmails, normEmail, readJson } from "./common.js";
 import { ATTACHMENT_MAX_BYTES, documentAttachment } from "./attachment.js";
@@ -14,7 +14,7 @@ async function listDocuments(request, env) {
 }
 
 async function adminHistory(request, env, actor, action, targetType, targetId, details, now) {
-  return historyStmt(env.DB, { actor: actor.id, action, targetType, targetId, details, ipHash: await hashIp(env, clientIp(request), now) }, now);
+  return requestHistory(env, request, { actor: actor.id, action, targetType, targetId, details }, now);
 }
 
 async function listInvitations(request, env) {

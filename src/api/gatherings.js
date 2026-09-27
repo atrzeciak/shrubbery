@@ -1,8 +1,8 @@
 import * as q from "../db/queries.js";
 import { isDate } from "../people/fields.js";
-import { clientIp, json, nowSec, randomB64url } from "../util.js";
+import { json, nowSec, randomB64url } from "../util.js";
 import { ApiError, found, INVITE_TTL, accountIdentity, adminSession, normEmail, readJson, requireSession, siteTz } from "./common.js";
-import { hashIp, historyStmt } from "../history.js";
+import { requestHistory } from "../history.js";
 import { today as dayIn } from "../../public/app/events.js";
 import { sendGatheringMail } from "../mail.js";
 
@@ -54,10 +54,9 @@ async function createGathering(request, env) {
       id, onDate: body.on_date, place: text(body.place, 120), note: text(body.note, 500),
       createdBy: account.id, createdAt: now,
     }),
-    historyStmt(env.DB, {
+    await requestHistory(env, request, {
       actor: account.id, action: "gathering_created", targetType: "gathering", targetId: id,
       details: { on_date: body.on_date, place: text(body.place, 120) },
-      ipHash: await hashIp(env, clientIp(request), now),
     }, now),
   ]);
   return json({ id }, 201);
@@ -81,10 +80,9 @@ async function patchGathering(request, env, ctx, m) {
   const now = nowSec();
   await env.DB.batch([
     q.updateGathering(env.DB, m[1], g),
-    historyStmt(env.DB, {
+    await requestHistory(env, request, {
       actor: account.id, action: "gathering_updated", targetType: "gathering", targetId: m[1],
       details: { on_date: g.onDate, place: g.place, cancelled: Boolean(cancelledAt) },
-      ipHash: await hashIp(env, clientIp(request), now),
     }, now),
   ]);
   return json({ ok: true });
@@ -110,10 +108,9 @@ async function answerFor(request, env, gatheringId, personId, account) {
   const now = nowSec();
   await env.DB.batch([
     q.setRsvp(env.DB, { gatheringId, personId, ...answer, answeredBy: account.id, answeredAt: now }),
-    historyStmt(env.DB, {
+    await requestHistory(env, request, {
       actor: account.id, action: "rsvp_answered", targetType: "person", targetId: personId,
       details: { name: person.display_name, coming: answer.coming, headcount: answer.headcount },
-      ipHash: await hashIp(env, clientIp(request), now),
     }, now),
   ]);
   return json({ ok: true });
@@ -129,10 +126,9 @@ async function deleteGathering(request, env, ctx, m) {
   await env.DB.batch([
     q.deleteRsvpsFor(env.DB, m[1]),
     q.deleteGathering(env.DB, m[1]),
-    historyStmt(env.DB, {
+    await requestHistory(env, request, {
       actor: account.id, action: "gathering_deleted", targetType: "gathering", targetId: m[1],
       details: { on_date: gathering.on_date, place: gathering.place },
-      ipHash: await hashIp(env, clientIp(request), now),
     }, now),
   ]);
   return json({ ok: true });
@@ -175,11 +171,10 @@ async function mailOut(request, env, m, { mark, recipients, kind }) {
       console.error(e);           // one dead mailbox must not silence the rest of the family
     }
   }
-  await historyStmt(env.DB, {
+  await (await requestHistory(env, request, {
     actor: account.id, action: `gathering_${kind === "nudge" ? "nudged" : "announced"}`,
     targetType: "gathering", targetId: m[1], details: { sent },
-    ipHash: await hashIp(env, clientIp(request), now),
-  }, now).run();
+  }, now)).run();
   return json({ sent });
 }
 

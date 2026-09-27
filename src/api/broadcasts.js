@@ -1,8 +1,8 @@
 import * as q from "../db/queries.js";
-import { clientIp, json, nowSec, randomB64url } from "../util.js";
+import { json, nowSec, randomB64url } from "../util.js";
 import { ApiError, INVITE_TTL, accountIdentity, adminSession, normEmail, readJson } from "./common.js";
 import { documentAttachment } from "./attachment.js";
-import { hashIp, historyStmt } from "../history.js";
+import { requestHistory } from "../history.js";
 import { sendBroadcast } from "../mail.js";
 
 const GROUPS = ["accounts", "invited", "others"];
@@ -97,9 +97,9 @@ async function sendMessage(request, env) {
       id, subject, body: message, groups: JSON.stringify(groups),
       attachmentMediaId, sentBy: account.id, sentAt: now, sentCount: sent,
     }),
-    historyStmt(env.DB, {
+    await requestHistory(env, request, {
       actor: account.id, action: "broadcast_sent", targetType: "broadcast", targetId: id,
-      details: { subject, groups, sent }, ipHash: await hashIp(env, clientIp(request), now),
+      details: { subject, groups, sent },
     }, now),
   ]);
   return json({ sent, id });

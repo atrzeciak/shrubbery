@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
-import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { hashIp, historyStmt } from "../history.js";
+import { json, nowSec, randomB64url } from "../util.js";
+import { requestHistory } from "../history.js";
 import { cleanPersonInput, displayNameOf, PARTNER_KINDS } from "../people/fields.js";
 import { ApiError, adminSession, found, readJson } from "./common.js";
 import { personHistory, personOr404, savePersonPatch, storeAvatar } from "./people.js";
@@ -146,7 +146,7 @@ async function linkAccount(request, env, ctx, m) {
   await env.DB.batch([
     q.linkAccountPerson(env.DB, target.id, person.id),
     q.updatePerson(env.DB, person.id, { email: target.email }, now, account.id),
-    historyStmt(env.DB, { actor: account.id, action: "account_linked", targetType: "account", targetId: target.id, details: { email: target.email, person_id: person.id, name: person.display_name }, ipHash: await hashIp(env, clientIp(request), now) }, now),
+    await requestHistory(env, request, { actor: account.id, action: "account_linked", targetType: "account", targetId: target.id, details: { email: target.email, person_id: person.id, name: person.display_name } }, now),
   ]);
   return json({ ok: true });
 }
@@ -158,7 +158,7 @@ async function unlinkAccount(request, env, ctx, m) {
   const now = nowSec();
   await env.DB.batch([
     q.linkAccountPerson(env.DB, target.id, null),
-    historyStmt(env.DB, { actor: account.id, action: "account_unlinked", targetType: "account", targetId: target.id, details: { email: target.email, person_id: target.person_id }, ipHash: await hashIp(env, clientIp(request), now) }, now),
+    await requestHistory(env, request, { actor: account.id, action: "account_unlinked", targetType: "account", targetId: target.id, details: { email: target.email, person_id: target.person_id } }, now),
   ]);
   return json({ ok: true });
 }

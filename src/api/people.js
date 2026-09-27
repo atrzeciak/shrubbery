@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
-import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { hashIp, historyStmt } from "../history.js";
+import { json, nowSec, randomB64url } from "../util.js";
+import { requestHistory } from "../history.js";
 import { cleanPersonInput, displayNameOf } from "../people/fields.js";
 import { jpegSize } from "../people/jpeg.js";
 import { ApiError, found, canCurate, readBody, readJson, requireSession } from "./common.js";
@@ -9,7 +9,7 @@ export const AVATAR_MAX_BYTES = 204800;
 export const AVATAR_MAX_SIDE = 512;
 
 export async function personHistory(request, env, actorId, action, personId, details, now) {
-  return historyStmt(env.DB, { actor: actorId, action, targetType: "person", targetId: personId, details, ipHash: await hashIp(env, clientIp(request), now) }, now);
+  return requestHistory(env, request, { actor: actorId, action, targetType: "person", targetId: personId, details }, now);
 }
 
 
