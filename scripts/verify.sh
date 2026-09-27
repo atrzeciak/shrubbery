@@ -44,11 +44,12 @@ check_no_runtime_deps() {
 }
 
 check_relative_imports() {
-  # Served modules may import only relative paths — no bare specifiers, no URLs.
+  # The app and the Worker may import only relative paths — no bare specifiers, no URLs. Wrangler would
+  # bundle any package src/ names, devDependencies included, as a runtime dependency nobody declared.
   local bad
   bad=$(grep -rhoE "(^|[^a-zA-Z_])import[^;]*from[[:space:]]*['\"][^'\"]+['\"]|import\(['\"][^'\"]+['\"]\)" \
-        --include='*.js' "$PUBLIC" 2>/dev/null | grep -vE "['\"]\.\.?/" || true)
-  [[ -z "$bad" ]] || { printf '%s\n' "$bad" >&2; fail "non-relative import in served JS"; }
+        --include='*.js' "$PUBLIC" src 2>/dev/null | grep -vE "['\"]\.\.?/" || true)
+  [[ -z "$bad" ]] || { printf '%s\n' "$bad" >&2; fail "non-relative import in public/ or src/"; }
 }
 
 check_no_external_requests() {
