@@ -79,6 +79,17 @@ describe("runDaily", () => {
     await runDaily(env, NOW);
     expect(sent.find((m) => m.subject.includes("Mama")).subject).toMatch(/birthday/i);
   });
+  it("records each reminder as soon as it is sent, so a run that dies partway repeats nothing", async () => {
+    await family();
+    const rowsAtSend = [];
+    const counting = { ...env, EMAIL: { async send() {
+      rowsAtSend.push((await env.DB.prepare("SELECT COUNT(*) AS n FROM history WHERE action = 'event_notice_sent'").first()).n);
+      return { messageId: "m" };
+    } } };
+    await runDaily(counting, NOW);
+    expect(rowsAtSend).toEqual([0, 1]);
+  });
+
   it("keeps sending after one mail fails, and records history only for the successful ones", async () => {
     await family();
     let calls = 0;

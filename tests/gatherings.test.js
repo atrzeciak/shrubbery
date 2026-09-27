@@ -332,6 +332,20 @@ describe("telling the family about it", () => {
     expect(sent).toHaveLength(2);
   });
 
+  it("records each gathering reminder as soon as it is sent, not after the last", async () => {
+    await reachable();
+    const adm = await admin();
+    await makeGathering(adm);
+    await q.linkAccountPerson(env.DB, "adm", "p_ola").run();         // a second reader with the reminders on
+    const rowsAtSend = [];
+    const counting = { ...env, EMAIL: { async send() {
+      rowsAtSend.push((await env.DB.prepare("SELECT COUNT(*) AS n FROM history WHERE action = 'gathering_notice_sent'").first()).n);
+      return { messageId: "m" };
+    } } };
+    await gatheringReminders(counting, new Date("2027-06-05T05:00:00Z"));
+    expect(rowsAtSend).toEqual([0, 1]);
+  });
+
   it("says nothing on any other day, and nothing to somebody who switched reminders off", async () => {
     await reachable();
     const adm = await admin();

@@ -29,7 +29,8 @@ export async function runDaily(env, now = new Date()) {
     try { d = JSON.parse(row.details) || {}; } catch { continue; }
     alreadySent.add(`${row.target_id}|${d.to_account}|${d.in_days}`);
   }
-  const stmts = [];
+  // Each row goes in straight after its mail: a run that dies partway, or a second run that starts
+  // while this one is still going, then finds every mail already sent.
   for (const ev of events) for (const a of accounts) {
     if (!scope.inScope(ev.person_id, a.person_id, ev.type)) continue;
     if (alreadySent.has(`${ev.person_id}|${a.id}|${ev.inDays}`)) continue;
@@ -41,9 +42,8 @@ export async function runDaily(env, now = new Date()) {
       continue;
     }
     alreadySent.add(`${ev.person_id}|${a.id}|${ev.inDays}`);
-    stmts.push(historyStmt(db, { actor: null, action: "event_notice_sent", targetType: "person", targetId: ev.person_id, details: { type: ev.type, name: p.display_name, to_account: a.id, in_days: ev.inDays }, ipHash: null }, at));
+    await historyStmt(db, { actor: null, action: "event_notice_sent", targetType: "person", targetId: ev.person_id, details: { type: ev.type, name: p.display_name, to_account: a.id, in_days: ev.inDays }, ipHash: null }, at).run();
   }
-  if (stmts.length) await db.batch(stmts);
 }
 
 // The gathering's own reminders: a week before and on the day. Same opt-in and the same guard as the
@@ -67,7 +67,6 @@ export async function gatheringReminders(env, now = new Date()) {
       try { d = JSON.parse(row.details) || {}; } catch { continue; }
       already.add(`${row.target_id}|${d.to_account}|${d.in_days}`);
     }
-    const stmts = [];
     for (const a of accounts) {
       const key = `${gathering.id}|${a.id}|${days}`;
       if (already.has(key)) continue;
@@ -78,12 +77,11 @@ export async function gatheringReminders(env, now = new Date()) {
         continue;
       }
       already.add(key);
-      stmts.push(historyStmt(db, {
+      await historyStmt(db, {
         actor: null, action: "gathering_notice_sent", targetType: "gathering", targetId: gathering.id,
         details: { to_account: a.id, in_days: days }, ipHash: null,
-      }, at));
+      }, at).run();
     }
-    if (stmts.length) await db.batch(stmts);
   } catch (e) {
     console.error(e);            // reminders must never take the rest of the nightly run with them
   }
