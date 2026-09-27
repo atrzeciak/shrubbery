@@ -52,7 +52,8 @@ const PANELS = {
     }
     panel.append(h("h2", { text: t("admin.requests.title") }), reqList, h("h2", { text: t("admin.tab.invitations") }));
     const email = h("input", { type: "email", required: true, id: "inv-email", autocomplete: "off" });
-    const byEmail = (v) => { const e = v.trim().toLowerCase(); return e ? g.people.find((p) => p.email === e) : undefined; };
+    // The first login links the earliest person with the address (personByEmail); the hint names that one too.
+    const byEmail = (v) => { const e = v.trim().toLowerCase(); return e ? g.people.filter((p) => p.email === e).sort((a, b) => a.created_at - b.created_at)[0] : undefined; };
     const match = h("div", { class: "muted", id: "inv-match", hidden: true });
     email.oninput = () => {
       const e = email.value.trim(), p = byEmail(e);

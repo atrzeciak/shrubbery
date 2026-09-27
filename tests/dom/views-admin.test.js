@@ -184,6 +184,17 @@ describe("invitations: sending and managing", () => {
     expect(ctx.toast).toHaveBeenCalledWith("Invitation sent.");
   });
 
+  // The first login links whoever with that address was created first; the hint must name the same person.
+  it("names the person created first when two share the address, as the first login will", async () => {
+    const couple = [
+      { id: "c1", display_name: "Anna Adamska", email: "home@x.org", created_at: 20, account_id: null },
+      { id: "c2", display_name: "Zbigniew Adamski", email: "home@x.org", created_at: 10, account_id: null },
+    ];
+    const { root } = await open("Invitations", { "GET /api/people": { ...graph, people: [...people, ...couple] } });
+    type(q("#inv-email", root), "home@x.org");
+    expect(q("#inv-match", root).textContent).toBe("Will be linked to Zbigniew Adamski");
+  });
+
   it("names the person the address will link to as it is typed", async () => {
     const { root } = await open("Invitations");
     const hint = q("#inv-match", root);
