@@ -97,6 +97,15 @@ describe("code request step", () => {
     expect((await noNonce.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status).toBe(400);
   });
 
+  it("limits one address even when every request comes from a different IP", async () => {
+    await seedAccount(env, { id: "a1", email: "a@x.org" });
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    const from = async (i) => { c.ip = `198.51.100.${i}`; return (await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status; };
+    for (let i = 1; i <= 5; i++) expect(await from(i)).toBe(200);
+    expect(await from(6)).toBe(429);
+  });
+
   it("requests refused for their IP do not spend the address's budget", async () => {
     await seedAccount(env, { id: "b1", email: "b@x.org", lang: "en" });
     const c = new Client(env);

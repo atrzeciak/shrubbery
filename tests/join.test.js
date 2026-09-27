@@ -73,6 +73,13 @@ describe("join request", () => {
     expect((await c.json("/api/join/request", { method: "POST", body: FORM })).status).toBe(429);
   });
 
+  it("limits one address even when every request comes from a different IP", async () => {
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const from = async (i) => { const c = new Client(env); c.ip = `198.51.100.${i}`; return (await c.json("/api/join/request", { method: "POST", body: FORM })).status; };
+    for (let i = 1; i <= 3; i++) expect(await from(i)).toBe(200);
+    expect(await from(4)).toBe(429);
+  });
+
   it("counts an IPv6 /64 as one address", async () => {
     await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
     const from = async (ip, i) => {
