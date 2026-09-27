@@ -14,7 +14,3 @@ export function historyStmt(db, { actor, action, targetType, targetId, details, 
 export function historyStmtIfPasskeyGone(db, { actor, action, targetType, targetId, details, ipHash }, passkeyId, at = nowSec()) {
   return insertHistoryIfPasskeyGone(db, { at, actor, action, targetType, targetId, details: JSON.stringify(details ?? {}), ipHash }, passkeyId);
 }
-
-export async function record(db, entry) {
-  await historyStmt(db, entry).run();
-}

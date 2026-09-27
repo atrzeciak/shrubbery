@@ -1,6 +1,6 @@
 import * as q from "../db/queries.js";
 import { isDate } from "../people/fields.js";
-import { clientIp, json, nowSec, randomB64url, randomB64url as inviteId } from "../util.js";
+import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { ApiError, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
 import { hashIp, historyStmt } from "../history.js";
 import { today as dayIn } from "../../public/app/events.js";
@@ -174,7 +174,7 @@ async function mailOut(request, env, m, { mark, recipients, kind }) {
       const invitation = reader ? null : await q.activeInvitationByEmail(env.DB, person.email, now).first();
       if (!reader && !invitation) {
         await q.insertInvitation(env.DB, {
-          id: inviteId(16), email: person.email, lang: "pl", invitedBy: account.id,
+          id: randomB64url(16), email: person.email, lang: "pl", invitedBy: account.id,
           createdAt: now, expiresAt: now + INVITE_TTL,
         }).run();
       }

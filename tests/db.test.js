@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
-import { historyStmt, historyStmtIfPasskeyGone, record, hashIp } from "../src/history.js";
+import { historyStmt, historyStmtIfPasskeyGone, hashIp } from "../src/history.js";
 import { resetDb, seedPerson, seedAccount } from "./helpers/env.js";
 
 const db = env.DB;
@@ -59,11 +59,6 @@ describe("queries", () => {
     await db.batch([historyStmtIfPasskeyGone(db, entry, "p1", T)]);
     expect((await db.prepare("SELECT COUNT(*) AS n FROM history").first()).n).toBe(0);
     await db.batch([q.deletePasskey(db, "p1", "a1"), historyStmtIfPasskeyGone(db, entry, "p1", T)]);
-    expect((await db.prepare("SELECT COUNT(*) AS n FROM history").first()).n).toBe(1);
-  });
-
-  it("record() writes one row", async () => {
-    await record(db, { actor: null, action: "login_failed", targetType: "email", targetId: "e", details: {}, ipHash: "h" });
     expect((await db.prepare("SELECT COUNT(*) AS n FROM history").first()).n).toBe(1);
   });
 

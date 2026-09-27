@@ -7,10 +7,8 @@ export const yearOf = (d) => (d ? Number(String(d).replace("~", "").slice(0, 4))
 
 export const TEXT_LIMITS = { first_name: 80, last_name: 80, maiden_name: 80, nickname: 80, birth_place: 120, death_place: 120, phone: 40, residence: 120, notes: 4000 };
 export const DATE_FIELDS = ["birth_date", "death_date"];
-export const FLAG_FIELDS = ["deceased"];
 export const LINK_KINDS = ["instagram", "facebook", "linkedin", "other"];
 export const PARTNER_KINDS = ["married", "partner", "divorced"];
-export const PERSON_COLUMNS = [...Object.keys(TEXT_LIMITS), ...DATE_FIELDS, "sex", "email", "deceased", "unverified"];
 
 const bad = () => { throw new ApiError(400, "bad_request"); };
 const str = (v, max) => {
