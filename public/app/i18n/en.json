@@ -379,6 +379,7 @@
   "news.gathering_created": "{actor} arranged a family gathering for {date}",
   "news.rsvp_answered": "{actor} recorded an answer: {name}",
   "news.gathering_deleted": "{actor} deleted the family gathering of {date}",
+  "news.gathering_updated": "{actor} changed the family gathering",
   "gathering.admin.delete": "Delete the gathering",
   "gathering.admin.delete.confirm": "Delete this gathering and every answer to it? This cannot be undone.",
   "gathering.admin.announce": "Send the invitations",

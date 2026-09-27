@@ -379,6 +379,7 @@
   "news.gathering_created": "{actor} ustalił(a) spotkanie rodzinne na {date}",
   "news.rsvp_answered": "{actor} zapisał(a) odpowiedź: {name}",
   "news.gathering_deleted": "{actor} usunął(-ęła) spotkanie rodzinne z {date}",
+  "news.gathering_updated": "{actor} zmienił(a) spotkanie rodzinne",
   "gathering.admin.delete": "Usuń spotkanie",
   "gathering.admin.delete.confirm": "Usunąć to spotkanie razem z odpowiedziami? Tego nie da się cofnąć.",
   "gathering.admin.announce": "Wyślij zaproszenia",

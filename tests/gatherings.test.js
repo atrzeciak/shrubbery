@@ -54,6 +54,16 @@ describe("gatherings", () => {
     expect((await new Client(env).json("/api/gatherings")).status).toBe(401);
   });
 
+  it("records who changed or cancelled a gathering", async () => {
+    await family();
+    const adm = await admin();
+    const id = await makeGathering(adm);
+    await adm.json(`/api/admin/gatherings/${id}`, { method: "PATCH", body: { cancelled: 1 } });
+    const row = await env.DB.prepare("SELECT actor_account_id AS actor, details FROM history WHERE action = 'gathering_updated' AND target_id = ?").bind(id).first();
+    expect(row.actor).toBe("adm");
+    expect(JSON.parse(row.details)).toMatchObject({ on_date: "2027-06-12", cancelled: true });
+  });
+
   it("an edit can empty the place and the note; a field left out keeps its value", async () => {
     await family();
     const adm = await admin();

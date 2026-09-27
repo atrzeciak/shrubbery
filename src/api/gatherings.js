@@ -68,7 +68,7 @@ async function createGathering(request, env) {
 }
 
 async function patchGathering(request, env, ctx, m) {
-  await adminCtx(request, env);
+  const { account } = await adminCtx(request, env);
   const gathering = await q.gatheringById(env.DB, m[1]).first();
   if (!gathering) throw new ApiError(404, "not_found");
   const body = await readJson(request);
@@ -77,12 +77,21 @@ async function patchGathering(request, env, ctx, m) {
     ? (body.cancelled ? (gathering.cancelled_at ?? nowSec()) : null)
     : gathering.cancelled_at;
   // Final values, not patches: an emptied field must be able to become null.
-  await q.updateGathering(env.DB, m[1], {
+  const g = {
     onDate: "on_date" in body ? body.on_date : gathering.on_date,
     place: "place" in body ? text(body.place, 120) : gathering.place,
     note: "note" in body ? text(body.note, 500) : gathering.note,
     cancelledAt,
-  }).run();
+  };
+  const now = nowSec();
+  await env.DB.batch([
+    q.updateGathering(env.DB, m[1], g),
+    historyStmt(env.DB, {
+      actor: account.id, action: "gathering_updated", targetType: "gathering", targetId: m[1],
+      details: { on_date: g.onDate, place: g.place, cancelled: Boolean(cancelledAt) },
+      ipHash: await hashIp(env, clientIp(request), now),
+    }, now),
+  ]);
   return json({ ok: true });
 }
 

@@ -5,7 +5,7 @@ import { beforeIdOf, historyPage } from "./admin.js";
 
 const PAGE = 30;
 // What non-admins see in the feed. Later sub-projects add their content actions here.
-export const FAMILY_ACTIONS = ["invite_accepted", "login", "person_created", "person_updated", "avatar_updated", "media_added", "gathering_created", "gathering_deleted", "gathering_announced", "gathering_nudged", "rsvp_answered"];
+export const FAMILY_ACTIONS = ["invite_accepted", "login", "person_created", "person_updated", "avatar_updated", "media_added", "gathering_created", "gathering_updated", "gathering_deleted", "gathering_announced", "gathering_nudged", "rsvp_answered"];
 
 async function news(request, env) {
   await requireSession(request, env);
