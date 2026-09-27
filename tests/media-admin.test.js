@@ -149,6 +149,23 @@ describe("delete + news", () => {
     expect(news).toContain("media_added");
     expect(news).not.toContain("media_removed");
   });
+
+  // A file deleted is gone from R2 for good, so an admin reaching past their own files needs the
+  // passkey as well as the role; their own uploads they delete like anyone else.
+  it("an admin without a fresh passkey deletes only what they uploaded", async () => {
+    const c = await linkedMember();
+    const { id } = await (await upload(c, "kind=photo&owner=p_me", fakeJpeg(20, 20))).json();
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const adm = await login("adm@x.org");
+    await env.MEDIA.put("media/mine.jpg", fakeJpeg(20, 20));
+    await q.insertMedia(env.DB, { id: "mine", ownerPersonId: "p_other", kind: "photo", caption: null, year: null, contentType: "image/jpeg", size: 1, uploadedBy: "adm", createdAt: 1 }).run();
+    const r = await adm.json(`/api/media/${id}`, { method: "DELETE" });
+    expect(r.status).toBe(401);
+    expect(r.body).toEqual({ error: "step_up_required" });
+    expect(await q.mediaById(env.DB, id).first()).not.toBeNull();
+    expect(await env.MEDIA.get(`media/${id}.jpg`)).not.toBeNull();
+    expect((await adm.json("/api/media/mine", { method: "DELETE" })).status).toBe(200);
+  });
 });
 
 describe("deleting a document a letter carried", () => {

@@ -104,7 +104,8 @@ holding a session or learning anything.
   long as the child has no account (`canCurate` in `src/api/common.js`); the right ends at the
   first login that links one. A file may be recaptioned or deleted by whoever uploaded it and by
   the person it belongs to (`canTouch` in `src/api/media.js`), so a child who joins takes over what
-  was added for them. Tags and ownership stay with admins, whose own avatar route still asks for a
+  was added for them. An admin may delete anyone's file too, but only with a fresh passkey, since
+  the bytes go for good. Tags and ownership stay with admins, whose own avatar route still asks for a
   fresh passkey.
 - IP addresses in the history log are stored hashed (`src/history.js`, `IP_HASH_SECRET`).
 

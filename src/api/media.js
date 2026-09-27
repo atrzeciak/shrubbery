@@ -2,14 +2,15 @@ import * as q from "../db/queries.js";
 import { json, nowSec, randomB64url } from "../util.js";
 import { checkDocument, checkPhoto, cleanCaption, cleanYear, DOC_MAX_BYTES, MEDIA_CAP, PHOTO_MAX_BYTES, THUMB_MAX_BYTES } from "../media/rules.js";
 import { jpegSize } from "../people/jpeg.js";
-import { ApiError, found, canCurate, readBody, readJson, requireSession } from "./common.js";
+import { ApiError, found, canCurate, readBody, readJson, requireAdmin, requireSession } from "./common.js";
 import { personHistory } from "./people.js";
 
 export const keyFor = (m) => `media/${m.id}.${m.content_type === "application/pdf" ? "pdf" : "jpg"}`;
 export const thumbKeyFor = (m) => `media/${m.id}.thumb.jpg`;
 // The owner too, so a child who joins takes over what a parent uploaded for them.
-export const canTouch = (account, media) =>
-  account.role === "admin" || media.uploaded_by === account.id || (Boolean(account.person_id) && media.owner_person_id === account.person_id);
+const ownsMedia = (account, media) =>
+  media.uploaded_by === account.id || (Boolean(account.person_id) && media.owner_person_id === account.person_id);
+export const canTouch = (account, media) => account.role === "admin" || ownsMedia(account, media);
 
 async function mediaOr404(env, id) {
   return found(await q.mediaById(env.DB, id).first());
@@ -144,9 +145,12 @@ async function patchMedia(request, env, ctx, m) {
 }
 
 async function deleteMediaRoute(request, env, ctx, m) {
-  const { account } = await requireSession(request, env);
+  const auth = await requireSession(request, env);
+  const { account } = auth;
   const media = await mediaOr404(env, m[1]);
   if (!canTouch(account, media)) throw new ApiError(403, "forbidden");
+  // The bytes go for good, so an admin deleting somebody else's file needs a fresh passkey too.
+  if (!ownsMedia(account, media)) requireAdmin(auth);
   const owner = await q.personById(env.DB, media.owner_person_id).first();
   const now = nowSec();
   await env.DB.batch([
