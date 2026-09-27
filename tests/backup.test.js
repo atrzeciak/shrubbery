@@ -4,8 +4,8 @@ import * as q from "../src/db/queries.js";
 import { dumpSql, tableInsertOrder } from "../src/backup/dump.js";
 import { crc32 } from "../src/backup/zip.js";
 
-const { env, sent } = makeEnv();
-beforeEach(() => resetDb(env));
+let env, sent;
+beforeEach(async () => { ({ env, sent } = makeEnv()); await resetDb(env); });
 
 const login = (email) => loginAs(env, sent, email);
 
@@ -225,10 +225,10 @@ describe("backup", () => {
     // test's harness already created by applying migrations. That is the actual state a brand-new
     // D1 database is in when `wrangler d1 execute --file dane.sql` runs against it, and it is what
     // ODZYSKIWANIE.txt promises: the dump carries d1_migrations, so restoring it does not re-run
-    // migrations. (@cloudflare/vitest-pool-workers gives each test isolated storage, so dropping
-    // tables here does not leak into any other test.) D1 enforces foreign keys even across a batch
-    // of DROP TABLEs, so children have to go before parents — the same order dumpSql itself relies
-    // on to insert rows, just reversed.
+    // migrations. (Storage is shared across tests, so this runs last in the file and the replay
+    // rebuilds every table; a failure midway leaves them dropped.) D1 enforces foreign keys even
+    // across a batch of DROP TABLEs, so children have to go before parents — the same order dumpSql
+    // itself relies on to insert rows, just reversed.
     const { results: tables } = await env.DB.prepare(
       "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('_cf_METADATA')").all();
     const dropOrder = tableInsertOrder(tables).reverse();
