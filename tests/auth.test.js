@@ -94,6 +94,19 @@ describe("code request step", () => {
     const noNonce = new Client(env);
     expect((await noNonce.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } })).status).toBe(400);
   });
+
+  it("requests refused for their IP do not spend the address's budget", async () => {
+    await seedAccount(env, { id: "b1", email: "b@x.org", lang: "en" });
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    for (let i = 0; i < 5; i++) await c.json("/api/auth/code/request", { method: "POST", body: { email: "a@x.org" } });
+    for (let i = 0; i < 5; i++) expect((await c.json("/api/auth/code/request", { method: "POST", body: { email: "b@x.org" } })).status).toBe(429);
+    const b = new Client(env);
+    b.ip = "198.51.100.7";
+    await b.json("/api/auth/email", { method: "POST", body: { email: "b@x.org" } });
+    expect((await b.json("/api/auth/code/request", { method: "POST", body: { email: "b@x.org" } })).status).toBe(200);
+    expect(sent.map((m) => m.to)).toEqual(["b@x.org"]);
+  });
 });
 
 describe("code step", () => {

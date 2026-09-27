@@ -33,7 +33,8 @@ async function postCodeRequest(request, env) {
   const nonce = readCookie(request, NONCE_COOKIE);
   if (!nonce) throw new ApiError(400, "bad_request");
   const db = env.DB, now = nowSec(), ip = clientIp(request);
-  if (!(await allow(db, `code:email:${email}`, CODE_LIMIT, HOUR, now)) || !(await allow(db, `code:ip:${ip}`, CODE_LIMIT, HOUR, now))) {
+  // IP first: a request refused for its IP must not spend the address's budget.
+  if (!(await allow(db, `code:ip:${ip}`, CODE_LIMIT, HOUR, now)) || !(await allow(db, `code:email:${email}`, CODE_LIMIT, HOUR, now))) {
     throw new ApiError(429, "rate_limited");
   }
   const account = await q.accountByEmail(db, email).first();
