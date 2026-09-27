@@ -118,6 +118,21 @@ describe("openPersonEditor", () => {
     await tick();
     expect(calls.map((x) => `${x.method} ${x.path}`)).toContain("DELETE /api/admin/people/p1/parents/p2");
   });
+  it("keeps unsaved edits in the form when a parent is added, and lists the new parent", async () => {
+    let added = false;
+    mockApi(routes({
+      "POST /api/admin/people/p1/parents/p3": () => { added = true; return {}; },
+      "GET /api/people": () => (added ? { ...data(), parents: [...data().parents, { parent_id: "p3", child_id: "p1" }] } : data()),
+    }));
+    await open("p1");
+    q("#pf-birth_date").value = "1950-03-05";                         // corrected, not yet saved
+    const c = cards();
+    c.Rodzice.querySelector("select").value = "p3";
+    c.Rodzice.querySelector(".secondary").click();
+    await tick(); await tick(); await tick();
+    expect(q("#pf-birth_date").value).toBe("1950-03-05");
+    expect(qa("li span", cards().Rodzice).map((s) => s.textContent)).toEqual(["Jan Kowal", "Ola Kowal"]);
+  });
   it("adds a partner with kind and years, removes one, and toasts when that fails", async () => {
     const calls = mockApi(routes({ "POST /api/admin/people/p1/partners/p3": {}, "DELETE /api/admin/people/p1/partners/p4": { status: 500, body: { error: "internal" } } }));
     const { ctx } = await open("p1");
