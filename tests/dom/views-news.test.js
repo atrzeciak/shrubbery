@@ -99,7 +99,7 @@ describe("the feed", () => {
     mockApi({});
     more.click();
     await tick();
-    expect(ctx.toast).toHaveBeenCalledWith("not_found");
+    expect(ctx.toast).toHaveBeenCalledWith("not_found", "error");
   });
 
   it("still renders when the news visit cannot be recorded", async () => {

@@ -78,7 +78,7 @@ export async function render(root, ctx) {
   const more = h("button", { class: "btn secondary", type: "button", text: t("news.more"), hidden: true });
   root.append(list, more);
   let next = null;
-  const run = (p) => p.catch((e) => ctx.toast(ctx.errorText(e)));
+  const run = (p) => p.catch((e) => ctx.toast(ctx.errorText(e), "error"));
   async function load(before) {
     const page = await api(`/api/news${before ? `?before=${before}` : ""}`);
     for (const item of page.items) {
