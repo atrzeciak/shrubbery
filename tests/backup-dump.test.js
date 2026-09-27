@@ -23,6 +23,11 @@ describe("sqlValue", () => {
     expect(sqlValue([0xbe, 0xef])).toBe("X'beef'");                  // D1 hands blobs back as arrays
     expect(sqlValue(new Uint8Array([1, 2, 3]).buffer)).toBe("X'010203'");
   });
+
+  it("writes text holding a NUL as hex cast back to text, since the sqlite3 shell cuts a line at a NUL", () => {
+    expect(sqlValue("a\u0000b")).toBe("CAST(X'610062' AS TEXT)");
+    expect(sqlValue("ż\u0000")).toBe("CAST(X'c5bc00' AS TEXT)");
+  });
 });
 
 describe("dumpSql", () => {

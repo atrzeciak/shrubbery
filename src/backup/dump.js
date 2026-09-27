@@ -13,7 +13,8 @@ export function sqlValue(v) {
   if (v === null || v === undefined) return "NULL";
   if (typeof v === "number") return String(v);
   if (typeof v === "bigint") return v.toString();
-  if (typeof v === "string") return `'${v.replaceAll("'", "''")}'`;
+  // A raw NUL cuts the line in the sqlite3 shell and the restore loses every table after it.
+  if (typeof v === "string") return v.includes("\0") ? `CAST(X'${hex(new TextEncoder().encode(v))}' AS TEXT)` : `'${v.replaceAll("'", "''")}'`;
   // D1 returns BLOBs as Uint8Array remotely and as a plain array locally; both mean bytes.
   if (v instanceof ArrayBuffer) return `X'${hex(new Uint8Array(v))}'`;
   if (ArrayBuffer.isView(v)) return `X'${hex(new Uint8Array(v.buffer, v.byteOffset, v.byteLength))}'`;

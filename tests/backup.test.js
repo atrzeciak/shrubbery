@@ -229,6 +229,7 @@ describe("backup", () => {
   it("restores: the dump put back into an empty database rebuilds every row", async () => {
     await seedPerson(env, { id: "p1", first_name: "Jan", last_name: "O'Brien", birth_date: "1950-03-02" });
     await seedPerson(env, { id: "p2", first_name: "Anna" });
+    await env.DB.prepare("UPDATE people SET notes = ? WHERE id = ?").bind("a\u0000b", "p2").run();
     await q.insertParent(env.DB, "p1", "p2").run();
     await env.DB.prepare("INSERT INTO avatars (person_id, jpeg, updated_at) VALUES (?, ?, ?)")
       .bind("p1", new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 1_800_000_000).run();
