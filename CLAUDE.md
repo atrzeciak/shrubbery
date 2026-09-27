@@ -32,7 +32,7 @@ There is no build step. `make help` lists everything; the table below is what yo
 | ------- | ------------ |
 | `make install` | `npm ci`, exactly as CI does it |
 | `make test` | The whole suite in a real Workers runtime |
-| `make verify` | Repository checks: required files, self-containment, no stray secrets |
+| `make verify` | Repository checks: required files, self-containment, no private file tracked |
 | `make lint` | `eslint`, correctness rules only — no formatting rules |
 | `make check` | `verify`, `lint`, then `test` — what CI runs, in CI's order |
 | `make coverage` | The suite with a per-file coverage table |

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Asserts the durability and privacy rules for the served files in public/.
+# Asserts the durability and privacy rules for the served files in public/, and that no private file is tracked.
 # Exit 0 when all hold; prints FAIL: lines and exits 1 otherwise.
 set -euo pipefail
 
@@ -106,6 +106,16 @@ check_landing_pages() {
   return 0
 }
 
+# Files that name the site, hold secrets or carry the family's data. .gitignore keeps them out of an
+# ordinary add; this catches a forced one, since publishing it cannot be undone.
+check_no_private_files() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  local f
+  while IFS= read -r f; do
+    fail "$f is tracked and must never be published (git rm --cached $f)"
+  done < <(git ls-files | grep -E '^(docs/|TODO\.md|scripts/out/|\.superpowers/|temp/|\.claude/)|(^|/)\.dev\.vars$|^wrangler\.toml$|^\.scrub-names$|^\.wrangler-real\.toml\.bak$|^backup-.*\.zip$' || true)
+}
+
 check_robots() {
   [[ -f "$PUBLIC/robots.txt" ]] || return 0
   grep -q '^User-agent: \*$' "$PUBLIC/robots.txt" || fail "robots.txt lacks 'User-agent: *'"
@@ -141,6 +151,7 @@ main() {
   check_landing_pages
   check_robots
   check_valid_html
+  check_no_private_files
   if [[ "$failures" -gt 0 ]]; then
     printf '%d check(s) failed\n' "$failures" >&2
     exit 1

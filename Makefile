@@ -43,7 +43,7 @@ lint:  ## Lint for correctness (unused names, undefined names, unreachable code)
 	npx eslint .
 
 .PHONY: verify
-verify:  ## Run the repository checks (self-containment, i18n parity, no stray secrets)
+verify:  ## Run the repository checks (required files, self-containment, no private file tracked)
 	scripts/verify.sh
 
 .PHONY: check

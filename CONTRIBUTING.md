@@ -57,9 +57,14 @@ quietly:
 - **No runtime dependencies in `package.json`.** `public/app/` is plain ES modules the browser
   loads directly. There is no build step, and adding one is a larger conversation than a pull
   request.
-- **`pl.json` and `en.json` must have identical keys.** Both languages are first-class; a missing
-  key is a missing sentence for half the family.
-- **No stray secrets, and every required file present.**
+- **No private file tracked.** `wrangler.toml`, `.dev.vars`, a backup ZIP, `.scrub-names` and the
+  working notes are git-ignored; verify fails if one was added anyway, since publishing it cannot be
+  undone.
+- **Every required file present.**
+
+The test suite adds one more: **`pl.json` and `en.json` must have identical keys**
+(`tests/i18n.test.js`). Both languages are first-class; a missing key is a missing sentence for half
+the family.
 
 `eslint` runs alongside it, with correctness rules only and no formatting rules. Match the style of
 the file you are in rather than reformatting it.
