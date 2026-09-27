@@ -31,8 +31,8 @@ flowchart LR
 
 ## 2. Inbound API
 
-All routes are `/api/*`. Everything except `/api/health` and the login routes needs a session
-cookie. Path parameters are `([A-Za-z0-9_-]+)`.
+All routes are `/api/*`. Everything except `/api/health`, the login routes and the two join routes
+needs a session cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 
 | Area | Routes |
 | ---- | ------ |
@@ -43,7 +43,7 @@ cookie. Path parameters are `([A-Za-z0-9_-]+)`.
 | Gathering | `GET /gatherings`, `PUT /gatherings/:id/rsvp` |
 | Gathering (admin) | `POST /admin/gatherings`, `PATCH`/`DELETE /admin/gatherings/:id`, `PUT /admin/gatherings/:id/rsvp/:personId`, `POST /admin/gatherings/:id/announce`, `POST /admin/gatherings/:id/nudge` |
 | News | `GET /news` |
-| Join | `POST /join/request`, `POST /join/confirm` |
+| Join | `POST /join/request`, `POST /join/confirm` — public: the one form a stranger can send, and it mails the address given |
 | Health | `GET /health` — public |
 | Admin | accounts, invitations, join requests, people and relationships, history, backup, gatherings (see `src/api/admin*.js`, `join.js`, `backup.js`, `gatherings.js`); `GET /admin/documents` lists the PDFs an invitation may carry; `GET /admin/broadcasts` lists the letters already sent and the counts the compose form needs, `POST /admin/broadcasts` writes one to the chosen groups, never to an address a disabled account or a revoked invitation has shut |
 
@@ -133,7 +133,7 @@ D1, migrations `0001`–`0014` in `src/db/migrations/`, append-only.
 | `accounts` | Who may sign in; role, language, reminder opt-in, `founder`, `protected` |
 | `sessions`, `passkeys`, `login_codes` | Authentication state |
 | `webauthn_challenges` | Each passkey challenge handed out, good for one sign-in, step-up or registration within five minutes; expired rows go when the next is issued. The `wa_challenge` cookie only names it |
-| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IPv6 key holds the /64 — what stops a stranger asking for login codes all day. Windows over a day old, and expired login codes, go nightly |
+| `rate_limits` | One count per key and window: `code:email:`, `code:ip:`, `challenge:ip:`, `join:email:`, `join:ip:`; an IPv6 key holds the /64 — what stops a stranger asking for login codes or sending join requests all day. Windows over a day old, and expired login codes, go nightly |
 | `people` | The tree: names, dates, `deceased`, optional address; `email` is the login address once an account is linked |
 | `parent_of`, `partner_of`, `person_links` | Relationships and external links |
 | `avatars` | Portrait JPEGs, stored as blobs in D1 |
