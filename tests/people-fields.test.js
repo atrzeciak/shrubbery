@@ -7,6 +7,12 @@ describe("dates", () => {
     for (const ok of ["1964", "~1888", "1964-10", "1964-10-04"]) expect(DATE_RE.test(ok), ok).toBe(true);
     for (const bad of ["64", "1964-13", "1964-10-32", "04.10.1964", "~1964-10", "abc", ""]) expect(DATE_RE.test(bad), bad).toBe(false);
   });
+  it("refuses a day the calendar does not have, and keeps a leap day that it does", () => {
+    for (const bad of ["1950-04-31", "1950-02-29", "1950-02-30"]) {
+      expect(() => cleanPersonInput({ birth_date: bad }, { admin: true }), bad).toThrow(ApiError);
+    }
+    expect(cleanPersonInput({ birth_date: "1952-02-29" }, { admin: true }).fields.birth_date).toBe("1952-02-29");
+  });
   it("yearOf reads the leading year", () => {
     expect(yearOf("~1888")).toBe(1888);
     expect(yearOf("1964-10-04")).toBe(1964);

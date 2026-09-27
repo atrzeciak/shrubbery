@@ -1,4 +1,5 @@
 import * as q from "../db/queries.js";
+import { isDate } from "../people/fields.js";
 import { clientIp, json, nowSec, randomB64url, randomB64url as inviteId } from "../util.js";
 import { ApiError, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
 import { hashIp, historyStmt } from "../history.js";
@@ -7,7 +8,8 @@ import { sendGatheringMail } from "../mail.js";
 
 const INVITE_TTL = 14 * 86400;
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+// A gathering needs a whole day, and one the calendar has.
+const isDay = (v) => typeof v === "string" && v.length === 10 && isDate(v);
 const text = (v, max) => {
   const s = String(v ?? "").trim().slice(0, max);
   return s || null;
@@ -50,7 +52,7 @@ async function getCurrent(request, env) {
 async function createGathering(request, env) {
   const { account } = await adminCtx(request, env);
   const body = await readJson(request);
-  if (!DATE.test(String(body.on_date ?? ""))) throw new ApiError(400, "bad_request");
+  if (!isDay(body.on_date)) throw new ApiError(400, "bad_request");
   const now = nowSec();
   const id = randomB64url(12);
   await env.DB.batch([
@@ -72,7 +74,7 @@ async function patchGathering(request, env, ctx, m) {
   const gathering = await q.gatheringById(env.DB, m[1]).first();
   if (!gathering) throw new ApiError(404, "not_found");
   const body = await readJson(request);
-  if ("on_date" in body && !DATE.test(String(body.on_date ?? ""))) throw new ApiError(400, "bad_request");
+  if ("on_date" in body && !isDay(body.on_date)) throw new ApiError(400, "bad_request");
   const cancelledAt = "cancelled" in body
     ? (body.cancelled ? (gathering.cancelled_at ?? nowSec()) : null)
     : gathering.cancelled_at;

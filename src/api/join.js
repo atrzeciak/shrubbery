@@ -4,7 +4,7 @@ import { hashIp, historyStmt } from "../history.js";
 import { allow } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
 import { sendCode, sendInvitation, sendJoinNotice } from "../mail.js";
-import { DATE_RE, yearOf } from "../people/fields.js";
+import { isDate, yearOf } from "../people/fields.js";
 import { ApiError, EMAIL_RE, accountIdentity, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
 import { personHistory } from "./people.js";
 
@@ -33,7 +33,7 @@ function cleanForm(body) {
     message: text(body.message, 0, 1000),
     lang: body.lang === "en" ? "en" : "pl",
   };
-  if (!DATE_RE.test(f.birth_date) || !EMAIL_RE.test(f.email) || f.email.length > 254) throw new ApiError(400, "bad_request");
+  if (!isDate(f.birth_date) || !EMAIL_RE.test(f.email) || f.email.length > 254) throw new ApiError(400, "bad_request");
   return f;
 }
 

@@ -1,6 +1,8 @@
 import { ApiError, EMAIL_RE } from "../api/common.js";
 
 export const DATE_RE = /^(~\d{4}|\d{4}|\d{4}-(0[1-9]|1[0-2])|\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))$/;
+// DATE_RE bounds month and day; a full date must also exist, so 1950-04-31 and 1950-02-29 do not pass.
+export const isDate = (s) => DATE_RE.test(s) && (s.length < 10 || new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s);
 export const yearOf = (d) => (d ? Number(String(d).replace("~", "").slice(0, 4)) : null);
 
 export const TEXT_LIMITS = { first_name: 80, last_name: 80, maiden_name: 80, nickname: 80, birth_place: 120, death_place: 120, phone: 40, residence: 120, notes: 4000 };
@@ -26,7 +28,7 @@ export function cleanPersonInput(body, { admin }) {
   for (const [k, max] of Object.entries(TEXT_LIMITS)) if (k in body) fields[k] = str(body[k], max);
   for (const k of DATE_FIELDS) if (k in body) {
     const s = str(body[k], 10);
-    if (s !== null && !DATE_RE.test(s)) bad();
+    if (s !== null && !isDate(s)) bad();
     fields[k] = s;
   }
   if ("sex" in body) {

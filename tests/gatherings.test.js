@@ -54,6 +54,16 @@ describe("gatherings", () => {
     expect((await new Client(env).json("/api/gatherings")).status).toBe(401);
   });
 
+  it("refuses a gathering on a day the calendar does not have", async () => {
+    await family();
+    const adm = await admin();
+    for (const on_date of ["2027-02-30", "2027-13-45", "2027"]) {
+      expect((await adm.json("/api/admin/gatherings", { method: "POST", body: { on_date } })).status, on_date).toBe(400);
+    }
+    const id = await makeGathering(adm);
+    expect((await adm.json(`/api/admin/gatherings/${id}`, { method: "PATCH", body: { on_date: "2027-04-31" } })).status).toBe(400);
+  });
+
   it("records who changed or cancelled a gathering", async () => {
     await family();
     const adm = await admin();
