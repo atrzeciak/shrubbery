@@ -119,6 +119,8 @@ describe("the child takes over", () => {
     await kidJoins();
     const aunt = await login("aunt@x.org");
     expect((await aunt.json(`/api/media/${id}`, { method: "PATCH", body: { caption: "x" } })).status).toBe(403);
+    expect((await aunt.json(`/api/media/${id}`, { method: "DELETE" })).status).toBe(403);
+    expect(await env.MEDIA.get(`media/${id}.jpg`)).not.toBeNull();
     expect((await mum.json(`/api/media/${id}`, { method: "PATCH", body: { caption: "Mala" } })).status).toBe(200);
   });
 });
