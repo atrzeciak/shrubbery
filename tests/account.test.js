@@ -74,6 +74,8 @@ describe("passkeys", () => {
     const second = await addPasskey(c, "second");
     expect(second.r.status).toBe(401);
     expect(second.r.body).toEqual({ error: "step_up_required" });
+    const first = (await c.json("/api/me/passkeys")).body.passkeys[0];
+    expect((await c.json(`/api/me/passkeys/${first.id}`, { method: "DELETE" })).body).toEqual({ error: "step_up_required" });
     await stepUp(c, auth);
     expect((await addPasskey(c, "second")).r.status).toBe(201);
     const list = (await c.json("/api/me/passkeys")).body.passkeys;

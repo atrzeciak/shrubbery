@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import * as q from "../src/db/queries.js";
+import { API } from "../src/worker.js";
 import { createAuthenticator } from "./helpers/authenticator.js";
 import { makeEnv, resetDb, seedAccount, seedPerson, Client, loginAs, adminAs } from "./helpers/env.js";
 
@@ -22,6 +23,27 @@ describe("authorization", () => {
     const w = await adm.json("/api/admin/invitations", { method: "POST", body: { email: "n@x.org", lang: "pl" } });
     expect(w.status).toBe(401);
     expect(w.body).toEqual({ error: "step_up_required" });
+  });
+
+  // Every admin route, not a sample: turning one guard from fresh passkey to role alone must fail here.
+  it("every admin route refuses strangers and family, and every write but gatherings wants a fresh passkey", async () => {
+    const roleOnly = ([method, path]) =>
+      path.startsWith("/api/admin/gatherings") || (method === "GET" && !path.startsWith("/api/admin/backup"));
+    const routes = API.filter(([, pattern]) => pattern.source.includes("admin"))
+      .map(([method, pattern]) => [method, pattern.source.slice(1, -1).replaceAll("\\/", "/").replaceAll("([A-Za-z0-9_-]+)", "x")]);
+    expect(routes.length).toBeGreaterThan(30);
+    await seedAccount(env, { id: "f1", email: "f@x.org" });
+    await seedAccount(env, { id: "adm", email: "adm@x.org", role: "admin" });
+    const fam = await login("f@x.org");
+    const adm = await login("adm@x.org");
+    for (const [method, path] of routes) {
+      const opts = { method, body: method === "GET" ? undefined : {} };
+      expect((await new Client(env).json(path, opts)).status, `${method} ${path} anonymous`).toBe(401);
+      expect((await fam.json(path, opts)).status, `${method} ${path} family`).toBe(403);
+      const r = await adm.json(path, opts);
+      if (roleOnly([method, path])) expect(r.body?.error, `${method} ${path} admin`).not.toBe("step_up_required");
+      else expect(r.body, `${method} ${path} admin`).toEqual({ error: "step_up_required" });
+    }
   });
 });
 
