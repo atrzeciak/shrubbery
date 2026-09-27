@@ -82,8 +82,9 @@ deploy-status:  ## Show the most recent deploy runs
 # The archive is what outlives the author; taking one by hand should be one word.
 .PHONY: backup
 backup:  ## Download a backup ZIP (needs an admin session cookie in $$COOKIE)
-	@test -n "$${COOKIE:-}" || { echo "set COOKIE to an admin session cookie: make backup COOKIE=...=..."; exit 1; }
-	curl -fsS --cookie "$$COOKIE" -o "backup-$$(date -u +%Y-%m-%d).zip" $(SITE)/api/admin/backup
+	@test -n "$${COOKIE:-}" || { echo "paste the admin session cookie: read -rs COOKIE && export COOKIE && make backup"; exit 1; }
+	@# On stdin, not argv: a year-long admin session must not show in ps or land in shell history.
+	printf 'cookie = "%s"\n' "$$COOKIE" | curl -fsS -K - -o "backup-$$(date -u +%Y-%m-%d).zip" $(SITE)/api/admin/backup
 	@ls -lh backup-*.zip | tail -1
 
 # Publishing is irreversible, so the scrub is a target rather than a checklist somebody remembers.
