@@ -82,6 +82,16 @@ describe("admin people", () => {
     expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM history WHERE action = 'rsvp_answered' AND target_id = 'dup1'").first()).n).toBe(1);
   });
 
+  it("refuses a parent that would make someone their own ancestor", async () => {
+    const { c } = await adminWithFreshPasskey();
+    for (const id of ["a", "b", "c"]) await seedPerson(env, { id, first_name: id.toUpperCase() });
+    await q.insertParent(env.DB, "a", "b").run();                    // a over b over c
+    await q.insertParent(env.DB, "b", "c").run();
+    expect((await c.json("/api/admin/people/a/parents/b", { method: "POST", body: {} })).status).toBe(409);
+    expect((await c.json("/api/admin/people/a/parents/c", { method: "POST", body: {} })).status).toBe(409);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM parent_of").first()).n).toBe(2);
+  });
+
   it("parents: max two, no self, no duplicates; partners: upsert with kind, delete", async () => {
     const { c } = await adminWithFreshPasskey();
     for (const id of ["a", "b", "d", "kid"]) await seedPerson(env, { id, first_name: id, last_name: "T" });

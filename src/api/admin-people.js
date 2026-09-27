@@ -62,6 +62,25 @@ async function putAvatar(request, env, ctx, m) {
   return json({ ok: true, updated_at });
 }
 
+// Whether `ancestor` sits anywhere above `personId`; the seen set keeps a loop already stored from hanging it.
+async function isAncestor(env, ancestor, personId) {
+  const parents = new Map();
+  for (const e of (await q.listParents(env.DB).all()).results) {
+    if (!parents.has(e.child_id)) parents.set(e.child_id, []);
+    parents.get(e.child_id).push(e.parent_id);
+  }
+  const seen = new Set();
+  const stack = [personId];
+  while (stack.length) {
+    const id = stack.pop();
+    if (id === ancestor) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    stack.push(...(parents.get(id) || []));
+  }
+  return false;
+}
+
 async function addParent(request, env, ctx, m) {
   const { account } = await admin(request, env, true);
   const [childId, parentId] = [m[1], m[2]];
@@ -71,6 +90,7 @@ async function addParent(request, env, ctx, m) {
   if (await q.parentEdge(env.DB, parentId, childId).first()) throw new ApiError(409, "conflict");
   const { results } = await q.parentsOf(env.DB, childId).all();
   if (results.length >= 2) throw new ApiError(409, "conflict");
+  if (await isAncestor(env, childId, parentId)) throw new ApiError(409, "conflict");
   const now = nowSec();
   await env.DB.batch([
     q.insertParent(env.DB, parentId, childId),
