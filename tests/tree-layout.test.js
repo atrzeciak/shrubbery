@@ -41,8 +41,7 @@ describe("familyLayout", () => {
   it("assigns generations and keeps couples adjacent, children under parents", () => {
     const gen = generations(g);
     expect([gen.get("g1"), gen.get("g2"), gen.get("p1"), gen.get("p2"), gen.get("p3"), gen.get("c1"), gen.get("x")]).toEqual([0, 0, 1, 1, 1, 2, 0]);
-    const { nodes, edges, rows } = familyLayout(g);
-    expect(rows).toBe(3);
+    const { nodes, edges } = familyLayout(g);
     expect(Math.abs(at(nodes, "p1").col - at(nodes, "p2").col)).toBe(1);
     expect(Math.abs(at(nodes, "g1").col - at(nodes, "g2").col)).toBe(1);
     const mid = (at(nodes, "p1").col + at(nodes, "p2").col) / 2;

@@ -404,5 +404,5 @@ export function familyLayout(g) {
     recorded.add(`${a}|${b}`);
     edges.push({ from: a, to: b, type: "partner", kind: "coparents" });
   }
-  return { nodes, edges, rows: g.people.length ? Math.max(...gen.values()) + 1 : 0 };
+  return { nodes, edges };
 }
