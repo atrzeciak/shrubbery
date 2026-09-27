@@ -1,6 +1,7 @@
 import { api, passkeyCreate, passkeysSupported } from "../api.js";
 import { getLang, setLang, t } from "../i18n.js";
 import { h, clear, fmtDate, fmtAgo } from "../dom.js";
+import { act } from "../act.js";
 
 export async function render(root, ctx) {
   const me = ctx.state.me;
@@ -23,6 +24,7 @@ export async function render(root, ctx) {
 }
 
 async function passkeys(ctx, redraw) {
+  const run = act(ctx, redraw);
   const list = h("ul", { class: "list" });
   const { passkeys } = await api("/api/me/passkeys");
   if (!passkeys.length) list.append(h("li", { class: "muted", text: t("account.passkeys.empty") }));
@@ -32,7 +34,7 @@ async function passkeys(ctx, redraw) {
     rename.onclick = async () => {
       const name = prompt(t("account.passkeys.name"), p.name);
       if (!name) return;
-      try { await api(`/api/me/passkeys/${p.id}`, { method: "PATCH", body: { name } }); ctx.toast(t("done")); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
+      await run(() => api(`/api/me/passkeys/${p.id}`, { method: "PATCH", body: { name } }));
     };
     remove.onclick = async () => {
       if (!confirm(t("confirm"))) return;
@@ -57,13 +59,12 @@ async function passkeys(ctx, redraw) {
 }
 
 async function sessions(ctx, redraw) {
+  const run = act(ctx, redraw);
   const list = h("ul", { class: "list" });
   const { sessions } = await api("/api/me/sessions");
   for (const s of sessions) {
     const revoke = h("button", { class: "btn secondary", type: "button", text: t("account.sessions.revoke"), hidden: s.current });
-    revoke.onclick = async () => {
-      try { await api(`/api/me/sessions/${s.id}`, { method: "DELETE" }); ctx.toast(t("done")); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
-    };
+    revoke.onclick = () => run(() => api(`/api/me/sessions/${s.id}`, { method: "DELETE" }));
     list.append(h("li", { class: "row" },
       h("span", {}, h("strong", { text: s.current ? t("account.sessions.current") : (s.user_agent || "").slice(0, 40) }), " ",
         h("span", { class: "muted", text: t("account.sessions.seen", { when: fmtAgo(s.last_seen_at) }) })),

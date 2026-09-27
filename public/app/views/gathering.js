@@ -1,6 +1,7 @@
 import { api } from "../api.js";
 import { t } from "../i18n.js";
 import { h, clear } from "../dom.js";
+import { act } from "../act.js";
 import { today as dayIn, daysBetween } from "../events.js";
 
 const longDate = (onDate) =>
@@ -85,13 +86,8 @@ export async function render(root, ctx) {
       const card = h("div", { class: "card" }, h("h2", { text: t("gathering.rsvp.question") }));
       if (!myPerson) card.append(h("p", { class: "muted", text: t("gathering.rsvp.nolink") }));
       else {
-        card.append(answerControls(mine, async (answer) => {
-          try {
-            await api(`/api/gatherings/${g.id}/rsvp`, { method: "PUT", body: answer });
-            ctx.toast(t("gathering.rsvp.saved"));
-            await draw();
-          } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
-        }));
+        card.append(answerControls(mine, (answer) =>
+          act(ctx, draw)(() => api(`/api/gatherings/${g.id}/rsvp`, { method: "PUT", body: answer }), t("gathering.rsvp.saved"))));
       }
       body.append(card);
     }
@@ -114,13 +110,8 @@ export async function render(root, ctx) {
       if (isAdmin && !g.cancelled_at) {
         const open = h("button", { class: "btn secondary small", type: "button", text: t("gathering.guest.answer") });
         open.onclick = () => {
-          open.replaceWith(answerControls(guest, async (a) => {
-            try {
-              await api(`/api/admin/gatherings/${g.id}/rsvp/${guest.person_id}`, { method: "PUT", body: a });
-              ctx.toast(t("gathering.rsvp.saved"));
-              await draw();
-            } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
-          }));
+          open.replaceWith(answerControls(guest, (a) =>
+            act(ctx, draw)(() => api(`/api/admin/gatherings/${g.id}/rsvp/${guest.person_id}`, { method: "PUT", body: a }), t("gathering.rsvp.saved"))));
         };
         row.append(open);
       }

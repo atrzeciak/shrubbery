@@ -5,6 +5,7 @@ import { sentence } from "./news.js";
 import { personPicker } from "../picker.js";
 import { loadGraph } from "../people.js";
 import { openSheet, closeSheet } from "../sheet.js";
+import { act } from "../act.js";
 
 let tab = "invitations";
 const TABS = ["invitations", "messages", "accounts", "history", "backup"];
@@ -24,10 +25,6 @@ export async function render(root, ctx) {
   root.append(tabs, panel);
   await PANELS[tab](panel, ctx, () => render(root, ctx));
 }
-
-const act = (ctx, redraw) => async (fn, done = t("done")) => {
-  try { await fn(); ctx.toast(done); await redraw(); } catch (e) { ctx.toast(ctx.errorText(e), "error"); }
-};
 
 const PANELS = {
   async invitations(panel, ctx, redraw) {
