@@ -56,7 +56,7 @@ export function stubCanvas({ width = 800, height = 600 } = {}) {
   const ctx2d = { fillStyle: "", fillRect: vi.fn(), drawImage: vi.fn() };
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx2d);
   const toBlob = vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(function (cb, type) { cb(new Blob(["x"], { type })); });
-  const bitmap = vi.fn(async () => ({ width, height }));
+  const bitmap = vi.fn(async () => ({ width, height, close: vi.fn() }));
   vi.stubGlobal("createImageBitmap", bitmap);
   return { ctx2d, toBlob, bitmap };
 }

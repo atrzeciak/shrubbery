@@ -122,7 +122,8 @@ describe("uploadForm", () => {
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:p");
     const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const { toBlob, bitmap } = stubCanvas({ width: 4000, height: 2000 });
-    bitmap.mockRejectedValueOnce(new Error("no options")).mockResolvedValue({ width: 4000, height: 2000 });
+    const close = vi.fn();                                           // a decoded 12 MP photo is ~48 MB: released at once
+    bitmap.mockRejectedValueOnce(new Error("no options")).mockResolvedValue({ width: 4000, height: 2000, close });
     const calls = mockApi({ "POST /api/media": { id: "m7" }, "PUT /api/media/m7/thumb": { status: 500, body: { error: "internal" } } });
     const fetched = sent();
     const { ctx, reload } = mount();
@@ -135,6 +136,7 @@ describe("uploadForm", () => {
     expect(toBlob.mock.calls.map((c) => c[2])).toEqual([0.85, 0.8]);
     const sizes = toBlob.mock.contexts.map((c) => `${c.width}x${c.height}`);
     expect(sizes).toEqual(["2048x1024", "400x200"]);
+    expect(close).toHaveBeenCalledTimes(2);
     expect(revoke).toHaveBeenCalledWith("blob:p");
     expect(ctx.toast).toHaveBeenCalledWith("Plik zapisany.");
     expect(reload).toHaveBeenCalledTimes(1);
