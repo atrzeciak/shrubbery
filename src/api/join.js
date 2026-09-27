@@ -142,7 +142,8 @@ async function approve(request, env, ctx, m) {
   let personId;
   if (body.create === true) {
     personId = randomB64url(12);
-    const notes = r.parent_text + (r.message ? `\n\n${r.message}` : "");
+    // Only what places them in the tree: the message was written to the admin, and notes are read by everyone.
+    const notes = r.parent_text;
     stmts.push(q.insertPerson(env.DB, { id: personId, first_name: r.first_name, last_name: r.last_name, maiden_name: null, nickname: null, sex: null, display_name: `${r.first_name} ${r.last_name}`, birth_date: r.birth_date, birth_place: null, death_date: null, death_place: null, deceased: 0, email: r.email, phone: null, residence: null, notes, unverified: 1, created_at: now, updated_at: now, updated_by: account.id }));
     stmts.push(await personHistory(request, env, account.id, "person_created", personId, { name: `${r.first_name} ${r.last_name}`, from_join: true }, now));
   } else {

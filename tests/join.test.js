@@ -219,7 +219,7 @@ describe("admin review", () => {
     expect(ap.status).toBe(200);
     const p = (await c.json(`/api/people/${ap.body.person_id}`)).body.person;
     expect(p).toMatchObject({ first_name: "Anna", last_name: "Zielińska", birth_date: "1985", email: "ola@x.org", unverified: 1 });
-    expect(p.notes).toContain("Barbara");
+    expect(p.notes).toBe("Barbara");            // the message was written for the admin, not the family
     await pending();
     const id2 = (await c.json("/api/admin/join-requests")).body.requests.find((r) => r.status === "pending").id;
     expect((await c.json(`/api/admin/join-requests/${id2}/reject`, { method: "POST", body: { note: "unknown" } })).status).toBe(200);
