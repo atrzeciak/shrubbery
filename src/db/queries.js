@@ -277,8 +277,8 @@ export const unansweredWithEmail = (db, gatheringId) =>
   db.prepare(`SELECT p.id, p.display_name, p.email FROM people p
               LEFT JOIN rsvps r ON r.person_id = p.id AND r.gathering_id = ?1
               WHERE p.deceased = 0 AND p.email IS NOT NULL AND p.email != '' AND r.person_id IS NULL`).bind(gatheringId);
-export const markAnnounced = (db, id, at) => db.prepare("UPDATE gatherings SET announced_at = ? WHERE id = ?").bind(at, id);
-export const markNudged = (db, id, at) => db.prepare("UPDATE gatherings SET nudged_at = ? WHERE id = ?").bind(at, id);
+export const markAnnounced = (db, id, at) => db.prepare("UPDATE gatherings SET announced_at = ? WHERE id = ? AND announced_at IS NULL").bind(at, id);
+export const markNudged = (db, id, at) => db.prepare("UPDATE gatherings SET nudged_at = ? WHERE id = ? AND nudged_at IS NULL").bind(at, id);
 export const nextGathering = (db, today) =>
   db.prepare("SELECT * FROM gatherings WHERE on_date >= ? AND cancelled_at IS NULL ORDER BY on_date LIMIT 1").bind(today);
 

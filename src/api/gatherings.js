@@ -138,13 +138,15 @@ async function deleteGathering(request, env, ctx, m) {
 
 // Writing to the family is not something to do by accident or twice, so each of these can happen
 // exactly once and records that it did.
-async function mailOut(request, env, m, { once, mark, recipients, kind }) {
+async function mailOut(request, env, m, { mark, recipients, kind }) {
   const { account } = await adminCtx(request, env);
   const gathering = await q.gatheringById(env.DB, m[1]).first();
   if (!gathering) throw new ApiError(404, "not_found");
   if (gathering.cancelled_at) throw new ApiError(409, "cancelled");
-  if (gathering[once]) throw new ApiError(409, "already_sent");
   const now = nowSec();
+  // Claimed before the first mail, not marked after the last: a second press, tab or admin that
+  // arrives while the loop runs finds it taken. A run that dies partway stays sent rather than repeating.
+  if (!(await q[mark](env.DB, m[1], now).run()).meta.changes) throw new ApiError(409, "already_sent");
   const identity = await accountIdentity(env, account.id);
   const { results } = await recipients(env, gathering).all();
   // The tree still holds the address of anybody an admin shut out; broadcasts.js draws the same line.
@@ -168,22 +170,19 @@ async function mailOut(request, env, m, { once, mark, recipients, kind }) {
       console.error(e);           // one dead mailbox must not silence the rest of the family
     }
   }
-  await env.DB.batch([
-    q[mark](env.DB, m[1], now),
-    historyStmt(env.DB, {
-      actor: account.id, action: `gathering_${kind === "nudge" ? "nudged" : "announced"}`,
-      targetType: "gathering", targetId: m[1], details: { sent },
-      ipHash: await hashIp(env, clientIp(request), now),
-    }, now),
-  ]);
+  await historyStmt(env.DB, {
+    actor: account.id, action: `gathering_${kind === "nudge" ? "nudged" : "announced"}`,
+    targetType: "gathering", targetId: m[1], details: { sent },
+    ipHash: await hashIp(env, clientIp(request), now),
+  }, now).run();
   return json({ sent });
 }
 
 const announce = (request, env, ctx, m) => mailOut(request, env, m,
-  { once: "announced_at", mark: "markAnnounced", kind: "announce", recipients: (env) => q.livingWithEmail(env.DB) });
+  { mark: "markAnnounced", kind: "announce", recipients: (env) => q.livingWithEmail(env.DB) });
 
 const nudge = (request, env, ctx, m) => mailOut(request, env, m,
-  { once: "nudged_at", mark: "markNudged", kind: "nudge", recipients: (env, g) => q.unansweredWithEmail(env.DB, g.id) });
+  { mark: "markNudged", kind: "nudge", recipients: (env, g) => q.unansweredWithEmail(env.DB, g.id) });
 
 async function ownRsvp(request, env, ctx, m) {
   const { account } = await requireSession(request, env);

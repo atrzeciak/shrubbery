@@ -281,6 +281,17 @@ describe("telling the family about it", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("announces once even when two presses arrive together: the second is refused before any mail", async () => {
+    await reachable();
+    const adm = await admin();
+    const id = await makeGathering(adm);
+    sent.length = 0;
+    const press = () => adm.json(`/api/admin/gatherings/${id}/announce`, { method: "POST", body: {} });
+    const statuses = (await Promise.all([press(), press()])).map((r) => r.status).sort();
+    expect(statuses).toEqual([200, 409]);
+    expect(sent.map((m) => m.to).sort()).toEqual(["me@x.org", "ola@x.org"]);
+  });
+
   it("will not announce a cancelled gathering, and only an admin may announce", async () => {
     await reachable();
     const adm = await admin();
