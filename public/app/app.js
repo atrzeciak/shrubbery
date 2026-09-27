@@ -258,8 +258,14 @@ onStepUp(async () => {
 });
 
 (async () => {
-  await initI18n(null);
-  await refreshMe();
+  try {
+    await initI18n(null);
+    await refreshMe();
+  } catch (e) {
+    // Without this the reader is left with a header and nothing under it, and no reason why.
+    main.append(h("p", { class: "error", text: errorText(e) }));
+    return;
+  }
   document.title = t("app.title");
   render();
   await checkVersion();

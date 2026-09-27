@@ -43,6 +43,11 @@ beforeEach(() => {
 afterEach(() => { fresh(); vi.restoreAllMocks(); });
 
 describe("boot", () => {
+  it("says what went wrong when the first request fails, rather than leaving a blank page", async () => {
+    await boot({ routes: { "GET /api/me": { status: 500, body: { error: "internal" } } } });
+    expect(q("#main .error").textContent).toBe(pl["error.internal"]);
+  });
+
   it("signs a visitor out to the login page and hides the chrome", async () => {
     await boot({ me: null, path: "/app/members" });
     expect(location.pathname).toBe("/app/login");
