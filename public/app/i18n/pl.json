@@ -342,6 +342,7 @@
   "error.last_passkey": "Administrator musi mieć co najmniej jeden klucz dostępu.",
   "error.conflict": "To już istnieje albo nie da się tego zrobić dla własnego konta.",
   "error.internal": "Coś poszło nie tak. Spróbuj ponownie.",
+  "error.mail_failed": "Zaproszenie jest zapisane, ale e-mail nie wyszedł. Wyślij je ponownie z listy zaproszeń.",
   "error.network": "Brak połączenia.",
   "nav.gathering": "Spotkanie",
   "gathering.title": "Spotkanie rodzinne",

@@ -342,6 +342,7 @@
   "error.last_passkey": "An admin must keep at least one passkey.",
   "error.conflict": "This already exists, or cannot be done to your own account.",
   "error.internal": "Something went wrong. Please try again.",
+  "error.mail_failed": "The invitation is saved, but the mail did not go out. Send it again from the list of invitations.",
   "error.network": "No connection.",
   "nav.gathering": "Gathering",
   "gathering.title": "Family gathering",

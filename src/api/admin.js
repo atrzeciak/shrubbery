@@ -46,7 +46,13 @@ async function createInvitation(request, env) {
     q.insertInvitation(env.DB, { id, email, lang, invitedBy: account.id, createdAt: now, expiresAt: now + INVITE_TTL, attachmentMediaId }),
     await adminHistory(request, env, account, "invite_sent", "invitation", id, { email }, now),
   ]);
-  await sendInvitation(env, email, lang, await accountIdentity(env, account.id), await adminEmails(env), attachment);
+  // The invitation stands either way; the admin is told the mail did not go, so Resend is the next step.
+  try {
+    await sendInvitation(env, email, lang, await accountIdentity(env, account.id), await adminEmails(env), attachment);
+  } catch (e) {
+    console.error(e);
+    throw new ApiError(502, "mail_failed");
+  }
   return json({ id }, 201);
 }
 

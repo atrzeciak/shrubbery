@@ -211,6 +211,18 @@ describe("admin review", () => {
     expect((await env.DB.prepare("SELECT status, note FROM join_requests WHERE id = ?").bind(id2).first())).toEqual({ status: "rejected", note: "unknown" });
   });
 
+  it("approving says the mail failed when it did, rather than answering 500", async () => {
+    const { c } = await adminWithFreshPasskey();
+    await pending();
+    const id = (await c.json("/api/admin/join-requests")).body.requests[0].id;
+    const send = env.EMAIL.send;
+    env.EMAIL.send = async () => { throw new Error("provider down"); };
+    const ap = await c.json(`/api/admin/join-requests/${id}/approve`, { method: "POST", body: { create: true } });
+    env.EMAIL.send = send;
+    expect(ap.status).toBe(502);
+    expect(ap.body).toEqual({ error: "mail_failed" });
+  });
+
   it("a person an approved request created can still be deleted, and the invitation then links nobody", async () => {
     const { c } = await adminWithFreshPasskey();
     await pending();

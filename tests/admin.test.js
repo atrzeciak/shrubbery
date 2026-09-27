@@ -42,6 +42,19 @@ describe("authorization", () => {
 });
 
 describe("invitations", () => {
+  it("says the mail failed when it did, and the invitation waits for a resend", async () => {
+    const { c } = await adminWithFreshPasskey();
+    const send = env.EMAIL.send;
+    env.EMAIL.send = async () => { throw new Error("provider down"); };
+    const inv = await c.json("/api/admin/invitations", { method: "POST", body: { email: "new@x.org", lang: "pl" } });
+    env.EMAIL.send = send;
+    expect(inv.status).toBe(502);
+    expect(inv.body).toEqual({ error: "mail_failed" });
+    const { invitations } = (await c.json("/api/admin/invitations")).body;
+    const row = invitations.find((i) => i.email === "new@x.org");
+    expect((await c.json(`/api/admin/invitations/${row.id}/resend`, { method: "POST", body: {} })).status).toBe(200);
+  });
+
   it("invite → mail sent → duplicate refused → resend → revoke, all in history", async () => {
     const { c } = await adminWithFreshPasskey();
     sent.length = 0;

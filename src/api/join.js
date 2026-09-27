@@ -152,7 +152,12 @@ async function approve(request, env, ctx, m) {
     await joinHistory(request, env, "join_approved", r.id, { name: `${r.first_name} ${r.last_name}`, person_id: personId }, now, account.id),
   );
   await env.DB.batch(stmts);
-  await sendInvitation(env, r.email, r.lang, await accountIdentity(env, account.id), await adminEmails(env));
+  try {
+    await sendInvitation(env, r.email, r.lang, await accountIdentity(env, account.id), await adminEmails(env));
+  } catch (e) {
+    console.error(e);
+    throw new ApiError(502, "mail_failed");     // approved and invited; only the mail needs a Resend
+  }
   return json({ person_id: personId });
 }
 
