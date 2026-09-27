@@ -6,7 +6,7 @@ import { upcoming, today as dayIn, plural } from "../events.js";
 
 export function sentence(item) {
   const d = item.details || {};
-  const vars = { actor: item.actor_email ? (item.actor_name ? `${item.actor_email} (${item.actor_name})` : item.actor_email) : "—", email: d.email || item.target_id || "", role: d.role || "", lang: d.lang || "", action: item.action, name: d.name || "", other: d.other_name || "" };
+  const vars = { actor: item.actor_email ? (item.actor_name ? `${item.actor_email} (${item.actor_name})` : item.actor_email) : "—", email: d.email || item.target_id || "", role: d.role || "", lang: d.lang || "", action: item.action, name: d.name || "", other: d.other_name || "", date: d.on_date || "" };
   const key = `news.${item.action}`;
   const s = t(key, vars);
   return s === key ? t("news.other", vars) : s;
@@ -16,7 +16,7 @@ export function sentence(item) {
 // person's tree page (falling back to plain text when there is nothing to link to).
 export function sentenceNodes(item) {
   const d = item.details || {};
-  const vars = { email: d.email || item.target_id || "", role: d.role || "", lang: d.lang || "", action: item.action, other: d.other_name || "" };
+  const vars = { email: d.email || item.target_id || "", role: d.role || "", lang: d.lang || "", action: item.action, other: d.other_name || "", date: d.on_date || "" };
   const key = `news.${item.action}`;
   let s = t(key, vars);
   if (s === key) s = t("news.other", vars);

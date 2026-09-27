@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, sentence, sentenceNodes } from "../../public/app/views/news.js";
 import { mockApi, lang, viewCtx, meFixture, tick, q, qa } from "./helpers.js";
+import { h } from "../../public/app/dom.js";
 
 // Fixed clock: 15 June 2026, so Anna's birthday is today and Jan's anniversary is in five days.
 const NOW = Date.parse("2026-06-15T12:00:00Z");
@@ -34,6 +35,16 @@ beforeEach(async () => { await lang("pl"); vi.useFakeTimers({ toFake: ["Date"], 
 afterEach(() => vi.useRealTimers());
 
 describe("sentence", () => {
+  it("names the gathering's date instead of leaving {date} in the sentence", () => {
+    for (const action of ["gathering_created", "gathering_deleted"]) {
+      const item = { action, actor_email: "a@x.org", actor_name: "Anna", details: { on_date: "2027-06-12" } };
+      expect(sentence(item), action).toContain("2027-06-12");
+      expect(sentence(item), action).not.toContain("{date}");
+      const text = h("p", {}, ...sentenceNodes(item)).textContent;
+      expect(text, action).toContain("2027-06-12");
+      expect(text, action).not.toContain("{date}");
+    }
+  });
   it("names the actor by address and name, and falls back to a generic line for an unknown action", () => {
     expect(sentence({ action: "login", actor_email: "a@x.org", actor_name: "Anna", details: {} })).toBe("a@x.org (Anna) zalogował(a) się");
     expect(sentence({ action: "login", actor_email: "a@x.org" })).toBe("a@x.org zalogował(a) się");
