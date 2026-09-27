@@ -93,8 +93,8 @@ scrub-check:  ## Look for real names and addresses in what would actually be pub
 	@echo "== files that would be published =="
 	@git ls-files $(PUBLIC_PATHS) | wc -l | xargs printf '  %s files\n'
 	@echo "== real e-mail addresses =="
-	@git grep -nI -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.(com|pl|eu|org|net)" -- $(PUBLIC_PATHS) \
-		| grep -viE "@([a-z0-9.-]+\.)?(x\.org|example\.(org|com|net))" || echo "  none"
+	@git grep -nI -E "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" -- $(PUBLIC_PATHS) \
+		| grep -viE "@([a-z0-9.-]+\.)?(x\.org|y\.org|example\.(org|com|net))" || echo "  none"
 	@echo "== names from .scrub-names (git-ignored) =="
 	@test -s .scrub-names && (git grep -nI -f .scrub-names -- $(PUBLIC_PATHS) ":(exclude)LICENSE" \
 		| grep -v "github\.com/[^/]*/[^/ )\"]*" || echo "  none (LICENSE names the copyright holder, and the repository's own URL names the account)") \
