@@ -136,7 +136,9 @@ browser first; an older cookie gets a 401 and no file.
 Three things watch it, deliberately from different places:
 
 1. **The site watches itself** nightly and shows what it finds at the top of the admin's view.
-2. **A monthly letter** to every admin on the first. Its *absence* is the signal.
+2. **A monthly letter** to every admin on the first. Its *absence* is the signal. Keep two admins,
+   with mail at two different providers: a letter that only one mailbox receives cannot be missed by
+   anybody else, and one provider's outage or spam filter silences every copy it holds.
 3. **A GitHub Actions watchdog** from outside Cloudflare, since nothing inside Cloudflare can report
    that Cloudflare stopped. A failed scheduled run mails whoever last edited the cron line — if that
    is not the right person, edit that line so it is. GitHub switches a scheduled workflow off after
