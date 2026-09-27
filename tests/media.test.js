@@ -66,14 +66,14 @@ describe("upload", () => {
     expect((await q.countOwnedMedia(env.DB, "p_me").first()).n).toBe(6);
   });
 
-  it("photo validation: oversized pixels/bytes and PDFs rejected; documents accept pdf and jpeg scans", async () => {
+  it("photo validation: oversized pixels/bytes and PDFs rejected; documents are PDFs only", async () => {
     const c = await linkedMember();
     expect((await upload(c, "kind=photo&owner=p_me", fakeJpeg(2049, 10))).status).toBe(400);
     expect((await upload(c, "kind=photo&owner=p_me", fakeJpeg(10, 10, 2_097_152))).status).toBe(400);    // one byte-cap over
     expect((await upload(c, "kind=document&owner=p_me", pdfBytes(10_485_760), "application/pdf")).status).toBe(400);
     expect((await upload(c, "kind=photo&owner=p_me", pdfBytes(), "application/pdf")).status).toBe(400);
     expect((await upload(c, "kind=document&owner=p_me", pdfBytes(), "application/pdf")).status).toBe(201);
-    expect((await upload(c, "kind=document&owner=p_me", fakeJpeg(4000, 3000))).status).toBe(201);
+    expect((await upload(c, "kind=document&owner=p_me", fakeJpeg(4000, 3000))).status).toBe(400);
     expect((await upload(c, "kind=document&owner=p_me", new Uint8Array([1, 2, 3]), "application/pdf")).status).toBe(400);
   });
 });

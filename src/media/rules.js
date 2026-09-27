@@ -18,11 +18,10 @@ export function checkPhoto(u8) {
   return "image/jpeg";
 }
 
-// Documents keep archive fidelity: PDFs as-is, JPEG scans at any dimensions within the byte cap.
+// Documents keep archive fidelity: PDFs as-is. The app sends every image as a photo.
 export function checkDocument(u8, contentType) {
   if (u8.length === 0 || u8.length > DOC_MAX_BYTES) bad();
   if (/^application\/pdf\b/.test(contentType || "") && isPdf(u8)) return "application/pdf";
-  if (/^image\/jpeg\b/.test(contentType || "") && jpegSize(u8)) return "image/jpeg";
   bad();
 }
 

@@ -18,9 +18,9 @@ describe("rules", () => {
     expect(() => checkPhoto(pdf())).toThrow(ApiError);
     expect(() => checkPhoto(new Uint8Array(0))).toThrow(ApiError);
   });
-  it("checkDocument accepts pdf and jpeg, rejects others", () => {
+  it("checkDocument accepts a pdf and nothing else, a jpeg scan included", () => {
     expect(checkDocument(pdf(), "application/pdf")).toBe("application/pdf");
-    expect(checkDocument(fakeJpeg(4000, 4000), "image/jpeg")).toBe("image/jpeg");   // scans may exceed 2048 px
+    expect(() => checkDocument(fakeJpeg(4000, 4000), "image/jpeg")).toThrow(ApiError);
     expect(() => checkDocument(new Uint8Array([1, 2, 3, 4, 5]), "application/pdf")).toThrow(ApiError);
     expect(() => checkDocument(pdf(), "text/html")).toThrow(ApiError);
   });
