@@ -2,7 +2,7 @@ import * as q from "../db/queries.js";
 import { json, nowSec, randomB64url } from "../util.js";
 import { checkDocument, checkPhoto, cleanCaption, cleanYear, DOC_MAX_BYTES, MEDIA_CAP, PHOTO_MAX_BYTES, THUMB_MAX_BYTES } from "../media/rules.js";
 import { jpegSize } from "../people/jpeg.js";
-import { ApiError, canCurate, readBody, readJson, requireSession } from "./common.js";
+import { ApiError, found, canCurate, readBody, readJson, requireSession } from "./common.js";
 import { personHistory } from "./people.js";
 
 export const keyFor = (m) => `media/${m.id}.${m.content_type === "application/pdf" ? "pdf" : "jpg"}`;
@@ -11,9 +11,7 @@ export const canTouch = (account, media) =>
   account.role === "admin" || media.uploaded_by === account.id || (Boolean(account.person_id) && media.owner_person_id === account.person_id);
 
 async function mediaOr404(env, id) {
-  const m = await q.mediaById(env.DB, id).first();
-  if (!m) throw new ApiError(404, "not_found");
-  return m;
+  return found(await q.mediaById(env.DB, id).first());
 }
 
 // Owner must exist and — for non-admins — be the caller's own person, with no tags.
@@ -118,8 +116,7 @@ async function patchMedia(request, env, ctx, m) {
   let ownerId = media.owner_person_id;
   const stmts = [];
   if ("owner_person_id" in body) {
-    const owner = await q.personById(env.DB, String(body.owner_person_id || "")).first();
-    if (!owner) throw new ApiError(404, "not_found");
+    const owner = found(await q.personById(env.DB, String(body.owner_person_id || "")).first());
     if (owner.id !== media.owner_person_id) {
       const { n } = await q.countOwnedMedia(env.DB, owner.id).first();
       if (n >= MEDIA_CAP) return json({ error: "conflict", person: owner.display_name }, 409);

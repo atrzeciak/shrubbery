@@ -1,7 +1,7 @@
 import * as q from "../db/queries.js";
 import { isDate } from "../people/fields.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
-import { ApiError, INVITE_TTL, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
+import { ApiError, found, INVITE_TTL, accountIdentity, normEmail, readJson, requireRole, requireSession, siteTz } from "./common.js";
 import { hashIp, historyStmt } from "../history.js";
 import { today as dayIn } from "../../public/app/events.js";
 import { sendGatheringMail } from "../mail.js";
@@ -69,8 +69,7 @@ async function createGathering(request, env) {
 
 async function patchGathering(request, env, ctx, m) {
   const { account } = await adminCtx(request, env);
-  const gathering = await q.gatheringById(env.DB, m[1]).first();
-  if (!gathering) throw new ApiError(404, "not_found");
+  const gathering = found(await q.gatheringById(env.DB, m[1]).first());
   const body = await readJson(request);
   if ("on_date" in body && !isDay(body.on_date)) throw new ApiError(400, "bad_request");
   const cancelledAt = "cancelled" in body
@@ -107,8 +106,7 @@ function readAnswer(body) {
 }
 
 async function answerFor(request, env, gatheringId, personId, account) {
-  const gathering = await q.gatheringById(env.DB, gatheringId).first();
-  if (!gathering) throw new ApiError(404, "not_found");
+  const gathering = found(await q.gatheringById(env.DB, gatheringId).first());
   if (gathering.cancelled_at) throw new ApiError(409, "cancelled");
   const person = await q.personById(env.DB, personId).first();
   if (!person || person.deceased) throw new ApiError(404, "not_found");
@@ -130,8 +128,7 @@ async function answerFor(request, env, gatheringId, personId, account) {
 // rows are left alone either way: the gathering goes, the record of who arranged it does not.
 async function deleteGathering(request, env, ctx, m) {
   const { account } = await adminCtx(request, env);
-  const gathering = await q.gatheringById(env.DB, m[1]).first();
-  if (!gathering) throw new ApiError(404, "not_found");
+  const gathering = found(await q.gatheringById(env.DB, m[1]).first());
   const now = nowSec();
   await env.DB.batch([
     q.deleteRsvpsFor(env.DB, m[1]),
@@ -149,8 +146,7 @@ async function deleteGathering(request, env, ctx, m) {
 // exactly once and records that it did.
 async function mailOut(request, env, m, { mark, recipients, kind }) {
   const { account } = await adminCtx(request, env);
-  const gathering = await q.gatheringById(env.DB, m[1]).first();
-  if (!gathering) throw new ApiError(404, "not_found");
+  const gathering = found(await q.gatheringById(env.DB, m[1]).first());
   if (gathering.cancelled_at) throw new ApiError(409, "cancelled");
   const now = nowSec();
   // Claimed before the first mail, not marked after the last: a second press, tab or admin that

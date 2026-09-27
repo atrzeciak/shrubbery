@@ -2,19 +2,13 @@ import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { cleanPersonInput, displayNameOf, PARTNER_KINDS } from "../people/fields.js";
-import { ApiError, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
-import { personHistory, savePersonPatch, storeAvatar } from "./people.js";
+import { ApiError, found, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { personHistory, personOr404, savePersonPatch, storeAvatar } from "./people.js";
 
 async function admin(request, env, write) {
   const ctx = await requireSession(request, env);
   if (write) requireAdmin(ctx); else requireRole(ctx, "admin");
   return ctx;
-}
-
-async function personOr404(env, id) {
-  const p = await q.personById(env.DB, id).first();
-  if (!p) throw new ApiError(404, "not_found");
-  return p;
 }
 
 async function createPerson(request, env) {
@@ -150,8 +144,7 @@ async function removePartner(request, env, ctx, m) {
 async function linkAccount(request, env, ctx, m) {
   const { account } = await admin(request, env, true);
   const body = await readJson(request);
-  const target = await q.accountById(env.DB, m[1]).first();
-  if (!target) throw new ApiError(404, "not_found");
+  const target = found(await q.accountById(env.DB, m[1]).first());
   const person = await personOr404(env, String(body.person_id || ""));
   if (target.person_id) throw new ApiError(409, "conflict");
   if (await q.accountByPerson(env.DB, person.id).first()) throw new ApiError(409, "conflict");
@@ -166,8 +159,7 @@ async function linkAccount(request, env, ctx, m) {
 
 async function unlinkAccount(request, env, ctx, m) {
   const { account } = await admin(request, env, true);
-  const target = await q.accountById(env.DB, m[1]).first();
-  if (!target) throw new ApiError(404, "not_found");
+  const target = found(await q.accountById(env.DB, m[1]).first());
   if (!target.person_id) throw new ApiError(404, "not_found");
   const now = nowSec();
   await env.DB.batch([

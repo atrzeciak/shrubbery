@@ -2,7 +2,7 @@ import * as q from "../db/queries.js";
 import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { sendAdminGranted, sendInvitation } from "../mail.js";
-import { ApiError, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, found, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
 import { ATTACHMENT_MAX_BYTES, documentAttachment } from "./attachment.js";
 
 const PAGE = 50;
@@ -96,8 +96,7 @@ async function patchAccount(request, env, ctx, m) {
   if (wantsRole && body.role !== "admin" && body.role !== "family") throw new ApiError(400, "bad_request");
   if (wantsProtection && body.protected !== 0 && body.protected !== 1) throw new ApiError(400, "bad_request");
   if (m[1] === account.id) throw new ApiError(409, "conflict");
-  const target = await q.accountById(env.DB, m[1]).first();
-  if (!target) throw new ApiError(404, "not_found");
+  const target = found(await q.accountById(env.DB, m[1]).first());
   // The founder's own standing is fixed; a protected admin, and the protection flag itself,
   // answer to the founder alone — otherwise two admins could demote each other in turn.
   if (target.founder) throw new ApiError(403, "forbidden");
@@ -127,8 +126,7 @@ async function patchAccount(request, env, ctx, m) {
 async function disableAccount(request, env, ctx, m) {
   const { account } = await admin(request, env, true);
   if (m[1] === account.id) throw new ApiError(409, "conflict");
-  const target = await q.accountById(env.DB, m[1]).first();
-  if (!target) throw new ApiError(404, "not_found");
+  const target = found(await q.accountById(env.DB, m[1]).first());
   if (target.founder) throw new ApiError(403, "forbidden");                                  // demotion by another name
   if (target.protected && !account.founder) throw new ApiError(403, "forbidden");            // and so is this
   const now = nowSec();
@@ -142,8 +140,7 @@ async function disableAccount(request, env, ctx, m) {
 
 async function enableAccount(request, env, ctx, m) {
   const { account } = await admin(request, env, true);
-  const target = await q.accountById(env.DB, m[1]).first();
-  if (!target) throw new ApiError(404, "not_found");
+  const target = found(await q.accountById(env.DB, m[1]).first());
   const now = nowSec();
   await env.DB.batch([
     q.enableAccount(env.DB, target.id),
@@ -154,8 +151,7 @@ async function enableAccount(request, env, ctx, m) {
 
 async function revokeAccountSessions(request, env, ctx, m) {
   const { account } = await admin(request, env, true);
-  const target = await q.accountById(env.DB, m[1]).first();
-  if (!target) throw new ApiError(404, "not_found");
+  const target = found(await q.accountById(env.DB, m[1]).first());
   const now = nowSec();
   await env.DB.batch([
     q.revokeSessionsByAccount(env.DB, target.id, now),

@@ -3,7 +3,7 @@ import { clientIp, json, nowSec, randomB64url } from "../util.js";
 import { hashIp, historyStmt } from "../history.js";
 import { cleanPersonInput, displayNameOf } from "../people/fields.js";
 import { jpegSize } from "../people/jpeg.js";
-import { ApiError, canCurate, readBody, readJson, requireSession } from "./common.js";
+import { ApiError, found, canCurate, readBody, readJson, requireSession } from "./common.js";
 
 export const AVATAR_MAX_BYTES = 204800;
 export const AVATAR_MAX_SIDE = 512;
@@ -13,11 +13,7 @@ export async function personHistory(request, env, actorId, action, personId, det
 }
 
 
-async function personOr404(env, id) {
-  const p = await q.personById(env.DB, id).first();
-  if (!p) throw new ApiError(404, "not_found");
-  return p;
-}
+export const personOr404 = async (env, id) => found(await q.personById(env.DB, id).first());
 
 async function personWithLinks(env, id) {
   const person = await personOr404(env, id);
@@ -73,12 +69,10 @@ async function getAvatar(request, env, ctx, m) {
   // A revalidation is answered from the timestamp: the JPEG, up to 200 KiB, is read only when it is sent.
   const ifNoneMatch = request.headers.get("if-none-match");
   if (ifNoneMatch) {
-    const stamp = await q.avatarStamp(env.DB, m[1]).first();
-    if (!stamp) throw new ApiError(404, "not_found");
+    const stamp = found(await q.avatarStamp(env.DB, m[1]).first());
     if (ifNoneMatch === `"${stamp.updated_at}"`) return new Response(null, { status: 304, headers: headersFor(stamp.updated_at) });
   }
-  const row = await q.avatarByPerson(env.DB, m[1]).first();
-  if (!row) throw new ApiError(404, "not_found");
+  const row = found(await q.avatarByPerson(env.DB, m[1]).first());
   return new Response(blobBytes(row.jpeg), { status: 200, headers: { ...headersFor(row.updated_at), "content-type": "image/jpeg" } });
 }
 

@@ -5,7 +5,7 @@ import { allow } from "../auth/ratelimit.js";
 import { prepareCode, verifyCode } from "../auth/codes.js";
 import { sendCode, sendInvitation, sendJoinNotice } from "../mail.js";
 import { isDate, yearOf } from "../people/fields.js";
-import { ApiError, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
+import { ApiError, found, EMAIL_RE, accountIdentity, INVITE_TTL, adminEmails, normEmail, readJson, requireAdmin, requireRole, requireSession } from "./common.js";
 import { personHistory } from "./people.js";
 
 const NONCE_COOKIE = "join_nonce", NONCE_TTL = 3600;
@@ -147,8 +147,7 @@ async function approve(request, env, ctx, m) {
     stmts.push(q.insertPerson(env.DB, { id: personId, first_name: r.first_name, last_name: r.last_name, maiden_name: null, nickname: null, sex: null, display_name: `${r.first_name} ${r.last_name}`, birth_date: r.birth_date, birth_place: null, death_date: null, death_place: null, deceased: 0, email: r.email, phone: null, residence: null, notes, unverified: 1, created_at: now, updated_at: now, updated_by: account.id }));
     stmts.push(await personHistory(request, env, account.id, "person_created", personId, { name: `${r.first_name} ${r.last_name}`, from_join: true }, now));
   } else {
-    const p = await q.personById(env.DB, String(body.person_id || "")).first();
-    if (!p) throw new ApiError(404, "not_found");
+    const p = found(await q.personById(env.DB, String(body.person_id || "")).first());
     if (await q.accountByPerson(env.DB, p.id).first()) throw new ApiError(409, "conflict");
     personId = p.id;
   }
