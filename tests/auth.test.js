@@ -191,6 +191,18 @@ describe("code step", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("a guess with no code behind it writes nothing to history, whatever its size", async () => {
+    const c = new Client(env);
+    await c.json("/api/auth/email", { method: "POST", body: { email: "a@x.org" } });
+    const long = await c.json("/api/auth/code", { method: "POST", body: { email: `${"a".repeat(300)}@x.org`, code: "000000" } });
+    expect(long.status).toBe(400);
+    expect(long.body).toEqual({ error: "bad_request" });
+    const none = await c.json("/api/auth/code", { method: "POST", body: { email: "nobody@x.org", code: "000000" } });
+    expect(none.status).toBe(400);
+    expect(none.body).toEqual({ error: "expired" });
+    expect((await q.listHistory(env.DB, { beforeId: null, limit: 10, actions: null, accountId: null }).all()).results).toEqual([]);
+  });
+
   it("logout revokes the session and clears the cookie", async () => {
     await seedAccount(env, { id: "a1", email: "a@x.org" });
     const c = new Client(env);

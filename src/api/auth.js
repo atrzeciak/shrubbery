@@ -101,12 +101,13 @@ async function postCode(request, env) {
   const email = normEmail(body.email);
   const code = String(body.code || "").trim();
   const nonce = readCookie(request, NONCE_COOKIE);
-  if (!nonce || !/^\d{6}$/.test(code) || !EMAIL_RE.test(email)) throw new ApiError(400, "bad_request");
+  if (!nonce || !/^\d{6}$/.test(code) || !EMAIL_RE.test(email) || email.length > 254) throw new ApiError(400, "bad_request");
   const db = env.DB, now = nowSec(), ip = clientIp(request);
   const ipHash = await hashIp(env, ip, now);
   const v = await verifyCode(db, { email, nonce: `login:${nonce}`, code }, now);
   if (!v.ok) {
-    await historyStmt(db, { actor: null, action: "login_failed", targetType: "email", targetId: email, details: { reason: v.error }, ipHash }).run();
+    // Only a guess that spent an attempt is recorded, so the rows stay bounded by the code limit.
+    if (v.error === "invalid_code") await historyStmt(db, { actor: null, action: "login_failed", targetType: "email", targetId: email, details: { reason: v.error }, ipHash }).run();
     throw new ApiError(400, v.error);
   }
   // markCodeUsed runs alone first, before anything else: the code is single-use, and a
