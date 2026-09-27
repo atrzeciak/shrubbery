@@ -281,6 +281,17 @@ describe("telling the family about it", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("writes once to an address that several relatives share", async () => {
+    await reachable();
+    await env.DB.prepare("UPDATE people SET email = 'OLA@x.org' WHERE id = 'p_zosia'").run();   // same mailbox, other case
+    const adm = await admin();
+    const id = await makeGathering(adm);
+    sent.length = 0;
+    const r = await adm.json(`/api/admin/gatherings/${id}/announce`, { method: "POST", body: {} });
+    expect(sent.map((m) => m.to.toLowerCase()).sort()).toEqual(["me@x.org", "ola@x.org"]);
+    expect(r.body.sent).toBe(2);
+  });
+
   it("announces once even when two presses arrive together: the second is refused before any mail", async () => {
     await reachable();
     const adm = await admin();

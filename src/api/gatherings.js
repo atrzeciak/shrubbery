@@ -151,10 +151,12 @@ async function mailOut(request, env, m, { mark, recipients, kind }) {
   const { results } = await recipients(env, gathering).all();
   // The tree still holds the address of anybody an admin shut out; broadcasts.js draws the same line.
   const { results: withdrawn } = await q.withdrawnEmails(env.DB).all();
-  const shut = new Set(withdrawn.map((w) => normEmail(w.email)));
+  // One mail per mailbox: a household often shares one, and the tree records it on each person.
+  const skip = new Set(withdrawn.map((w) => normEmail(w.email)));
   let sent = 0;
   for (const person of results) {
-    if (shut.has(normEmail(person.email))) continue;
+    if (skip.has(normEmail(person.email))) continue;
+    skip.add(normEmail(person.email));
     try {
       // An address with no account is a relative who cannot answer: carry them in with the mail.
       if (!(await q.accountByEmail(env.DB, person.email).first())
