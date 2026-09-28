@@ -89,7 +89,6 @@ Because the real configuration is not in the repository, CI needs:
 | ---- | ---- | ----- |
 | Secret | `WRANGLER_TOML` | The entire contents of your `wrangler.toml` |
 | Secret | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Deploy credentials |
-| Secret | `D1_DATABASE` | Database name, for the migration step |
 | Secret | `SITE_URL`, `SITE_NAME` | For the watchdog workflow |
 
 All of them are secrets, not variables: on a public repository the Actions logs are public, and
