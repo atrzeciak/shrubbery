@@ -43,6 +43,10 @@ jobs:
     # A manual run deploys too: recovering this site must never require inventing a commit.
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    env:
+      # wrangler prints the database id, every variable and the zone, and GitHub masks a value only
+      # where it equals a whole secret; these logs are public. Everything else, errors too, passes.
+      REDACT: 's/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/<id>/g; /^env\./d; /\(zone name: /d'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
         with:
@@ -61,7 +65,9 @@ jobs:
           WRANGLER_TOML: ${{ secrets.WRANGLER_TOML }}
       # The lockfile's wrangler, run directly: no third-party action ever holds the API token.
       - name: Apply D1 migrations
-        run: npx wrangler d1 migrations apply "$D1_DATABASE" --remote
+        run: |
+          set -o pipefail
+          npx wrangler d1 migrations apply "$D1_DATABASE" --remote 2>&1 | sed -E "$REDACT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -74,7 +80,9 @@ jobs:
           version="$(git describe --tags 2>/dev/null || date -u +%Y%m%d.%H%M)"
           printf '{"version":"%s","at":%s}\n' "$version" "$(date -u +%s)" > public/app/version.json
       - name: Deploy Worker
-        run: npx wrangler deploy
+        run: |
+          set -o pipefail
+          npx wrangler deploy 2>&1 | sed -E "$REDACT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

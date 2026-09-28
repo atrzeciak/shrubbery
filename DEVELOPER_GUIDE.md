@@ -93,7 +93,9 @@ Because the real configuration is not in the repository, CI needs:
 | Secret | `SITE_URL`, `SITE_NAME` | For the watchdog workflow |
 
 All of them are secrets, not variables: on a public repository the Actions logs are public, and
-GitHub masks secrets in them but does not mask variables.
+GitHub masks secrets in them but does not mask variables. It masks a secret only where the whole
+value reappears, though, and wrangler prints every `[vars]` entry, the database id and the zone one
+by one, so the deploy job passes wrangler's output through a filter (`REDACT` in `deploy.yml`).
 
 On a public repository, also turn on **private vulnerability reporting** — Settings → Advanced
 Security. `SECURITY.md` and the issue templates send reporters to it, and those links go nowhere
