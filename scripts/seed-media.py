@@ -76,7 +76,7 @@ def dok_owners(markdown: str) -> dict[int, str]:
 
 
 def deceased_by_person(people_csv: Path) -> dict[str, int] | None:
-    """Load `id -> deceased` from SP2's people.csv, or None if it hasn't been generated yet."""
+    """Load `id -> deceased` from the people.csv `seed-people.py --csv` writes, or None if it hasn't been generated yet."""
     if not people_csv.exists():
         return None
     with people_csv.open(newline="", encoding="utf-8") as f:

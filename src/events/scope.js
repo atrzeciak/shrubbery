@@ -1,7 +1,7 @@
 const add = (m, k, v) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(v); };
 const get = (m, k) => m.get(k) || new Set();
 
-// Answers "may recipient R be e-mailed about person P's event?" per the SP4 spec scopes.
+// Answers "may recipient R be e-mailed about person P's event?"; the rules are in ARCHITECTURE §5.
 export function buildScope(parentRows, partnerRows) {
   const parentsOf = new Map(), childrenOf = new Map(), partnersOf = new Map();
   for (const e of parentRows) { add(parentsOf, e.child_id, e.parent_id); add(childrenOf, e.parent_id, e.child_id); }

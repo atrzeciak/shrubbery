@@ -130,6 +130,11 @@ Both mail passes guard against a cron that fires twice by reading the history ro
 write, keyed by day — the site's day, resolved through `SITE_TZ`, not the trigger's UTC one. Each
 row is written straight after its mail, so a run that died partway, or one that follows another,
 mails nobody twice; two runs at the very same moment could still both send a mail that is in flight.
+
+Who hears about a person's date (`buildScope` in `src/events/scope.js`): their parents, children,
+siblings and partners; for a death anniversary also their grandchildren, and the children and
+grandchildren of their partners. A divorced partner counts as neither, and nobody is mailed about
+their own date. Only accounts with reminders on, not disabled and linked to a person are mailed.
 The monthly letter from `runOps` goes only on the first run of the 1st: a later run that day finds
 `ops_status.checked_at` already on it.
 

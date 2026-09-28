@@ -192,7 +192,7 @@ export const listNotifyAccounts = (db) =>
   db.prepare("SELECT id, email, lang, person_id FROM accounts WHERE notify_events = 1 AND disabled_at IS NULL AND person_id IS NOT NULL");
 export const setNewsSeenAt = (db, id, at) => db.prepare("UPDATE accounts SET news_seen_at = ? WHERE id = ?").bind(at, id);
 
-// media (SP3): owner fills a cap slot; media_people rows are tags — pure pointers.
+// media: owner fills a cap slot; media_people rows are tags — pure pointers.
 // The cap is enforced by the insert, not by a count taken beforehand: two uploads arriving together
 // would both read the same count and both go through. meta.changes === 0 means the cap refused it.
 export const insertMedia = (db, m) =>
