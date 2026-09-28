@@ -308,8 +308,9 @@ export function familyLayout(g) {
     return () => moved.forEach((id) => col.set(id, col.get(id) - k));
   };
   // Cells over somebody whose own parents are still to be seated: taking them sends those parents
-  // far off, so a seat pays for each one it covers.
-  const steals = (start, len, row) => [...col].filter(([id, c]) => gen.get(id) === row + 1 && c >= start - 0.5 && c < start + len - 0.5 && nearest(id).length && nearest(id).every((q) => !col.has(q))).length;
+  // far off, so a seat pays for each one it covers. Collected once per trial; only the span varies.
+  const stealable = (row, chain) => [...col].filter(([id]) => gen.get(id) === row + 1 && nearest(id).length && nearest(id).every((q) => !col.has(q) && !chain.includes(q))).map(([, c]) => c);
+  const steals = (cells, start, len) => cells.filter((c) => c >= start - 0.5 && c < start + len - 0.5).length;
   // A row of people whose children are placed already (an in-law's parents, typically) goes above
   // those children: straight above when nothing is in the way, otherwise at the free spot whose
   // lines cross the fewest others, or in a gap opened for it. A crossing is worth four columns of
@@ -329,9 +330,10 @@ export function familyLayout(g) {
       chain.forEach((m, i) => col.set(m, spots[0].start + i));
       const others = placedUnits().filter((u) => !u.parents.some((p) => chain.includes(p)));
       chain.forEach((m) => col.delete(m));
+      const cells = stealable(row, chain);
       for (const spot of spots) {
         chain.forEach((m, i) => col.set(m, spot.start + i));
-        const cost = addedBy(ownUnits(chain, placedKids), others) + spot.d / 4 + steals(spot.start, chain.length, row) + (k + stretched) / 2;
+        const cost = addedBy(ownUnits(chain, placedKids), others) + spot.d / 4 + steals(cells, spot.start, chain.length) + (k + stretched) / 2;
         chain.forEach((m) => col.delete(m));
         options.push({ ...spot, cut, k, cost });
       }
